@@ -715,15 +715,86 @@
 
         /* Responsive tweaks */
         @media (max-width: 600px) {
+            .header {
+                padding: 0.75rem 1rem;
+            }
             .header-content {
                 flex-direction: column;
                 align-items: flex-start;
+                gap: 0.6rem;
+            }
+            .logo-text h1 {
+                font-size: 1rem;
+            }
+            .logo-icon {
+                width: 42px;
+                height: 42px;
+            }
+            .container {
+                padding: 0.85rem;
             }
             .form-row {
                 grid-template-columns: 1fr;
             }
             .stats-grid {
                 grid-template-columns: 1fr 1fr;
+                gap: 0.6rem;
+            }
+            .stat-card .value {
+                font-size: 1.2rem;
+            }
+            .btn {
+                padding: 0.7rem 1rem;
+                font-size: 0.95rem;
+                min-height: 44px;
+            }
+            .btn-sm {
+                padding: 0.5rem 0.75rem;
+                min-height: 40px;
+            }
+            .card-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.6rem;
+            }
+            .card-header > div {
+                width: 100%;
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.4rem;
+            }
+            table {
+                font-size: 0.8rem;
+            }
+            th, td {
+                padding: 0.55rem 0.5rem;
+            }
+            .tabs {
+                flex-wrap: wrap;
+            }
+            .tab-btn {
+                flex: 1 1 40%;
+                font-size: 0.8rem;
+                padding: 0.55rem 0.3rem;
+            }
+            .welcome-card {
+                padding: 1.5rem 1.1rem;
+            }
+            .modal {
+                max-width: 100%;
+                margin: 0.5rem;
+            }
+            .header-actions {
+                width: 100%;
+            }
+            .badge {
+                font-size: 0.75rem;
+            }
+        }
+
+        @media (max-width: 400px) {
+            .stats-grid {
+                grid-template-columns: 1fr;
             }
         }
 
@@ -746,7 +817,7 @@
     <header class="header">
         <div class="header-content">
             <div class="logo-area">
-                <div class="logo-icon"><img src="logo-clube.jpg" alt="GBERAJ"></div>
+                <div class="logo-icon"><img src="logo-clube.jpg" alt="GRAJ"></div>
                 <div class="logo-text">
                     <h1>Grêmio Recreativo Antônio João</h1>
                     <p>Controle de Estoque • GRAJ</p>
@@ -775,7 +846,7 @@
     <!-- Welcome / Login Screen -->
     <div class="welcome-screen" id="welcomeScreen">
         <div class="welcome-card">
-            <div class="logo-big"><img src="logo-clube.jpg" alt="GBERAJ - Grêmio Antônio João"></div>
+            <div class="logo-big"><img src="logo-clube.jpg" alt="GRAJ - Grêmio Antônio João"></div>
             <h2>Controle de Estoque</h2>
             <p>Grêmio Recreativo Antônio João<br>Sistema de conferência diária</p>
 
@@ -791,8 +862,13 @@
                 </select>
             </div>
 
-            <button class="btn btn-primary btn-block" style="margin-bottom:1rem;" onclick="iniciarServico()">
+            <div id="avisoServicoAberto" class="alert alert-warning" style="display:none;text-align:left;margin-bottom:1rem;"></div>
+
+            <button class="btn btn-primary btn-block" style="margin-bottom:0.6rem;" onclick="iniciarServico()">
                 🚀 Iniciar Serviço do Dia
+            </button>
+            <button class="btn btn-outline btn-block" style="margin-bottom:1rem;display:none;" id="btnContinuarServico" onclick="continuarServicoAberto()">
+                ↩️ Continuar serviço aberto
             </button>
 
             <hr style="border:none;border-top:1px solid var(--border);margin:1.5rem 0;">
@@ -923,7 +999,8 @@
 
         <div class="tabs">
             <button class="tab-btn active" onclick="mostrarTabAdmin('produtos')">Produtos</button>
-            <button class="tab-btn" onclick="mostrarTabAdmin('ajustes')">Ajustes de Estoque</button>
+            <button class="tab-btn" onclick="mostrarTabAdmin('vendas')">Vendas</button>
+            <button class="tab-btn" onclick="mostrarTabAdmin('ajustes')">Ajustes</button>
             <button class="tab-btn" onclick="mostrarTabAdmin('historico')">Histórico</button>
             <button class="tab-btn" onclick="mostrarTabAdmin('senha')">Senha</button>
         </div>
@@ -1001,6 +1078,37 @@
                             </thead>
                             <tbody id="adminTabelaProdutos"></tbody>
                         </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Vendas -->
+        <div id="tab-vendas" class="admin-tab" style="display:none;">
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="card-header">
+                    <h2>🛒 Vendas e Movimentações do Dia</h2>
+                </div>
+                <div class="card-body">
+                    <div class="stats-grid" style="margin-bottom:1rem;">
+                        <div class="stat-card venda">
+                            <div class="label">Itens vendidos</div>
+                            <div class="value" id="adminStatVendas">0</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="label">Valor total</div>
+                            <div class="value" id="adminStatValor" style="font-size:1.15rem;">R$ 0,00</div>
+                        </div>
+                        <div class="stat-card entrada">
+                            <div class="label">Entradas</div>
+                            <div class="value" id="adminStatEntradas">0</div>
+                        </div>
+                    </div>
+                    <div id="adminServicoInfo" class="alert alert-info" style="display:none;"></div>
+                    <div id="adminListaVendas"></div>
+                    <div id="adminVendasVazio" class="empty-state">
+                        <div class="icon">🛒</div>
+                        <p>Nenhuma venda registrada hoje.</p>
                     </div>
                 </div>
             </div>
@@ -1214,7 +1322,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Recreativo Antônio João — GRAJ<br>
+        Grêmio Beneficente, Esportivo e Recreativo Antônio João — GBERAJ<br>
         Sistema de Controle de Estoque • Uso interno
     </footer>
 
@@ -1229,7 +1337,7 @@
        storageBucket: "estoque-graj-b32b2.firebasestorage.app",
        messagingSenderId: "924249670911",
        appId: "1:924249670911:web:283128ab7ceba163c478ca"
-   };
+        };
 
         const STORAGE_KEY = 'gberaj_estoque_v1';
         const DB_PATH = 'estoque';
@@ -1300,9 +1408,12 @@
             ],
             movements: [],
             history: [],
-            adminPassword: 'graj1895',
+            adminPassword: 'presidente2026',
             lastMilitar: '',
-            lastCloseDate: null
+            lastCloseDate: null,
+            serviceOpen: false,
+            serviceMilitar: '',
+            serviceStartedAt: null
         };
 
 
@@ -1485,8 +1596,35 @@
                 toast('Selecione o militar do serviço.', 'error');
                 return;
             }
+
+            // Bloqueia novo serviço se o anterior não foi fechado (exceto o mesmo militar continuando)
+            if (state.serviceOpen) {
+                if (state.serviceMilitar === nome) {
+                    // Mesmo militar: continua o serviço aberto
+                    currentMilitar = nome;
+                    document.getElementById('welcomeScreen').style.display = 'none';
+                    document.getElementById('mainPanel').classList.add('active');
+                    document.getElementById('headerActions').style.display = 'flex';
+                    document.getElementById('militarNome').textContent = nome;
+                    document.getElementById('adminBadge').style.display = 'none';
+                    isAdmin = false;
+                    updateHeaderDate();
+                    renderAll();
+                    toast('Continuando serviço: ' + nome);
+                    return;
+                }
+                const quem = state.serviceMilitar || 'outro militar';
+                const quando = state.serviceStartedAt ? formatDate(state.serviceStartedAt) : 'data desconhecida';
+                alert('⚠️ Serviço ainda aberto!\n\nAberto por: ' + quem + '\nInício: ' + quando + '\n\nÉ necessário FECHAR o serviço atual antes de iniciar outro.\nPeça ao militar do dia para fechar, ou use o Administrador.');
+                toast('Feche o serviço anterior antes de abrir outro.', 'error');
+                return;
+            }
+
             currentMilitar = nome;
             state.lastMilitar = nome;
+            state.serviceOpen = true;
+            state.serviceMilitar = nome;
+            state.serviceStartedAt = todayISO();
             saveState();
 
             document.getElementById('welcomeScreen').style.display = 'none';
@@ -1498,7 +1636,24 @@
 
             updateHeaderDate();
             renderAll();
-            toast(`Serviço iniciado: ${nome}`);
+            toast('Serviço iniciado: ' + nome);
+        }
+
+        function continuarServicoAberto() {
+            // Se já existe serviço aberto pelo mesmo fluxo (ex: recarregou a página)
+            if (!state.serviceOpen || !state.serviceMilitar) return false;
+            currentMilitar = state.serviceMilitar;
+            document.getElementById('inputMilitar').value = state.serviceMilitar;
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('mainPanel').classList.add('active');
+            document.getElementById('headerActions').style.display = 'flex';
+            document.getElementById('militarNome').textContent = state.serviceMilitar;
+            document.getElementById('adminBadge').style.display = 'none';
+            isAdmin = false;
+            updateHeaderDate();
+            renderAll();
+            toast('Serviço em andamento: ' + state.serviceMilitar);
+            return true;
         }
 
         function logout() {
@@ -1549,9 +1704,75 @@
             document.querySelectorAll('.admin-tab').forEach(el => el.style.display = 'none');
             document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
             document.getElementById('tab-' + tab).style.display = 'block';
-            event.target.classList.add('active');
+            if (event && event.target) event.target.classList.add('active');
+            else {
+                document.querySelectorAll('.tab-btn').forEach(btn => {
+                    if (btn.getAttribute('onclick') && btn.getAttribute('onclick').includes("'" + tab + "'")) {
+                        btn.classList.add('active');
+                    }
+                });
+            }
             if (tab === 'historico') renderHistorico();
             if (tab === 'ajustes') preencherSelectAjuste();
+            if (tab === 'vendas') renderAdminVendas();
+        }
+
+        function renderAdminVendas() {
+            const container = document.getElementById('adminListaVendas');
+            const vazio = document.getElementById('adminVendasVazio');
+            const info = document.getElementById('adminServicoInfo');
+            if (!container) return;
+
+            const vendas = (state.movements || []).filter(m => m.type === 'venda');
+            const entradas = (state.movements || []).filter(m => m.type === 'entrada');
+            const totalVendas = vendas.reduce((s, m) => s + m.qty, 0);
+            const totalEntradas = entradas.reduce((s, m) => s + m.qty, 0);
+            const valor = vendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
+
+            const elV = document.getElementById('adminStatVendas');
+            const elE = document.getElementById('adminStatEntradas');
+            const elVal = document.getElementById('adminStatValor');
+            if (elV) elV.textContent = totalVendas;
+            if (elE) elE.textContent = totalEntradas;
+            if (elVal) elVal.textContent = formatMoney(valor);
+
+            if (info) {
+                if (state.serviceOpen) {
+                    info.style.display = 'block';
+                    info.innerHTML = '🔓 Serviço <strong>ABERTO</strong> por <strong>' + escapeHtml(state.serviceMilitar || '—') + '</strong>' +
+                        (state.serviceStartedAt ? ' desde ' + formatDate(state.serviceStartedAt) : '') +
+                        '. O próximo militar só poderá iniciar após o fechamento.';
+                } else {
+                    info.style.display = 'block';
+                    info.className = 'alert alert-success';
+                    info.innerHTML = '🔒 Nenhum serviço aberto no momento. Pode iniciar um novo.';
+                }
+            }
+
+            const sorted = [...(state.movements || [])].reverse();
+            if (sorted.length === 0) {
+                container.innerHTML = '';
+                if (vazio) vazio.style.display = 'block';
+                return;
+            }
+            if (vazio) vazio.style.display = 'none';
+
+            container.innerHTML = sorted.map(m => {
+                const isVenda = m.type === 'venda';
+                const isEntrada = m.type === 'entrada';
+                const tipo = isVenda ? 'VENDA' : (isEntrada ? 'ENTRADA' : 'AJUSTE');
+                const cor = isVenda ? 'var(--danger)' : (isEntrada ? 'var(--success)' : 'var(--warning)');
+                const valorLinha = isVenda ? formatMoney(m.qty * (m.price || 0)) : '—';
+                return '<div class="movement-item">' +
+                    '<div class="movement-icon ' + (isEntrada ? 'entrada' : 'venda') + '">' + (isVenda ? '🛒' : (isEntrada ? '📥' : '🔧')) + '</div>' +
+                    '<div class="movement-info">' +
+                    '<strong>' + escapeHtml(m.productName) + '</strong>' +
+                    '<span>' + tipo + ' • ' + formatDate(m.date) + ' • ' + escapeHtml(m.militar || '') +
+                    (m.obs ? ' • ' + escapeHtml(m.obs) : '') + '</span></div>' +
+                    '<div style="text-align:right;"><div class="movement-qty" style="color:' + cor + '">' +
+                    (isEntrada ? '+' : '−') + m.qty + '</div>' +
+                    '<div style="font-size:0.8rem;color:var(--text-muted)">' + valorLinha + '</div></div></div>';
+            }).join('');
         }
 
         // ==================== RENDER ====================
@@ -1848,6 +2069,9 @@
 
             state.movements = [];
             state.lastCloseDate = todayISO();
+            state.serviceOpen = false;
+            state.serviceMilitar = '';
+            state.serviceStartedAt = null;
             if (document.getElementById('obsFechamento')) {
                 document.getElementById('obsFechamento').value = '';
             }
@@ -1855,6 +2079,11 @@
 
             fecharModal('modalFechamento');
             renderAll();
+            // Volta para tela inicial após fechar
+            document.getElementById('mainPanel').classList.remove('active');
+            document.getElementById('welcomeScreen').style.display = 'flex';
+            document.getElementById('headerActions').style.display = 'none';
+            currentMilitar = '';
             toast('Serviço fechado com sucesso! Estoque salvo para o próximo dia.');
             
             // Oferece imprimir relatório
@@ -1898,7 +2127,7 @@
             html += '.footer{margin-top:30px;font-size:0.8rem;color:#666;}';
             html += '@media print{button{display:none;}}';
             html += '<\/style><\/head><body>';
-            html += '<h1>Gremio Recreativo Antonio Joao — GRAJ</h1>';
+            html += '<h1>Gremio Recreativo Antonio Joao — GBERAJ</h1>';
             html += '<p><strong>Relatorio de Controle de Estoque</strong></p>';
             html += '<div class="resumo">';
             html += '<strong>Militar:</strong> ' + escapeHtml(currentMilitar || '\u2014') + '<br>';
@@ -1988,6 +2217,7 @@
             renderAdminProdutos();
             preencherSelectAjuste();
             renderHistorico();
+            renderAdminVendas();
         }
 
         function renderAdminProdutos() {
@@ -2194,6 +2424,24 @@
                 select.value = state.lastMilitar;
             }
         }
+        // Se serviço ficou aberto (ex: fechou o navegador sem fechar o serviço),
+        // avisa na tela inicial
+        setTimeout(function() {
+            if (state.serviceOpen && state.serviceMilitar) {
+                const aviso = document.getElementById('avisoServicoAberto');
+                if (aviso) {
+                    aviso.style.display = 'block';
+                    aviso.innerHTML = '⚠️ Existe um serviço <strong>ABERTO</strong> por <strong>' +
+                        escapeHtml(state.serviceMilitar) + '</strong>. Feche-o antes de iniciar outro, ou continue como o mesmo militar.';
+                }
+                const btnC = document.getElementById('btnContinuarServico');
+                if (btnC) {
+                    btnC.style.display = 'block';
+                    const sel = document.getElementById('inputMilitar');
+                    if (sel) sel.value = state.serviceMilitar;
+                }
+            }
+        }, 800);
     </script>
 </body>
 </html>
