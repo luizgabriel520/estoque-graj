@@ -1,0 +1,2199 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Controle de Estoque | Grêmio Recreativo Antônio João</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto+Mono:wght@500&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #0d5c2e;
+            --primary-dark: #084020;
+            --primary-light: #1a7a42;
+            --accent: #c9a227;
+            --accent-hover: #e0b82e;
+            --bg: #f4f7f5;
+            --card: #ffffff;
+            --text: #1a1a1a;
+            --text-muted: #5a6a5e;
+            --border: #d8e2db;
+            --success: #0d9488;
+            --danger: #dc2626;
+            --warning: #d97706;
+            --shadow: 0 4px 20px rgba(13, 92, 46, 0.08);
+            --radius: 12px;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        /* Header */
+        .header {
+            background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 50%, var(--primary-light) 100%);
+            color: white;
+            padding: 1rem 1.5rem;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .header-content {
+            max-width: 1400px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        .logo-icon {
+            width: 52px;
+            height: 52px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.6rem;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            overflow: hidden;
+            padding: 0;
+        }
+        .logo-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .logo-text h1 {
+            font-size: 1.25rem;
+            font-weight: 800;
+            letter-spacing: -0.02em;
+        }
+
+        .logo-text p {
+            font-size: 0.8rem;
+            opacity: 0.9;
+            font-weight: 500;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .badge {
+            background: rgba(255,255,255,0.15);
+            padding: 0.4rem 0.9rem;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .badge.admin {
+            background: var(--accent);
+            color: #1a1a1a;
+        }
+
+        /* Main Layout */
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 1.5rem;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Cards */
+        .card {
+            background: var(--card);
+            border-radius: var(--radius);
+            box-shadow: var(--shadow);
+            border: 1px solid var(--border);
+            overflow: hidden;
+        }
+
+        .card-header {
+            background: linear-gradient(to right, #f0f7f2, #e8f5ec);
+            padding: 1rem 1.25rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1rem;
+        }
+
+        .card-header h2 {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .card-body {
+            padding: 1.25rem;
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            padding: 0.6rem 1.1rem;
+            border: none;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-decoration: none;
+        }
+
+        .btn:active {
+            transform: scale(0.97);
+        }
+
+        .btn-primary {
+            background: var(--primary);
+            color: white;
+        }
+        .btn-primary:hover {
+            background: var(--primary-dark);
+        }
+
+        .btn-accent {
+            background: var(--accent);
+            color: #1a1a1a;
+        }
+        .btn-accent:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        .btn-success:hover {
+            background: #0f766e;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+        .btn-danger:hover {
+            background: #b91c1c;
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 2px solid var(--primary);
+            color: var(--primary);
+        }
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
+
+        .btn-sm {
+            padding: 0.35rem 0.7rem;
+            font-size: 0.8rem;
+        }
+
+        .btn-block {
+            width: 100%;
+        }
+
+        /* Forms */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.35rem;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 0.65rem 0.9rem;
+            border: 1.5px solid var(--border);
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            background: white;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(13, 92, 46, 0.15);
+        }
+
+        select.form-control {
+            cursor: pointer;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        /* Table */
+        .table-wrapper {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+
+        th {
+            text-align: left;
+            padding: 0.75rem 1rem;
+            background: #f0f7f2;
+            color: var(--primary-dark);
+            font-weight: 700;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            border-bottom: 2px solid var(--border);
+        }
+
+        td {
+            padding: 0.85rem 1rem;
+            border-bottom: 1px solid var(--border);
+            vertical-align: middle;
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        tr:hover td {
+            background: #f8fbf9;
+        }
+
+        .qty-badge {
+            display: inline-block;
+            padding: 0.25rem 0.7rem;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 0.85rem;
+            font-family: 'Roboto Mono', monospace;
+        }
+
+        .qty-ok {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .qty-low {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .qty-zero {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        /* Movement log */
+        .movement-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+            padding: 0.85rem 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .movement-item:last-child {
+            border-bottom: none;
+        }
+
+        .movement-icon {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+
+        .movement-icon.entrada {
+            background: #d1fae5;
+            color: #065f46;
+        }
+
+        .movement-icon.venda {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .movement-info {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .movement-info strong {
+            display: block;
+            font-size: 0.9rem;
+        }
+
+        .movement-info span {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        .movement-qty {
+            font-family: 'Roboto Mono', monospace;
+            font-weight: 700;
+            font-size: 0.95rem;
+        }
+
+        .movement-qty.plus {
+            color: var(--success);
+        }
+
+        .movement-qty.minus {
+            color: var(--danger);
+        }
+
+        /* Stats */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .stat-card {
+            background: white;
+            border-radius: var(--radius);
+            padding: 1.1rem;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow);
+            text-align: center;
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            margin-bottom: 0.3rem;
+        }
+
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: 800;
+            font-family: 'Roboto Mono', monospace;
+            color: var(--primary-dark);
+        }
+
+        .stat-card.entrada .value { color: var(--success); }
+        .stat-card.venda .value { color: var(--danger); }
+
+        /* Modal */
+        .modal-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            padding: 1rem;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.25s ease;
+        }
+
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+            transform: translateY(20px);
+            transition: transform 0.25s ease;
+        }
+
+        .modal-overlay.active .modal {
+            transform: translateY(0);
+        }
+
+        .modal-header {
+            padding: 1.25rem 1.5rem;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .modal-header h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+        }
+
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            line-height: 1;
+            padding: 0.2rem;
+        }
+
+        .modal-body {
+            padding: 1.5rem;
+        }
+
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 0.75rem;
+            justify-content: flex-end;
+        }
+
+        /* Login / Welcome */
+        .welcome-screen {
+            min-height: calc(100vh - 80px);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2rem;
+        }
+
+        .welcome-card {
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(13, 92, 46, 0.12);
+            padding: 2.5rem;
+            max-width: 440px;
+            width: 100%;
+            text-align: center;
+            border: 1px solid var(--border);
+        }
+
+        .welcome-card .logo-big {
+            width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            box-shadow: 0 8px 20px rgba(13, 92, 46, 0.3);
+            overflow: hidden;
+            border: 3px solid var(--primary);
+        }
+        .welcome-card .logo-big img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .welcome-card h2 {
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--primary-dark);
+            margin-bottom: 0.5rem;
+        }
+
+        .welcome-card p {
+            color: var(--text-muted);
+            margin-bottom: 1.75rem;
+            font-size: 0.95rem;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.25rem;
+            background: #f0f7f2;
+            padding: 0.35rem;
+            border-radius: 10px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 0.6rem;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 0.9rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn.active {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+        }
+
+        /* Empty state */
+        .empty-state {
+            text-align: center;
+            padding: 2.5rem 1rem;
+            color: var(--text-muted);
+        }
+
+        .empty-state .icon {
+            font-size: 3rem;
+            margin-bottom: 0.75rem;
+            opacity: 0.5;
+        }
+
+        /* Alert */
+        .alert {
+            padding: 0.9rem 1.1rem;
+            border-radius: 8px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+        }
+
+        .alert-success {
+            background: #d1fae5;
+            color: #065f46;
+            border: 1px solid #a7f3d0;
+        }
+
+        .alert-warning {
+            background: #fef3c7;
+            color: #92400e;
+            border: 1px solid #fde68a;
+        }
+
+        .alert-danger {
+            background: #fee2e2;
+            color: #991b1b;
+            border: 1px solid #fecaca;
+        }
+
+        .alert-info {
+            background: #e0f2fe;
+            color: #075985;
+            border: 1px solid #bae6fd;
+        }
+
+        /* Toast */
+        .toast-container {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            z-index: 2000;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .toast {
+            background: var(--primary-dark);
+            color: white;
+            padding: 0.9rem 1.3rem;
+            border-radius: 10px;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+            font-weight: 500;
+            font-size: 0.9rem;
+            animation: slideIn 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            max-width: 360px;
+        }
+
+        .toast.success { background: #0f766e; }
+        .toast.error { background: #b91c1c; }
+
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        /* Admin panel specifics */
+        .admin-panel {
+            display: none;
+        }
+
+        .admin-panel.active {
+            display: block;
+        }
+
+        .main-panel {
+            display: none;
+        }
+
+        .main-panel.active {
+            display: block;
+        }
+
+        /* History table small */
+        .history-list {
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        /* Footer */
+        .footer {
+            text-align: center;
+            padding: 1.5rem;
+            color: var(--text-muted);
+            font-size: 0.8rem;
+            margin-top: 2rem;
+        }
+
+        /* Responsive tweaks */
+        @media (max-width: 600px) {
+            .header-content {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+            .stats-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        /* Print styles for report */
+        @media print {
+            .header, .btn, .modal-overlay, .toast-container, .no-print {
+                display: none !important;
+            }
+            body { background: white; }
+            .card { box-shadow: none; border: 1px solid #ccc; }
+        }
+    </style>
+
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header class="header">
+        <div class="header-content">
+            <div class="logo-area">
+                <div class="logo-icon"><img src="logo-clube.jpg" alt="GBERAJ"></div>
+                <div class="logo-text">
+                    <h1>Grêmio Recreativo Antônio João</h1>
+                    <p>Controle de Estoque • GRAJ</p>
+                </div>
+            </div>
+            <div class="header-actions" id="headerActions" style="display:none;">
+                <div class="badge" id="militarBadge">
+                    👤 <span id="militarNome">—</span>
+                </div>
+                <div class="badge" id="dataBadge">
+                    📅 <span id="dataAtual"></span>
+                </div>
+                <div class="badge" id="syncBadge" style="display:none;background:rgba(13,148,136,0.9);">
+                    ☁️ Online
+                </div>
+                <div class="badge admin" id="adminBadge" style="display:none;">
+                    🔑 Admin
+                </div>
+                <button class="btn btn-outline" style="background:rgba(255,255,255,0.1);border-color:rgba(255,255,255,0.4);color:white;" onclick="logout()">
+                    Sair
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Welcome / Login Screen -->
+    <div class="welcome-screen" id="welcomeScreen">
+        <div class="welcome-card">
+            <div class="logo-big"><img src="logo-clube.jpg" alt="GBERAJ - Grêmio Antônio João"></div>
+            <h2>Controle de Estoque</h2>
+            <p>Grêmio Recreativo Antônio João<br>Sistema de conferência diária</p>
+
+            <div class="form-group" style="text-align:left;">
+                <label for="inputMilitar">Militar do Serviço</label>
+                <select id="inputMilitar" class="form-control">
+                    <option value="">— Selecione o militar —</option>
+                    <option value="CB DIOGO GIL">CB DIOGO GIL</option>
+                    <option value="CB GUSTAVO RAMIRES">CB GUSTAVO RAMIRES</option>
+                    <option value="SD GABRIEL RAMIRES">SD GABRIEL RAMIRES</option>
+                    <option value="SD VITOR">SD VITOR</option>
+                    <option value="SD MAYCON DOUGLAS">SD MAYCON DOUGLAS</option>
+                </select>
+            </div>
+
+            <button class="btn btn-primary btn-block" style="margin-bottom:1rem;" onclick="iniciarServico()">
+                🚀 Iniciar Serviço do Dia
+            </button>
+
+            <hr style="border:none;border-top:1px solid var(--border);margin:1.5rem 0;">
+
+            <button class="btn btn-outline btn-block" onclick="abrirModalAdminLogin()">
+                🔑 Acesso Administrador
+            </button>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <div class="container main-panel" id="mainPanel">
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <div class="label">Itens em Estoque</div>
+                <div class="value" id="statItens">0</div>
+            </div>
+            <div class="stat-card entrada">
+                <div class="label">Entradas Hoje</div>
+                <div class="value" id="statEntradas">0</div>
+            </div>
+            <div class="stat-card venda">
+                <div class="label">Vendas Hoje</div>
+                <div class="value" id="statVendas">0</div>
+            </div>
+            <div class="stat-card">
+                <div class="label">Valor Vendido</div>
+                <div class="value" id="statValor" style="font-size:1.2rem;">R$ 0,00</div>
+            </div>
+        </div>
+
+        <div class="grid">
+            <!-- Left: Stock Table + Actions -->
+            <div>
+                <div class="card" style="margin-bottom:1.5rem;">
+                    <div class="card-header">
+                        <h2>📦 Estoque Atual</h2>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                            <button class="btn btn-success btn-sm" onclick="abrirModalEntrada()">+ Entrada</button>
+                            <button class="btn btn-danger btn-sm" onclick="abrirModalVenda()">− Venda</button>
+                            <button class="btn btn-outline btn-sm no-print" onclick="imprimirRelatorioDia()">🖨️ Relatório</button>
+                        </div>
+                    </div>
+                    <div class="card-body" style="padding:0;">
+                        <div style="padding:0.85rem 1.25rem; border-bottom:1px solid var(--border); display:flex; gap:0.75rem; flex-wrap:wrap;" class="no-print">
+                            <input type="text" id="buscaProduto" class="form-control" placeholder="🔍 Buscar produto..." style="flex:1; min-width:180px;" oninput="renderEstoque()">
+                            <select id="filtroCategoria" class="form-control" style="width:auto; min-width:140px;" onchange="renderEstoque()">
+                                <option value="">Todas categorias</option>
+                                <option value="Cervejas">Cervejas</option>
+                                <option value="Refrigerantes">Refrigerantes</option>
+                                <option value="Bebidas">Bebidas</option>
+                                <option value="Doces">Doces</option>
+                                <option value="Snacks">Snacks</option>
+                                <option value="Sorvetes">Sorvetes</option>
+                                <option value="Outros">Outros</option>
+                            </select>
+                        </div>
+                        <div class="table-wrapper">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Produto</th>
+                                        <th>Categoria</th>
+                                        <th>Preço</th>
+                                        <th>Qtd. Atual</th>
+                                        <th>Status</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="tabelaEstoque">
+                                    <!-- filled by JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <div id="estoqueVazio" class="empty-state" style="display:none;">
+                            <div class="icon">📭</div>
+                            <p>Nenhum produto encontrado.</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Close Service -->
+                <div class="card no-print">
+                    <div class="card-header">
+                        <h2>🔒 Fechamento de Serviço</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="alert alert-info">
+                            ℹ️ Ao fechar o serviço, o estoque atual será salvo como estoque inicial do próximo dia. As movimentações de hoje serão arquivadas.
+                        </div>
+                        <div class="form-group">
+                            <label>Observação do fechamento (opcional)</label>
+                            <input type="text" id="obsFechamento" class="form-control" placeholder="Ex: Tudo conferido, sem divergências">
+                        </div>
+                        <button class="btn btn-accent btn-block" onclick="confirmarFechamento()">
+                            ✅ Fechar Serviço do Dia
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Movements Log -->
+            <div>
+                <div class="card">
+                    <div class="card-header">
+                        <h2>📋 Movimentações de Hoje</h2>
+                        <button class="btn btn-sm btn-outline" onclick="limparMovimentacoes()" title="Limpar log do dia (não afeta estoque)">Limpar</button>
+                    </div>
+                    <div class="card-body" style="padding:0.5rem 1.25rem; max-height:520px; overflow-y:auto;">
+                        <div id="listaMovimentacoes">
+                            <!-- filled by JS -->
+                        </div>
+                        <div id="movimentacoesVazio" class="empty-state">
+                            <div class="icon">📝</div>
+                            <p>Nenhuma movimentação hoje.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Admin Panel -->
+    <div class="container admin-panel" id="adminPanel">
+        <div class="alert alert-warning">
+            🔑 <strong>Modo Administrador</strong> — Você pode ajustar estoque, cadastrar produtos e alterar a senha.
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="mostrarTabAdmin('produtos')">Produtos</button>
+            <button class="tab-btn" onclick="mostrarTabAdmin('ajustes')">Ajustes de Estoque</button>
+            <button class="tab-btn" onclick="mostrarTabAdmin('historico')">Histórico</button>
+            <button class="tab-btn" onclick="mostrarTabAdmin('senha')">Senha</button>
+        </div>
+
+        <!-- Tab Produtos -->
+        <div id="tab-produtos" class="admin-tab">
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="card-header">
+                    <h2>➕ Cadastrar Novo Produto</h2>
+                </div>
+                <div class="card-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nome do Produto</label>
+                            <input type="text" id="adminNomeProduto" class="form-control" placeholder="Ex: Cerveja Lata 350ml">
+                        </div>
+                        <div class="form-group">
+                            <label>Preço Unitário (R$)</label>
+                            <input type="number" id="adminPrecoProduto" class="form-control" placeholder="0.00" step="0.01" min="0">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Quantidade Inicial</label>
+                            <input type="number" id="adminQtdProduto" class="form-control" placeholder="0" min="0" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Unidade</label>
+                            <select id="adminUnidadeProduto" class="form-control">
+                                <option value="un">Unidade (un)</option>
+                                <option value="cx">Caixa (cx)</option>
+                                <option value="kg">Quilo (kg)</option>
+                                <option value="lt">Litro (lt)</option>
+                                <option value="pct">Pacote (pct)</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Categoria</label>
+                            <select id="adminCategoriaProduto" class="form-control">
+                                <option value="Cervejas">Cervejas</option>
+                                <option value="Refrigerantes">Refrigerantes</option>
+                                <option value="Bebidas">Bebidas</option>
+                                <option value="Doces">Doces</option>
+                                <option value="Snacks">Snacks</option>
+                                <option value="Sorvetes">Sorvetes</option>
+                                <option value="Outros">Outros</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Estoque Mínimo</label>
+                            <input type="number" id="adminMinQtyProduto" class="form-control" value="5" min="0" step="1">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="adminAdicionarProduto()">Cadastrar Produto</button>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h2>📋 Lista de Produtos</h2>
+                </div>
+                <div class="card-body" style="padding:0;">
+                    <div class="table-wrapper">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Produto</th>
+                                    <th>Preço</th>
+                                    <th>Qtd</th>
+                                    <th>Unidade</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="adminTabelaProdutos"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Ajustes -->
+        <div id="tab-ajustes" class="admin-tab" style="display:none;">
+            <div class="card">
+                <div class="card-header">
+                    <h2>🔧 Ajuste Manual de Estoque</h2>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        Use apenas para correções (perda, quebra, inventário físico, etc.). O ajuste será registrado no histórico.
+                    </div>
+                    <div class="form-group">
+                        <label>Produto</label>
+                        <select id="ajusteProduto" class="form-control"></select>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Nova Quantidade</label>
+                            <input type="number" id="ajusteQtd" class="form-control" min="0" step="1">
+                        </div>
+                        <div class="form-group">
+                            <label>Motivo</label>
+                            <input type="text" id="ajusteMotivo" class="form-control" placeholder="Ex: Inventário físico">
+                        </div>
+                    </div>
+                    <button class="btn btn-accent" onclick="adminAjustarEstoque()">Aplicar Ajuste</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Histórico -->
+        <div id="tab-historico" class="admin-tab" style="display:none;">
+            <div class="card">
+                <div class="card-header">
+                    <h2>📜 Histórico de Fechamentos</h2>
+                </div>
+                <div class="card-body">
+                    <div id="listaHistorico" class="history-list"></div>
+                    <div id="historicoVazio" class="empty-state">
+                        <div class="icon">📭</div>
+                        <p>Nenhum fechamento registrado ainda.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Senha -->
+        <div id="tab-senha" class="admin-tab" style="display:none;">
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="card-header">
+                    <h2>🔐 Alterar Senha do Administrador</h2>
+                </div>
+                <div class="card-body">
+                    <div class="form-group">
+                        <label>Senha Atual</label>
+                        <input type="password" id="senhaAtual" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Nova Senha</label>
+                        <input type="password" id="senhaNova" class="form-control">
+                    </div>
+                    <div class="form-group">
+                        <label>Confirmar Nova Senha</label>
+                        <input type="password" id="senhaConfirma" class="form-control">
+                    </div>
+                    <button class="btn btn-primary" onclick="adminAlterarSenha()">Alterar Senha</button>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="card-header">
+                    <h2>💾 Backup e Restauração</h2>
+                </div>
+                <div class="card-body">
+                    <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:1rem;">
+                        Exporte os dados para um arquivo JSON (recomendado periodicamente). Use a restauração se trocar de computador ou precisar recuperar dados.
+                    </p>
+                    <div style="display:flex;gap:0.75rem;flex-wrap:wrap;">
+                        <button class="btn btn-primary" onclick="exportarBackup()">⬇️ Exportar Backup</button>
+                        <label class="btn btn-outline" style="cursor:pointer;margin:0;">
+                            ⬆️ Importar Backup
+                            <input type="file" accept=".json" style="display:none;" onchange="importarBackup(event)">
+                        </label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card" style="border-color:#fecaca;">
+                <div class="card-header" style="background:#fef2f2;">
+                    <h2 style="color:#991b1b;">⚠️ Zona de Perigo</h2>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-danger">
+                        <strong>Atenção!</strong> Esta ação apaga TODOS os dados: quantidades de estoque, movimentações do dia e histórico de fechamentos. Os produtos e preços são mantidos. Use apenas para limpar testes.
+                    </div>
+                    <button class="btn btn-danger btn-block" onclick="adminZerarSistema()">
+                        🗑️ Zerar Todo o Sistema (Limpar Testes)
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div style="margin-top:1.5rem; text-align:center;">
+            <button class="btn btn-outline" onclick="sairAdmin()">← Voltar ao Sistema</button>
+        </div>
+    </div>
+
+    <!-- Modals -->
+    <!-- Modal Admin Login -->
+    <div class="modal-overlay" id="modalAdminLogin">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>🔑 Acesso Administrador</h3>
+                <button class="modal-close" onclick="fecharModal('modalAdminLogin')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Senha do Presidente</label>
+                    <input type="password" id="inputSenhaAdmin" class="form-control" placeholder="Digite a senha">
+                </div>
+                <p style="font-size:0.8rem;color:var(--text-muted);">Somente o Presidente do Clube possui esta senha.</p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalAdminLogin')">Cancelar</button>
+                <button class="btn btn-primary" onclick="loginAdmin()">Entrar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Entrada -->
+    <div class="modal-overlay" id="modalEntrada">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>📥 Registrar Entrada de Mercadoria</h3>
+                <button class="modal-close" onclick="fecharModal('modalEntrada')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Produto</label>
+                    <select id="entradaProduto" class="form-control"></select>
+                </div>
+                <div class="form-group">
+                    <label>Quantidade Entrada</label>
+                    <input type="number" id="entradaQtd" class="form-control" min="1" step="1" value="1">
+                </div>
+                <div class="form-group">
+                    <label>Observação (opcional)</label>
+                    <input type="text" id="entradaObs" class="form-control" placeholder="Ex: Compra do fornecedor X">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalEntrada')">Cancelar</button>
+                <button class="btn btn-success" onclick="registrarEntrada()">Confirmar Entrada</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Venda -->
+    <div class="modal-overlay" id="modalVenda">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>🛒 Registrar Venda</h3>
+                <button class="modal-close" onclick="fecharModal('modalVenda')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Produto</label>
+                    <select id="vendaProduto" class="form-control"></select>
+                </div>
+                <div class="form-group">
+                    <label>Quantidade Vendida</label>
+                    <input type="number" id="vendaQtd" class="form-control" min="1" step="1" value="1">
+                </div>
+                <div class="form-group">
+                    <label>Observação (opcional)</label>
+                    <input type="text" id="vendaObs" class="form-control" placeholder="Ex: Sócio nº 123">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalVenda')">Cancelar</button>
+                <button class="btn btn-danger" onclick="registrarVenda()">Confirmar Venda</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Confirmar Fechamento -->
+    <div class="modal-overlay" id="modalFechamento">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>🔒 Confirmar Fechamento de Serviço</h3>
+                <button class="modal-close" onclick="fecharModal('modalFechamento')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning">
+                    ⚠️ Esta ação salvará o estoque atual como inicial do próximo dia e arquivará as movimentações de hoje.
+                </div>
+                <p id="resumoFechamento" style="font-size:0.95rem; line-height:1.6;"></p>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalFechamento')">Cancelar</button>
+                <button class="btn btn-accent" onclick="fecharServico()">Confirmar Fechamento</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <footer class="footer no-print">
+        Grêmio Recreativo Antônio João — GRAJ<br>
+        Sistema de Controle de Estoque • Uso interno
+    </footer>
+
+    <script>
+        // ==================== STATE & STORAGE ====================
+        // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
+        const FIREBASE_CONFIG = {
+       apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
+       authDomain: "estoque-graj-b32b2.firebaseapp.com",
+       databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
+       projectId: "estoque-graj-b32b2",
+       storageBucket: "estoque-graj-b32b2.firebasestorage.app",
+       messagingSenderId: "924249670911",
+       appId: "1:924249670911:web:283128ab7ceba163c478ca"
+   };
+
+        const STORAGE_KEY = 'gberaj_estoque_v1';
+        const DB_PATH = 'estoque';
+        let firebaseReady = false;
+        let dbRef = null;
+        let suppressRemote = false;
+        let firebaseEnabled = false;
+
+        const defaultData = {
+            products: [
+                { id: 'p01', name: 'ÁGUA COM GÁS', price: 3.50, qty: 0, unit: 'un', category: 'Bebidas', minQty: 5 },
+                { id: 'p02', name: 'ÁGUA SEM GÁS', price: 3.50, qty: 0, unit: 'un', category: 'Bebidas', minQty: 5 },
+                { id: 'p03', name: 'AMENDOIM AMENDUPÃ', price: 4.50, qty: 0, unit: 'un', category: 'Snacks', minQty: 5 },
+                { id: 'p04', name: 'BIS BRANCO', price: 5.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p05', name: 'BIS EXTRA ORIGINAL', price: 5.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p06', name: 'BISCOITO BONO MORANGO', price: 5.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p07', name: 'BISCOITO NEGRESCO', price: 5.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p08', name: 'CARVÃO 5 KG', price: 21.00, qty: 0, unit: 'un', category: 'Outros', minQty: 2 },
+                { id: 'p09', name: 'CERVEJA BUDWEISER LONG NECK', price: 7.50, qty: 0, unit: 'un', category: 'Cervejas', minQty: 6 },
+                { id: 'p10', name: 'CERVEJA CORONA LONG NECK', price: 8.50, qty: 0, unit: 'un', category: 'Cervejas', minQty: 6 },
+                { id: 'p11', name: 'CERVEJA HEINEKEN 600', price: 13.00, qty: 0, unit: 'un', category: 'Cervejas', minQty: 4 },
+                { id: 'p12', name: 'CERVEJA HEINEKEN LONG NECK', price: 8.50, qty: 0, unit: 'un', category: 'Cervejas', minQty: 6 },
+                { id: 'p13', name: 'CERVEJA ORIGINAL LITRO', price: 12.00, qty: 0, unit: 'un', category: 'Cervejas', minQty: 4 },
+                { id: 'p14', name: 'CERVEJA SPATEN 600', price: 10.50, qty: 0, unit: 'un', category: 'Cervejas', minQty: 4 },
+                { id: 'p15', name: 'CERVEJA SPATEN LONG NECK', price: 7.50, qty: 0, unit: 'un', category: 'Cervejas', minQty: 6 },
+                { id: 'p16', name: 'COCA COLA 2 LITROS', price: 13.00, qty: 0, unit: 'un', category: 'Refrigerantes', minQty: 4 },
+                { id: 'p17', name: 'COCA COLA 2 LITROS - ZERO', price: 13.00, qty: 0, unit: 'un', category: 'Refrigerantes', minQty: 4 },
+                { id: 'p18', name: 'COCA COLA LATA', price: 5.50, qty: 0, unit: 'un', category: 'Refrigerantes', minQty: 6 },
+                { id: 'p19', name: 'COCA COLA LATA - ZERO', price: 5.50, qty: 0, unit: 'un', category: 'Refrigerantes', minQty: 6 },
+                { id: 'p20', name: 'COOKIE ALPINO', price: 4.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p21', name: 'COOKIE CHOCOLATE BRANCO GALAK', price: 4.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p22', name: 'COOKIE CROCANTE GAROTO', price: 4.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p23', name: 'COOKIES CARIBE', price: 4.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p24', name: 'COOKIES GALAK', price: 4.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p25', name: 'COOKIES NEGRESCO', price: 4.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p26', name: 'FANTA LARANJA 2 LITROS', price: 11.00, qty: 0, unit: 'un', category: 'Refrigerantes', minQty: 4 },
+                { id: 'p27', name: 'FANTA LARANJA LATA', price: 5.00, qty: 0, unit: 'un', category: 'Refrigerantes', minQty: 6 },
+                { id: 'p28', name: 'FICHA SINUCA', price: 2.00, qty: 0, unit: 'un', category: 'Outros', minQty: 10 },
+                { id: 'p29', name: 'GATORADE', price: 7.50, qty: 0, unit: 'un', category: 'Bebidas', minQty: 5 },
+                { id: 'p30', name: 'GUARANÁ ANTARCTICA 2 LITROS', price: 11.00, qty: 0, unit: 'un', category: 'Refrigerantes', minQty: 4 },
+                { id: 'p31', name: 'GUARANÁ ANTARCTICA 2 LITROS - ZERO', price: 11.00, qty: 0, unit: 'un', category: 'Refrigerantes', minQty: 4 },
+                { id: 'p32', name: 'GUARANÁ ANTARCTICA LATA', price: 5.00, qty: 0, unit: 'un', category: 'Refrigerantes', minQty: 6 },
+                { id: 'p33', name: 'H2O LIMÃO', price: 6.00, qty: 0, unit: 'un', category: 'Bebidas', minQty: 5 },
+                { id: 'p34', name: 'HEINEKEN LATA', price: 5.50, qty: 0, unit: 'un', category: 'Cervejas', minQty: 6 },
+                { id: 'p35', name: 'ICE CABARÉ', price: 8.50, qty: 0, unit: 'un', category: 'Bebidas', minQty: 5 },
+                { id: 'p36', name: 'KIT KAT BRANCO', price: 5.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p37', name: 'KIT KAT COTTON CANDY', price: 5.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p38', name: 'KIT KAT LEMON', price: 5.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p39', name: 'KIT KAT STRAWBERRY', price: 5.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p40', name: 'KIT KAT AO LEITE', price: 5.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p41', name: 'MONSTER BRANCO', price: 12.00, qty: 0, unit: 'un', category: 'Bebidas', minQty: 4 },
+                { id: 'p42', name: 'MONSTER MANGO', price: 12.00, qty: 0, unit: 'un', category: 'Bebidas', minQty: 4 },
+                { id: 'p43', name: 'MONSTER TRADICIONAL', price: 12.00, qty: 0, unit: 'un', category: 'Bebidas', minQty: 4 },
+                { id: 'p44', name: 'MONSTER TRADICIONAL - ZERO', price: 12.00, qty: 0, unit: 'un', category: 'Bebidas', minQty: 4 },
+                { id: 'p45', name: 'ORIGINAL LATA', price: 4.00, qty: 0, unit: 'un', category: 'Cervejas', minQty: 6 },
+                { id: 'p46', name: 'PICOLÉ SKIMOS', price: 6.50, qty: 0, unit: 'un', category: 'Sorvetes', minQty: 5 },
+                { id: 'p47', name: 'POWER ADE', price: 5.00, qty: 0, unit: 'un', category: 'Bebidas', minQty: 5 },
+                { id: 'p48', name: 'PRINGLES CHURRASCO', price: 12.00, qty: 0, unit: 'un', category: 'Snacks', minQty: 3 },
+                { id: 'p49', name: 'SALGADINHO AMENDUPÃ', price: 4.50, qty: 0, unit: 'un', category: 'Snacks', minQty: 5 },
+                { id: 'p50', name: 'SALGADINHO BATATA', price: 5.50, qty: 0, unit: 'un', category: 'Snacks', minQty: 5 },
+                { id: 'p51', name: 'SALGADINHO KRÓ', price: 5.50, qty: 0, unit: 'un', category: 'Snacks', minQty: 5 },
+                { id: 'p52', name: 'SUNDAE', price: 9.00, qty: 0, unit: 'un', category: 'Sorvetes', minQty: 3 },
+                { id: 'p53', name: 'SNICKERS NEGRO', price: 6.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 },
+                { id: 'p54', name: 'SORVETE MORENINHA', price: 6.00, qty: 0, unit: 'un', category: 'Sorvetes', minQty: 5 },
+                { id: 'p55', name: 'SPRITE LATA', price: 5.00, qty: 0, unit: 'un', category: 'Refrigerantes', minQty: 6 },
+                { id: 'p56', name: 'SUCO DEL VALE LATA', price: 5.00, qty: 0, unit: 'un', category: 'Bebidas', minQty: 5 },
+                { id: 'p57', name: 'BOMBOM DE UVA', price: 8.00, qty: 0, unit: 'un', category: 'Doces', minQty: 5 }
+            ],
+            movements: [],
+            history: [],
+            adminPassword: 'presidente2026',
+            lastMilitar: '',
+            lastCloseDate: null
+        };
+
+
+        let state = JSON.parse(JSON.stringify(defaultData));
+        let isAdmin = false;
+        let currentMilitar = '';
+
+        function isFirebaseConfigured() {
+            return FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== 'COLE_AQUI' && FIREBASE_CONFIG.databaseURL && FIREBASE_CONFIG.databaseURL !== 'COLE_AQUI';
+        }
+
+        function migrateProducts(parsed) {
+            if (!parsed.products || parsed.products.length === 0) {
+                parsed.products = JSON.parse(JSON.stringify(defaultData.products));
+            } else {
+                const defaults = defaultData.products;
+                parsed.products.forEach(p => {
+                    if (!p.category || p.minQty === undefined) {
+                        const def = defaults.find(d => d.id === p.id || d.name === p.name);
+                        if (def) {
+                            p.category = p.category || def.category;
+                            p.minQty = p.minQty !== undefined ? p.minQty : def.minQty;
+                        } else {
+                            p.category = p.category || 'Outros';
+                            p.minQty = p.minQty !== undefined ? p.minQty : 5;
+                        }
+                    }
+                });
+            }
+            return { ...defaultData, ...parsed };
+        }
+
+        function loadStateLocal() {
+            try {
+                const raw = localStorage.getItem(STORAGE_KEY);
+                if (raw) {
+                    return migrateProducts(JSON.parse(raw));
+                }
+            } catch (e) {
+                console.error('Erro localStorage:', e);
+            }
+            return JSON.parse(JSON.stringify(defaultData));
+        }
+
+        function saveStateLocal() {
+            try {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+            } catch (e) {
+                console.error('Erro ao salvar local:', e);
+            }
+        }
+
+        function saveState() {
+            saveStateLocal();
+            if (firebaseEnabled && dbRef && !suppressRemote) {
+                dbRef.set(state).catch(err => {
+                    console.error('Erro Firebase save:', err);
+                    toast('Erro ao sincronizar na nuvem', 'error');
+                });
+            }
+        }
+
+        function applyRemoteState(data) {
+            if (!data) return;
+            suppressRemote = true;
+            state = migrateProducts(data);
+            saveStateLocal();
+            // Atualiza telas se já estiverem abertas
+            try {
+                if (typeof renderAll === 'function') renderAll();
+                if (typeof renderAdmin === 'function' && isAdmin) renderAdmin();
+            } catch (e) {}
+            suppressRemote = false;
+        }
+
+        function initFirebase() {
+            if (!isFirebaseConfigured()) {
+                console.log('Firebase não configurado — usando apenas localStorage');
+                state = loadStateLocal();
+                return;
+            }
+            try {
+                firebase.initializeApp(FIREBASE_CONFIG);
+                dbRef = firebase.database().ref(DB_PATH);
+                firebaseEnabled = true;
+
+                // Escuta em tempo real
+                dbRef.on('value', (snapshot) => {
+                    const data = snapshot.val();
+                    if (data) {
+                        applyRemoteState(data);
+                        console.log('Dados sincronizados da nuvem');
+                    } else {
+                        // Banco vazio: sobe o estado local atual
+                        state = loadStateLocal();
+                        dbRef.set(state);
+                        console.log('Banco vazio — enviando dados locais');
+                    }
+                }, (err) => {
+                    console.error('Erro listener Firebase:', err);
+                    toast('Erro de conexão com a nuvem', 'error');
+                    state = loadStateLocal();
+                });
+
+                // Indicador visual opcional
+                setTimeout(() => {
+                    const badge = document.getElementById('syncBadge');
+                    if (badge) badge.style.display = 'flex';
+                }, 500);
+
+            } catch (e) {
+                console.error('Falha ao iniciar Firebase:', e);
+                firebaseEnabled = false;
+                state = loadStateLocal();
+                toast('Firebase não iniciou. Usando modo local.', 'error');
+            }
+        }
+
+        // Inicia Firebase o quanto antes
+        initFirebase();
+        // Se Firebase não estiver ativo, carrega local imediatamente
+        if (!firebaseEnabled) {
+            state = loadStateLocal();
+        }
+
+        // ==================== UTILS ====================
+        // ==================== UTILS ====================
+        function formatMoney(value) {
+            return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value || 0);
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return '—';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+        }
+
+        function todayISO() {
+            return new Date().toISOString();
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+        }
+
+        function toast(msg, type = 'success') {
+            const container = document.getElementById('toastContainer');
+            const el = document.createElement('div');
+            el.className = `toast ${type}`;
+            el.innerHTML = (type === 'success' ? '✅ ' : '❌ ') + msg;
+            container.appendChild(el);
+            setTimeout(() => {
+                el.style.opacity = '0';
+                el.style.transform = 'translateX(100%)';
+                el.style.transition = 'all 0.3s';
+                setTimeout(() => el.remove(), 300);
+            }, 3200);
+        }
+
+        function openModal(id) {
+            document.getElementById(id).classList.add('active');
+        }
+
+        function fecharModal(id) {
+            document.getElementById(id).classList.remove('active');
+        }
+
+        // ==================== INIT ====================
+        function updateHeaderDate() {
+            const now = new Date();
+            document.getElementById('dataAtual').textContent = now.toLocaleDateString('pt-BR', {
+                weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric'
+            });
+        }
+
+        // ==================== LOGIN / SERVICE ====================
+        function iniciarServico() {
+            const nome = document.getElementById('inputMilitar').value.trim();
+            if (!nome) {
+                toast('Selecione o militar do serviço.', 'error');
+                return;
+            }
+            currentMilitar = nome;
+            state.lastMilitar = nome;
+            saveState();
+
+            document.getElementById('welcomeScreen').style.display = 'none';
+            document.getElementById('mainPanel').classList.add('active');
+            document.getElementById('headerActions').style.display = 'flex';
+            document.getElementById('militarNome').textContent = nome;
+            document.getElementById('adminBadge').style.display = 'none';
+            isAdmin = false;
+
+            updateHeaderDate();
+            renderAll();
+            toast(`Serviço iniciado: ${nome}`);
+        }
+
+        function logout() {
+            if (confirm('Deseja realmente sair? As movimentações de hoje permanecem salvas.')) {
+                document.getElementById('welcomeScreen').style.display = 'flex';
+                document.getElementById('mainPanel').classList.remove('active');
+                document.getElementById('adminPanel').classList.remove('active');
+                document.getElementById('headerActions').style.display = 'none';
+                isAdmin = false;
+                currentMilitar = '';
+            }
+        }
+
+        // ==================== ADMIN ====================
+        function abrirModalAdminLogin() {
+            document.getElementById('inputSenhaAdmin').value = '';
+            openModal('modalAdminLogin');
+        }
+
+        function loginAdmin() {
+            const senha = document.getElementById('inputSenhaAdmin').value;
+            if (senha === state.adminPassword) {
+                fecharModal('modalAdminLogin');
+                isAdmin = true;
+                document.getElementById('welcomeScreen').style.display = 'none';
+                document.getElementById('mainPanel').classList.remove('active');
+                document.getElementById('adminPanel').classList.add('active');
+                document.getElementById('headerActions').style.display = 'flex';
+                document.getElementById('militarNome').textContent = 'Administrador';
+                document.getElementById('adminBadge').style.display = 'flex';
+                updateHeaderDate();
+                renderAdmin();
+                toast('Acesso administrador liberado');
+            } else {
+                toast('Senha incorreta!', 'error');
+            }
+        }
+
+        function sairAdmin() {
+            isAdmin = false;
+            document.getElementById('adminPanel').classList.remove('active');
+            document.getElementById('welcomeScreen').style.display = 'flex';
+            document.getElementById('headerActions').style.display = 'none';
+            document.getElementById('adminBadge').style.display = 'none';
+        }
+
+        function mostrarTabAdmin(tab) {
+            document.querySelectorAll('.admin-tab').forEach(el => el.style.display = 'none');
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById('tab-' + tab).style.display = 'block';
+            event.target.classList.add('active');
+            if (tab === 'historico') renderHistorico();
+            if (tab === 'ajustes') preencherSelectAjuste();
+        }
+
+        // ==================== RENDER ====================
+        function renderAll() {
+            renderEstoque();
+            renderMovimentacoes();
+            renderStats();
+            preencherSelects();
+        }
+
+        function renderEstoque() {
+            const tbody = document.getElementById('tabelaEstoque');
+            const vazio = document.getElementById('estoqueVazio');
+            const busca = (document.getElementById('buscaProduto')?.value || '').toLowerCase().trim();
+            const cat = document.getElementById('filtroCategoria')?.value || '';
+
+            let lista = [...state.products];
+            if (busca) {
+                lista = lista.filter(p => p.name.toLowerCase().includes(busca));
+            }
+            if (cat) {
+                lista = lista.filter(p => p.category === cat);
+            }
+
+            if (lista.length === 0) {
+                tbody.innerHTML = '';
+                vazio.style.display = 'block';
+                return;
+            }
+            vazio.style.display = 'none';
+
+            // Ordena por categoria depois nome
+            lista.sort((a, b) => {
+                const ca = (a.category || '').localeCompare(b.category || '');
+                if (ca !== 0) return ca;
+                return a.name.localeCompare(b.name);
+            });
+
+            tbody.innerHTML = lista.map(p => {
+                const min = p.minQty !== undefined ? p.minQty : 5;
+                let statusClass = 'qty-ok';
+                let statusText = 'OK';
+                if (p.qty <= 0) {
+                    statusClass = 'qty-zero';
+                    statusText = 'ZERADO';
+                } else if (p.qty <= min) {
+                    statusClass = 'qty-low';
+                    statusText = 'BAIXO';
+                }
+                return `
+                    <tr>
+                        <td><strong>${escapeHtml(p.name)}</strong></td>
+                        <td><span style="font-size:0.8rem;color:var(--text-muted);">${escapeHtml(p.category || '—')}</span></td>
+                        <td>${formatMoney(p.price)}</td>
+                        <td><span class="qty-badge ${statusClass}">${p.qty} ${p.unit || 'un'}</span></td>
+                        <td><span class="qty-badge ${statusClass}">${statusText}</span></td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function renderMovimentacoes() {
+            const container = document.getElementById('listaMovimentacoes');
+            const vazio = document.getElementById('movimentacoesVazio');
+
+            if (state.movements.length === 0) {
+                container.innerHTML = '';
+                vazio.style.display = 'block';
+                return;
+            }
+            vazio.style.display = 'none';
+
+            // newest first
+            const sorted = [...state.movements].reverse();
+            container.innerHTML = sorted.map(m => {
+                const isEntrada = m.type === 'entrada';
+                const icon = isEntrada ? '📥' : '🛒';
+                const iconClass = isEntrada ? 'entrada' : 'venda';
+                const qtyClass = isEntrada ? 'plus' : 'minus';
+                const sign = isEntrada ? '+' : '−';
+                return `
+                    <div class="movement-item">
+                        <div class="movement-icon ${iconClass}">${icon}</div>
+                        <div class="movement-info">
+                            <strong>${escapeHtml(m.productName)}</strong>
+                            <span>${formatDate(m.date)} • ${escapeHtml(m.militar || '')}${m.obs ? ' • ' + escapeHtml(m.obs) : ''}</span>
+                        </div>
+                        <div class="movement-qty ${qtyClass}">${sign}${m.qty}</div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderStats() {
+            const totalItens = state.products.reduce((sum, p) => sum + p.qty, 0);
+            const entradas = state.movements.filter(m => m.type === 'entrada').reduce((s, m) => s + m.qty, 0);
+            const vendas = state.movements.filter(m => m.type === 'venda').reduce((s, m) => s + m.qty, 0);
+            const valorVendido = state.movements
+                .filter(m => m.type === 'venda')
+                .reduce((s, m) => s + (m.qty * (m.price || 0)), 0);
+
+            document.getElementById('statItens').textContent = totalItens;
+            document.getElementById('statEntradas').textContent = entradas;
+            document.getElementById('statVendas').textContent = vendas;
+            document.getElementById('statValor').textContent = formatMoney(valorVendido);
+        }
+
+        function preencherSelects() {
+            const options = state.products
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${p.qty} ${p.unit || 'un'})</option>`)
+                .join('');
+
+            document.getElementById('entradaProduto').innerHTML = options || '<option value="">Nenhum produto</option>';
+            document.getElementById('vendaProduto').innerHTML = options || '<option value="">Nenhum produto</option>';
+        }
+
+        function preencherSelectAjuste() {
+            const options = state.products
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(p => `<option value="${p.id}">${escapeHtml(p.name)} — atual: ${p.qty}</option>`)
+                .join('');
+            document.getElementById('ajusteProduto').innerHTML = options || '<option value="">Nenhum produto</option>';
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        // ==================== MOVEMENTS ====================
+        function abrirModalEntrada() {
+            if (state.products.length === 0) {
+                toast('Cadastre produtos primeiro (acesso admin).', 'error');
+                return;
+            }
+            document.getElementById('entradaQtd').value = 1;
+            document.getElementById('entradaObs').value = '';
+            preencherSelects();
+            openModal('modalEntrada');
+        }
+
+        function abrirModalVenda() {
+            if (state.products.length === 0) {
+                toast('Cadastre produtos primeiro (acesso admin).', 'error');
+                return;
+            }
+            document.getElementById('vendaQtd').value = 1;
+            document.getElementById('vendaObs').value = '';
+            preencherSelects();
+            openModal('modalVenda');
+        }
+
+        function registrarEntrada() {
+            const productId = document.getElementById('entradaProduto').value;
+            const qty = parseInt(document.getElementById('entradaQtd').value, 10);
+            const obs = document.getElementById('entradaObs').value.trim();
+
+            if (!productId || isNaN(qty) || qty <= 0) {
+                toast('Preencha os dados corretamente.', 'error');
+                return;
+            }
+
+            const product = state.products.find(p => p.id === productId);
+            if (!product) {
+                toast('Produto não encontrado.', 'error');
+                return;
+            }
+
+            product.qty += qty;
+
+            state.movements.push({
+                id: generateId(),
+                type: 'entrada',
+                productId,
+                productName: product.name,
+                qty,
+                price: product.price,
+                obs,
+                militar: currentMilitar,
+                date: todayISO()
+            });
+
+            saveState();
+            renderAll();
+            fecharModal('modalEntrada');
+            toast(`Entrada de ${qty} ${product.unit || 'un'} de ${product.name}`);
+        }
+
+        function registrarVenda() {
+            const productId = document.getElementById('vendaProduto').value;
+            const qty = parseInt(document.getElementById('vendaQtd').value, 10);
+            const obs = document.getElementById('vendaObs').value.trim();
+
+            if (!productId || isNaN(qty) || qty <= 0) {
+                toast('Preencha os dados corretamente.', 'error');
+                return;
+            }
+
+            const product = state.products.find(p => p.id === productId);
+            if (!product) {
+                toast('Produto não encontrado.', 'error');
+                return;
+            }
+
+            if (product.qty < qty) {
+                toast(`Estoque insuficiente! Disponível: ${product.qty}`, 'error');
+                return;
+            }
+
+            product.qty -= qty;
+
+            state.movements.push({
+                id: generateId(),
+                type: 'venda',
+                productId,
+                productName: product.name,
+                qty,
+                price: product.price,
+                obs,
+                militar: currentMilitar,
+                date: todayISO()
+            });
+
+            saveState();
+            renderAll();
+            fecharModal('modalVenda');
+            toast(`Venda de ${qty} ${product.unit || 'un'} de ${product.name}`);
+        }
+
+        function limparMovimentacoes() {
+            if (state.movements.length === 0) return;
+            if (confirm('Limpar apenas o log visual de hoje? O estoque NÃO será alterado.')) {
+                state.movements = [];
+                saveState();
+                renderAll();
+                toast('Log de movimentações limpo');
+            }
+        }
+
+        // ==================== CLOSE SERVICE ====================
+        function confirmarFechamento() {
+            const entradas = state.movements.filter(m => m.type === 'entrada').reduce((s, m) => s + m.qty, 0);
+            const vendas = state.movements.filter(m => m.type === 'venda').reduce((s, m) => s + m.qty, 0);
+            const valor = state.movements.filter(m => m.type === 'venda').reduce((s, m) => s + m.qty * (m.price || 0), 0);
+            const obs = document.getElementById('obsFechamento')?.value.trim() || '';
+
+            document.getElementById('resumoFechamento').innerHTML = `
+                <strong>Militar:</strong> ${escapeHtml(currentMilitar)}<br>
+                <strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}<br><br>
+                <strong>Resumo do dia:</strong><br>
+                • Entradas: <strong>${entradas}</strong> unidades<br>
+                • Vendas: <strong>${vendas}</strong> unidades<br>
+                • Valor vendido: <strong>${formatMoney(valor)}</strong><br>
+                • Produtos no estoque: <strong>${state.products.length}</strong>
+                ${obs ? '<br>• Observação: ' + escapeHtml(obs) : ''}
+            `;
+            openModal('modalFechamento');
+        }
+
+        function fecharServico() {
+            const snapshot = state.products.map(p => ({
+                id: p.id,
+                name: p.name,
+                qty: p.qty,
+                price: p.price,
+                unit: p.unit,
+                category: p.category,
+                minQty: p.minQty
+            }));
+
+            const entradas = state.movements.filter(m => m.type === 'entrada').reduce((s, m) => s + m.qty, 0);
+            const vendas = state.movements.filter(m => m.type === 'venda').reduce((s, m) => s + m.qty, 0);
+            const valor = state.movements.filter(m => m.type === 'venda').reduce((s, m) => s + m.qty * (m.price || 0), 0);
+            const obs = document.getElementById('obsFechamento')?.value.trim() || '';
+
+            state.history.unshift({
+                id: generateId(),
+                date: todayISO(),
+                militar: currentMilitar,
+                snapshot,
+                movements: [...state.movements],
+                summary: { entradas, vendas, valor },
+                obs
+            });
+
+            if (state.history.length > 60) {
+                state.history = state.history.slice(0, 60);
+            }
+
+            state.movements = [];
+            state.lastCloseDate = todayISO();
+            if (document.getElementById('obsFechamento')) {
+                document.getElementById('obsFechamento').value = '';
+            }
+            saveState();
+
+            fecharModal('modalFechamento');
+            renderAll();
+            toast('Serviço fechado com sucesso! Estoque salvo para o próximo dia.');
+            
+            // Oferece imprimir relatório
+            setTimeout(() => {
+                if (confirm('Deseja imprimir o relatório do dia agora?')) {
+                    imprimirRelatorioDia(true);
+                }
+            }, 400);
+        }
+
+        function imprimirRelatorioDia(posFechamento = false) {
+            const entradas = state.movements.filter(m => m.type === 'entrada');
+            const vendas = state.movements.filter(m => m.type === 'venda');
+            const totalEntradas = entradas.reduce((s, m) => s + m.qty, 0);
+            const totalVendas = vendas.reduce((s, m) => s + m.qty, 0);
+            const valor = vendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
+
+            const linhasEstoque = state.products
+                .sort((a,b) => a.name.localeCompare(b.name))
+                .map(p => '<tr><td>' + escapeHtml(p.name) + '</td><td>' + escapeHtml(p.category||'') + '</td><td>' + p.qty + '</td><td>' + formatMoney(p.price) + '</td></tr>')
+                .join('');
+
+            const linhasVendas = vendas.map(m =>
+                '<tr><td>' + escapeHtml(m.productName) + '</td><td>' + m.qty + '</td><td>' + formatMoney(m.qty * (m.price||0)) + '</td><td>' + escapeHtml(m.obs||'') + '</td></tr>'
+            ).join('');
+
+            const linhasEntradas = entradas.map(m =>
+                '<tr><td>' + escapeHtml(m.productName) + '</td><td>' + m.qty + '</td><td>' + escapeHtml(m.obs||'') + '</td></tr>'
+            ).join('');
+
+            let html = '';
+            html += '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatorio - GBERAJ</title>';
+            html += '<style>';
+            html += 'body{font-family:Arial,sans-serif;padding:20px;color:#111;}';
+            html += 'h1{color:#0d5c2e;margin-bottom:4px;}';
+            html += 'h2{font-size:1.1rem;margin-top:24px;border-bottom:2px solid #0d5c2e;padding-bottom:4px;}';
+            html += 'table{width:100%;border-collapse:collapse;margin-top:8px;font-size:0.9rem;}';
+            html += 'th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;}';
+            html += 'th{background:#e8f5ec;}';
+            html += '.resumo{background:#f0f7f2;padding:12px;border-radius:8px;margin:16px 0;}';
+            html += '.footer{margin-top:30px;font-size:0.8rem;color:#666;}';
+            html += '@media print{button{display:none;}}';
+            html += '<\/style><\/head><body>';
+            html += '<h1>Gremio Recreativo Antonio Joao — GBERAJ</h1>';
+            html += '<p><strong>Relatorio de Controle de Estoque</strong></p>';
+            html += '<div class="resumo">';
+            html += '<strong>Militar:</strong> ' + escapeHtml(currentMilitar || '\u2014') + '<br>';
+            html += '<strong>Data:</strong> ' + new Date().toLocaleString('pt-BR') + '<br>';
+            html += '<strong>Entradas:</strong> ' + totalEntradas + ' un &nbsp;|&nbsp; ';
+            html += '<strong>Vendas:</strong> ' + totalVendas + ' un &nbsp;|&nbsp; ';
+            html += '<strong>Valor vendido:</strong> ' + formatMoney(valor);
+            html += '</div>';
+            html += '<h2>Estoque Atual</h2>';
+            html += '<table><thead><tr><th>Produto</th><th>Categoria</th><th>Qtd</th><th>Preco</th></tr></thead><tbody>';
+            html += linhasEstoque;
+            html += '<\/tbody><\/table>';
+            if (vendas.length) {
+                html += '<h2>Vendas do Dia</h2>';
+                html += '<table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor</th><th>Obs</th></tr></thead><tbody>';
+                html += linhasVendas;
+                html += '<\/tbody><\/table>';
+            }
+            if (entradas.length) {
+                html += '<h2>Entradas do Dia</h2>';
+                html += '<table><thead><tr><th>Produto</th><th>Qtd</th><th>Obs</th></tr></thead><tbody>';
+                html += linhasEntradas;
+                html += '<\/tbody><\/table>';
+            }
+            html += '<div class="footer">Sistema de Controle de Estoque — GBERAJ<br>Gerado em ' + new Date().toLocaleString('pt-BR') + '</div>';
+            html += '<br><button onclick="window.print()">Imprimir</button>';
+            html += '<\/body><\/html>';
+
+            // Funciona tanto em file:// quanto em Live Server
+            try {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const win = window.open(url, '_blank');
+                if (!win) {
+                    // Popup bloqueado: baixa o HTML
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = 'relatorio-estoque-gberaj.html';
+                    a.click();
+                    toast('Popup bloqueado. Relatorio baixado como arquivo HTML.');
+                }
+                setTimeout(function() { URL.revokeObjectURL(url); }, 10000);
+            } catch (e) {
+                toast('Erro ao gerar relatorio. Tente novamente.', 'error');
+                console.error(e);
+            }
+        }
+
+        function exportarBackup() {
+            const data = JSON.stringify(state, null, 2);
+            const blob = new Blob([data], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `backup-estoque-gberaj-${new Date().toISOString().slice(0,10)}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            toast('Backup exportado com sucesso!');
+        }
+
+        function importarBackup(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    if (!data.products || !Array.isArray(data.products)) {
+                        toast('Arquivo inválido.', 'error');
+                        return;
+                    }
+                    if (!confirm('Isso vai SUBSTITUIR todos os dados atuais pelo backup. Continuar?')) return;
+                    state = { ...defaultData, ...data };
+                    saveState();
+                    renderAdmin();
+                    toast('Backup restaurado com sucesso!');
+                } catch (err) {
+                    toast('Erro ao ler o arquivo.', 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // ==================== ADMIN FUNCTIONS ====================
+        function renderAdmin() {
+            renderAdminProdutos();
+            preencherSelectAjuste();
+            renderHistorico();
+        }
+
+        function renderAdminProdutos() {
+            const tbody = document.getElementById('adminTabelaProdutos');
+            if (state.products.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--text-muted);">Nenhum produto cadastrado</td></tr>';
+                return;
+            }
+            tbody.innerHTML = state.products
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(p => `
+                    <tr>
+                        <td><strong>${escapeHtml(p.name)}</strong><br><span style="font-size:0.75rem;color:var(--text-muted);">${escapeHtml(p.category||'')}</span></td>
+                        <td>${formatMoney(p.price)}</td>
+                        <td>${p.qty}</td>
+                        <td>${p.unit || 'un'}</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline" onclick="adminEditarProduto('${p.id}')">Editar</button>
+                            <button class="btn btn-sm btn-danger" onclick="adminExcluirProduto('${p.id}')">Excluir</button>
+                        </td>
+                    </tr>
+                `).join('');
+        }
+
+        function adminAdicionarProduto() {
+            const name = document.getElementById('adminNomeProduto').value.trim();
+            const price = parseFloat(document.getElementById('adminPrecoProduto').value) || 0;
+            const qty = parseInt(document.getElementById('adminQtdProduto').value, 10) || 0;
+            const unit = document.getElementById('adminUnidadeProduto').value;
+            const category = document.getElementById('adminCategoriaProduto').value;
+            const minQty = parseInt(document.getElementById('adminMinQtyProduto').value, 10) || 5;
+
+            if (!name) {
+                toast('Informe o nome do produto.', 'error');
+                return;
+            }
+
+            if (state.products.some(p => p.name.toLowerCase() === name.toLowerCase())) {
+                toast('Já existe um produto com este nome.', 'error');
+                return;
+            }
+
+            state.products.push({
+                id: generateId(),
+                name,
+                price,
+                qty,
+                unit,
+                category,
+                minQty
+            });
+
+            saveState();
+            document.getElementById('adminNomeProduto').value = '';
+            document.getElementById('adminPrecoProduto').value = '';
+            document.getElementById('adminQtdProduto').value = '';
+            document.getElementById('adminMinQtyProduto').value = '5';
+            renderAdminProdutos();
+            toast(`Produto "${name}" cadastrado!`);
+        }
+
+        function adminEditarProduto(id) {
+            const p = state.products.find(x => x.id === id);
+            if (!p) return;
+
+            const novoNome = prompt('Nome do produto:', p.name);
+            if (novoNome === null) return;
+            const novoPreco = prompt('Preço unitário (R$):', p.price);
+            if (novoPreco === null) return;
+            const novaCat = prompt('Categoria (Cervejas, Refrigerantes, Bebidas, Doces, Snacks, Sorvetes, Outros):', p.category || 'Outros');
+            if (novaCat === null) return;
+            const novoMin = prompt('Estoque mínimo:', p.minQty !== undefined ? p.minQty : 5);
+            if (novoMin === null) return;
+
+            p.name = novoNome.trim() || p.name;
+            p.price = parseFloat(novoPreco) || 0;
+            p.category = (novaCat || '').trim() || p.category || 'Outros';
+            p.minQty = parseInt(novoMin, 10);
+            if (isNaN(p.minQty)) p.minQty = 5;
+            saveState();
+            renderAdminProdutos();
+            toast('Produto atualizado');
+        }
+
+        function adminExcluirProduto(id) {
+            const p = state.products.find(x => x.id === id);
+            if (!p) return;
+            if (!confirm(`Excluir o produto "${p.name}"? Esta ação não pode ser desfeita.`)) return;
+
+            state.products = state.products.filter(x => x.id !== id);
+            saveState();
+            renderAdminProdutos();
+            toast('Produto excluído');
+        }
+
+        function adminAjustarEstoque() {
+            const productId = document.getElementById('ajusteProduto').value;
+            const novaQtd = parseInt(document.getElementById('ajusteQtd').value, 10);
+            const motivo = document.getElementById('ajusteMotivo').value.trim();
+
+            if (!productId || isNaN(novaQtd) || novaQtd < 0) {
+                toast('Preencha os dados corretamente.', 'error');
+                return;
+            }
+
+            const product = state.products.find(p => p.id === productId);
+            if (!product) return;
+
+            const antiga = product.qty;
+            product.qty = novaQtd;
+
+            // Register as special movement for audit
+            state.movements.push({
+                id: generateId(),
+                type: 'ajuste',
+                productId,
+                productName: product.name,
+                qty: novaQtd - antiga,
+                price: product.price,
+                obs: motivo || 'Ajuste administrativo',
+                militar: 'ADMIN',
+                date: todayISO()
+            });
+
+            saveState();
+            renderAdminProdutos();
+            document.getElementById('ajusteQtd').value = '';
+            document.getElementById('ajusteMotivo').value = '';
+            toast(`Estoque de ${product.name} ajustado: ${antiga} → ${novaQtd}`);
+        }
+
+        function renderHistorico() {
+            const container = document.getElementById('listaHistorico');
+            const vazio = document.getElementById('historicoVazio');
+
+            if (state.history.length === 0) {
+                container.innerHTML = '';
+                vazio.style.display = 'block';
+                return;
+            }
+            vazio.style.display = 'none';
+
+            container.innerHTML = state.history.map(h => `
+                <div style="padding:1rem;border-bottom:1px solid var(--border);">
+                    <strong>${formatDate(h.date)}</strong> — ${escapeHtml(h.militar)}<br>
+                    <span style="font-size:0.85rem;color:var(--text-muted);">
+                        Entradas: ${h.summary.entradas} | Vendas: ${h.summary.vendas} | Valor: ${formatMoney(h.summary.valor)}
+                    </span>
+                </div>
+            `).join('');
+        }
+
+        function adminAlterarSenha() {
+            const atual = document.getElementById('senhaAtual').value;
+            const nova = document.getElementById('senhaNova').value;
+            const confirma = document.getElementById('senhaConfirma').value;
+
+            if (atual !== state.adminPassword) {
+                toast('Senha atual incorreta.', 'error');
+                return;
+            }
+            if (!nova || nova.length < 4) {
+                toast('Nova senha deve ter pelo menos 4 caracteres.', 'error');
+                return;
+            }
+            if (nova !== confirma) {
+                toast('Confirmação não confere.', 'error');
+                return;
+            }
+
+            state.adminPassword = nova;
+            saveState();
+            document.getElementById('senhaAtual').value = '';
+            document.getElementById('senhaNova').value = '';
+            document.getElementById('senhaConfirma').value = '';
+            toast('Senha alterada com sucesso!');
+        }
+
+        function adminZerarSistema() {
+            const confirma1 = confirm('⚠️ ATENÇÃO!\n\nIsso vai APAGAR:\n• Todas as quantidades de estoque\n• Movimentações de hoje\n• Histórico de fechamentos\n\nOs produtos e preços serão mantidos.\n\nDeseja continuar?');
+            if (!confirma1) return;
+
+            const confirma2 = confirm('Última confirmação: realmente deseja ZERAR TODO O SISTEMA?');
+            if (!confirma2) return;
+
+            // Zera quantidades, mantém produtos e preços
+            state.products.forEach(p => p.qty = 0);
+            state.movements = [];
+            state.history = [];
+            state.lastCloseDate = null;
+            state.lastMilitar = '';
+            saveState();
+
+            renderAdmin();
+            toast('Sistema zerado com sucesso! Todas as quantidades e histórico foram limpos.');
+        }
+
+        // ==================== START ====================
+        updateHeaderDate();
+        // Prefill last militar if exists
+        if (state.lastMilitar) {
+            const select = document.getElementById('inputMilitar');
+            if (select) {
+                select.value = state.lastMilitar;
+            }
+        }
+    </script>
+</body>
+</html>
