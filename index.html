@@ -1322,7 +1322,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Beneficente, Esportivo e Recreativo Antônio João — GBERAJ<br>
+        Grêmio Recreativo Antônio João — GRAJ<br>
         Sistema de Controle de Estoque • Uso interno
     </footer>
 
@@ -2115,7 +2115,7 @@
             ).join('');
 
             let html = '';
-            html += '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatorio - GBERAJ</title>';
+            html += '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatorio - GRAJ</title>';
             html += '<style>';
             html += 'body{font-family:Arial,sans-serif;padding:20px;color:#111;}';
             html += 'h1{color:#0d5c2e;margin-bottom:4px;}';
@@ -2127,7 +2127,7 @@
             html += '.footer{margin-top:30px;font-size:0.8rem;color:#666;}';
             html += '@media print{button{display:none;}}';
             html += '<\/style><\/head><body>';
-            html += '<h1>Gremio Recreativo Antonio Joao — GBERAJ</h1>';
+            html += '<h1>Gremio Recreativo Antonio Joao — GRAJ</h1>';
             html += '<p><strong>Relatorio de Controle de Estoque</strong></p>';
             html += '<div class="resumo">';
             html += '<strong>Militar:</strong> ' + escapeHtml(currentMilitar || '\u2014') + '<br>';
@@ -2152,7 +2152,7 @@
                 html += linhasEntradas;
                 html += '<\/tbody><\/table>';
             }
-            html += '<div class="footer">Sistema de Controle de Estoque — GBERAJ<br>Gerado em ' + new Date().toLocaleString('pt-BR') + '</div>';
+            html += '<div class="footer">Sistema de Controle de Estoque — GRAJ<br>Gerado em ' + new Date().toLocaleString('pt-BR') + '</div>';
             html += '<br><button onclick="window.print()">Imprimir</button>';
             html += '<\/body><\/html>';
 
