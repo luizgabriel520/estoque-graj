@@ -1107,6 +1107,12 @@
                         </div>
                     </div>
                     <div id="adminServicoInfo" class="alert alert-info" style="display:none;"></div>
+                    <div id="adminForceCloseBox" style="display:none;margin-bottom:1rem;">
+                        <button class="btn btn-accent btn-block" onclick="adminForcarFechamento()">
+                            🔒 Forçar fechamento do serviço aberto
+                        </button>
+                        <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.4rem;">Use se o militar esqueceu de fechar o serviço.</p>
+                    </div>
                     <div id="adminListaVendas"></div>
                     <div id="adminVendasVazio" class="empty-state">
                         <div class="icon">🛒</div>
@@ -1246,20 +1252,31 @@
 
     <!-- Modal Entrada -->
     <div class="modal-overlay" id="modalEntrada">
-        <div class="modal">
+        <div class="modal" style="max-width:520px;">
             <div class="modal-header">
                 <h3>📥 Registrar Entrada de Mercadoria</h3>
                 <button class="modal-close" onclick="fecharModal('modalEntrada')">&times;</button>
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Produto</label>
-                    <select id="entradaProduto" class="form-control"></select>
+                    <label>Buscar produto</label>
+                    <input type="text" id="entradaBusca" class="form-control" placeholder="Digite para filtrar..." oninput="filtrarSelectProdutos('entrada')">
                 </div>
-                <div class="form-group">
-                    <label>Quantidade Entrada</label>
-                    <input type="number" id="entradaQtd" class="form-control" min="1" step="1" value="1">
+                <div class="form-row">
+                    <div class="form-group" style="flex:2;">
+                        <label>Produto</label>
+                        <select id="entradaProduto" class="form-control"></select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Qtd</label>
+                        <input type="number" id="entradaQtd" class="form-control" min="1" step="1" value="1">
+                    </div>
                 </div>
+                <button type="button" class="btn btn-outline btn-block" style="margin-bottom:1rem;" onclick="adicionarItemEntrada()">
+                    ➕ Adicionar à lista
+                </button>
+                <div id="listaEntradaItens" style="max-height:220px;overflow-y:auto;margin-bottom:0.75rem;"></div>
+                <div id="entradaTotalBox" class="alert alert-info" style="display:none;margin-bottom:0.75rem;"></div>
                 <div class="form-group">
                     <label>Observação (opcional)</label>
                     <input type="text" id="entradaObs" class="form-control" placeholder="Ex: Compra do fornecedor X">
@@ -1280,6 +1297,10 @@
                 <button class="modal-close" onclick="fecharModal('modalVenda')">&times;</button>
             </div>
             <div class="modal-body">
+                <div class="form-group">
+                    <label>Buscar produto</label>
+                    <input type="text" id="vendaBusca" class="form-control" placeholder="Digite para filtrar..." oninput="filtrarSelectProdutos('venda')">
+                </div>
                 <div class="form-row">
                     <div class="form-group" style="flex:2;">
                         <label>Produto</label>
@@ -1745,18 +1766,42 @@
             if (elE) elE.textContent = totalEntradas;
             if (elVal) elVal.textContent = formatMoney(valor);
 
+            const forceBox = document.getElementById('adminForceCloseBox');
             if (info) {
                 if (state.serviceOpen) {
                     info.style.display = 'block';
+                    info.className = 'alert alert-warning';
                     info.innerHTML = '🔓 Serviço <strong>ABERTO</strong> por <strong>' + escapeHtml(state.serviceMilitar || '—') + '</strong>' +
                         (state.serviceStartedAt ? ' desde ' + formatDate(state.serviceStartedAt) : '') +
                         '. O próximo militar só poderá iniciar após o fechamento.';
+                    if (forceBox) forceBox.style.display = 'block';
                 } else {
                     info.style.display = 'block';
                     info.className = 'alert alert-success';
                     info.innerHTML = '🔒 Nenhum serviço aberto no momento. Pode iniciar um novo.';
+                    if (forceBox) forceBox.style.display = 'none';
                 }
             }
+
+            // defined once
+            window.adminForcarFechamento = function() {
+                if (!state.serviceOpen) {
+                    toast('Nenhum serviço aberto.', 'error');
+                    return;
+                }
+                if (!confirm('Forçar fechamento do serviço de ' + (state.serviceMilitar || '?') + '?\n\nAs movimentações de hoje serão arquivadas e o estoque atual será o inicial do próximo dia.')) {
+                    return;
+                }
+                currentMilitar = state.serviceMilitar || 'ADMIN';
+                const obsEl = document.getElementById('obsFechamento');
+                if (obsEl) obsEl.value = 'Fechamento forçado pelo administrador';
+                // Reuse confirm flow summary then close
+                if (typeof confirmarFechamento === 'function') {
+                    confirmarFechamento();
+                } else {
+                    fecharServico();
+                }
+            };
 
             const sorted = [...(state.movements || [])].reverse();
             if (sorted.length === 0) {
@@ -1970,18 +2015,94 @@
         }
 
         // ==================== MOVEMENTS ====================
+        let entradaItens = [];
+        let vendaItens = [];
+
+        function filtrarSelectProdutos(tipo) {
+            const buscaEl = document.getElementById(tipo === 'venda' ? 'vendaBusca' : 'entradaBusca');
+            const selectEl = document.getElementById(tipo === 'venda' ? 'vendaProduto' : 'entradaProduto');
+            if (!buscaEl || !selectEl) return;
+            const busca = (buscaEl.value || '').toLowerCase().trim();
+            const options = state.products
+                .filter(p => !busca || p.name.toLowerCase().includes(busca))
+                .sort((a, b) => a.name.localeCompare(b.name))
+                .map(p => '<option value="' + p.id + '">' + escapeHtml(p.name) + ' (' + p.qty + ' ' + (p.unit || 'un') + ')</option>')
+                .join('');
+            selectEl.innerHTML = options || '<option value="">Nenhum produto</option>';
+        }
+
         function abrirModalEntrada() {
             if (state.products.length === 0) {
                 toast('Cadastre produtos primeiro (acesso admin).', 'error');
                 return;
             }
+            entradaItens = [];
             document.getElementById('entradaQtd').value = 1;
             document.getElementById('entradaObs').value = '';
+            const b = document.getElementById('entradaBusca');
+            if (b) b.value = '';
             preencherSelects();
+            renderListaEntradaItens();
             openModal('modalEntrada');
         }
 
-        let vendaItens = []; // carrinho temporário da venda múltipla
+        function adicionarItemEntrada() {
+            const productId = document.getElementById('entradaProduto').value;
+            const qty = parseInt(document.getElementById('entradaQtd').value, 10);
+            if (!productId || isNaN(qty) || qty <= 0) {
+                toast('Selecione o produto e a quantidade.', 'error');
+                return;
+            }
+            const product = state.products.find(p => p.id === productId);
+            if (!product) {
+                toast('Produto não encontrado.', 'error');
+                return;
+            }
+            const existente = entradaItens.find(i => i.productId === productId);
+            if (existente) {
+                existente.qty += qty;
+            } else {
+                entradaItens.push({
+                    productId: product.id,
+                    productName: product.name,
+                    price: product.price,
+                    unit: product.unit || 'un',
+                    qty: qty
+                });
+            }
+            document.getElementById('entradaQtd').value = 1;
+            renderListaEntradaItens();
+            toast(product.name + ' adicionado (+' + qty + ')');
+        }
+
+        function removerItemEntrada(idx) {
+            entradaItens.splice(idx, 1);
+            renderListaEntradaItens();
+        }
+
+        function renderListaEntradaItens() {
+            const box = document.getElementById('listaEntradaItens');
+            const totalBox = document.getElementById('entradaTotalBox');
+            if (!box) return;
+            if (entradaItens.length === 0) {
+                box.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;text-align:center;padding:0.5rem;">Nenhum item na lista. Adicione produtos acima.</p>';
+                if (totalBox) totalBox.style.display = 'none';
+                return;
+            }
+            let totalQtd = 0;
+            box.innerHTML = entradaItens.map((item, idx) => {
+                totalQtd += item.qty;
+                return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border);gap:0.5rem;">' +
+                    '<div style="flex:1;min-width:0;"><strong style="font-size:0.9rem;">' + escapeHtml(item.productName) + '</strong>' +
+                    '<div style="font-size:0.8rem;color:var(--text-muted);">+' + item.qty + ' ' + (item.unit || 'un') + '</div></div>' +
+                    '<button type="button" class="btn btn-sm btn-danger" onclick="removerItemEntrada(' + idx + ')">✕</button></div>';
+            }).join('');
+            if (totalBox) {
+                totalBox.style.display = 'block';
+                totalBox.innerHTML = '<strong>' + entradaItens.length + ' produto(s)</strong> • ' + totalQtd + ' un de entrada';
+            }
+        }
+
 
         function abrirModalVenda() {
             if (state.products.length === 0) {
@@ -1991,6 +2112,8 @@
             vendaItens = [];
             document.getElementById('vendaQtd').value = 1;
             document.getElementById('vendaObs').value = '';
+            const vb = document.getElementById('vendaBusca');
+            if (vb) vb.value = '';
             preencherSelects();
             renderListaVendaItens();
             openModal('modalVenda');
@@ -2069,39 +2192,54 @@
         }
 
         function registrarEntrada() {
-            const productId = document.getElementById('entradaProduto').value;
-            const qty = parseInt(document.getElementById('entradaQtd').value, 10);
             const obs = document.getElementById('entradaObs').value.trim();
 
-            if (!productId || isNaN(qty) || qty <= 0) {
-                toast('Preencha os dados corretamente.', 'error');
-                return;
+            if (entradaItens.length === 0) {
+                const productId = document.getElementById('entradaProduto').value;
+                const qty = parseInt(document.getElementById('entradaQtd').value, 10);
+                if (!productId || isNaN(qty) || qty <= 0) {
+                    toast('Adicione pelo menos um produto à lista.', 'error');
+                    return;
+                }
+                const product = state.products.find(p => p.id === productId);
+                if (!product) {
+                    toast('Produto não encontrado.', 'error');
+                    return;
+                }
+                entradaItens.push({
+                    productId: product.id,
+                    productName: product.name,
+                    price: product.price,
+                    unit: product.unit || 'un',
+                    qty: qty
+                });
             }
 
-            const product = state.products.find(p => p.id === productId);
-            if (!product) {
-                toast('Produto não encontrado.', 'error');
-                return;
+            let totalItens = 0;
+            for (const item of entradaItens) {
+                const product = state.products.find(p => p.id === item.productId);
+                if (!product) continue;
+                product.qty += item.qty;
+                totalItens += item.qty;
+                state.movements.push({
+                    id: generateId(),
+                    type: 'entrada',
+                    productId: item.productId,
+                    productName: item.productName,
+                    qty: item.qty,
+                    price: item.price,
+                    obs: obs,
+                    militar: currentMilitar,
+                    date: todayISO()
+                });
             }
 
-            product.qty += qty;
-
-            state.movements.push({
-                id: generateId(),
-                type: 'entrada',
-                productId,
-                productName: product.name,
-                qty,
-                price: product.price,
-                obs,
-                militar: currentMilitar,
-                date: todayISO()
-            });
-
+            const qtdProdutos = entradaItens.length;
+            entradaItens = [];
             saveState();
             renderAll();
             fecharModal('modalEntrada');
-            toast(`Entrada de ${qty} ${product.unit || 'un'} de ${product.name}`);
+            toast('Entrada OK: ' + qtdProdutos + ' produto(s), ' + totalItens + ' un');
         }
 
         function registrarVenda() {
