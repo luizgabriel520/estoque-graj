@@ -1322,7 +1322,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Recreativo Antônio João — GRAJ<br>
+        Grêmio Beneficente, Esportivo e Recreativo Antônio João — GBERAJ<br>
         Sistema de Controle de Estoque • Uso interno
     </footer>
 
@@ -1330,13 +1330,13 @@
         // ==================== STATE & STORAGE ====================
         // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
         const FIREBASE_CONFIG = {
-       apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
-       authDomain: "estoque-graj-b32b2.firebaseapp.com",
-       databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
-       projectId: "estoque-graj-b32b2",
-       storageBucket: "estoque-graj-b32b2.firebasestorage.app",
-       messagingSenderId: "924249670911",
-       appId: "1:924249670911:web:283128ab7ceba163c478ca"
+            apiKey: "COLE_AQUI",
+            authDomain: "COLE_AQUI",
+            databaseURL: "COLE_AQUI",
+            projectId: "COLE_AQUI",
+            storageBucket: "COLE_AQUI",
+            messagingSenderId: "COLE_AQUI",
+            appId: "COLE_AQUI"
         };
 
         const STORAGE_KEY = 'gberaj_estoque_v1';
@@ -1763,6 +1763,10 @@
                 const tipo = isVenda ? 'VENDA' : (isEntrada ? 'ENTRADA' : 'AJUSTE');
                 const cor = isVenda ? 'var(--danger)' : (isEntrada ? 'var(--success)' : 'var(--warning)');
                 const valorLinha = isVenda ? formatMoney(m.qty * (m.price || 0)) : '—';
+                const canUndo = m.type === 'entrada' || m.type === 'venda';
+                const undoBtn = canUndo
+                    ? '<button class="btn btn-sm btn-outline" style="margin-top:0.25rem;font-size:0.7rem;" onclick="desfazerMovimentacao(\'' + m.id + '\')">Desfazer</button>'
+                    : '';
                 return '<div class="movement-item">' +
                     '<div class="movement-icon ' + (isEntrada ? 'entrada' : 'venda') + '">' + (isVenda ? '🛒' : (isEntrada ? '📥' : '🔧')) + '</div>' +
                     '<div class="movement-info">' +
@@ -1771,7 +1775,8 @@
                     (m.obs ? ' • ' + escapeHtml(m.obs) : '') + '</span></div>' +
                     '<div style="text-align:right;"><div class="movement-qty" style="color:' + cor + '">' +
                     (isEntrada ? '+' : '−') + m.qty + '</div>' +
-                    '<div style="font-size:0.8rem;color:var(--text-muted)">' + valorLinha + '</div></div></div>';
+                    '<div style="font-size:0.8rem;color:var(--text-muted)">' + valorLinha + '</div>' +
+                    undoBtn + '</div></div>';
             }).join('');
         }
 
@@ -1838,32 +1843,79 @@
             const container = document.getElementById('listaMovimentacoes');
             const vazio = document.getElementById('movimentacoesVazio');
 
-            if (state.movements.length === 0) {
+            if (!state.movements || state.movements.length === 0) {
                 container.innerHTML = '';
                 vazio.style.display = 'block';
                 return;
             }
             vazio.style.display = 'none';
 
-            // newest first
             const sorted = [...state.movements].reverse();
             container.innerHTML = sorted.map(m => {
                 const isEntrada = m.type === 'entrada';
-                const icon = isEntrada ? '📥' : '🛒';
+                const isVenda = m.type === 'venda';
+                const icon = isEntrada ? '📥' : (isVenda ? '🛒' : '🔧');
                 const iconClass = isEntrada ? 'entrada' : 'venda';
                 const qtyClass = isEntrada ? 'plus' : 'minus';
                 const sign = isEntrada ? '+' : '−';
-                return `
-                    <div class="movement-item">
-                        <div class="movement-icon ${iconClass}">${icon}</div>
-                        <div class="movement-info">
-                            <strong>${escapeHtml(m.productName)}</strong>
-                            <span>${formatDate(m.date)} • ${escapeHtml(m.militar || '')}${m.obs ? ' • ' + escapeHtml(m.obs) : ''}</span>
-                        </div>
-                        <div class="movement-qty ${qtyClass}">${sign}${m.qty}</div>
-                    </div>
-                `;
+                const canUndo = m.type === 'entrada' || m.type === 'venda';
+                const undoBtn = canUndo
+                    ? '<button class="btn btn-sm btn-outline" style="margin-left:0.4rem;padding:0.2rem 0.45rem;font-size:0.7rem;" onclick="desfazerMovimentacao(\'' + m.id + '\')" title="Desfazer">↩</button>'
+                    : '';
+                return '<div class="movement-item">' +
+                    '<div class="movement-icon ' + iconClass + '">' + icon + '</div>' +
+                    '<div class="movement-info">' +
+                    '<strong>' + escapeHtml(m.productName) + '</strong>' +
+                    '<span>' + formatDate(m.date) + ' • ' + escapeHtml(m.militar || '') +
+                    (m.obs ? ' • ' + escapeHtml(m.obs) : '') + '</span></div>' +
+                    '<div style="display:flex;align-items:center;gap:0.25rem;">' +
+                    '<div class="movement-qty ' + qtyClass + '">' + sign + m.qty + '</div>' +
+                    undoBtn + '</div></div>';
             }).join('');
+        }
+
+        function desfazerMovimentacao(movId) {
+            const m = state.movements.find(x => x.id === movId);
+            if (!m) {
+                toast('Movimentação não encontrada.', 'error');
+                return;
+            }
+            if (m.type !== 'entrada' && m.type !== 'venda') {
+                toast('Só é possível desfazer entradas e vendas.', 'error');
+                return;
+            }
+
+            const tipoTxt = m.type === 'entrada' ? 'entrada' : 'venda';
+            if (!confirm('Desfazer esta ' + tipoTxt + ' de ' + m.qty + ' x ' + m.productName + '?\n\nO estoque será corrigido automaticamente.')) {
+                return;
+            }
+
+            const product = state.products.find(p => p.id === m.productId);
+            if (!product) {
+                toast('Produto não encontrado no estoque.', 'error');
+                return;
+            }
+
+            if (m.type === 'entrada') {
+                // Desfaz entrada: tira do estoque
+                if (product.qty < m.qty) {
+                    if (!confirm('Estoque atual (' + product.qty + ') é menor que a entrada (' + m.qty + '). Zerar o produto?')) {
+                        return;
+                    }
+                    product.qty = 0;
+                } else {
+                    product.qty -= m.qty;
+                }
+            } else if (m.type === 'venda') {
+                // Desfaz venda: devolve ao estoque
+                product.qty += m.qty;
+            }
+
+            state.movements = state.movements.filter(x => x.id !== movId);
+            saveState();
+            renderAll();
+            if (typeof renderAdminVendas === 'function') renderAdminVendas();
+            toast(tipoTxt.charAt(0).toUpperCase() + tipoTxt.slice(1) + ' desfeita. Estoque atualizado.');
         }
 
         function renderStats() {
