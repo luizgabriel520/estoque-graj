@@ -987,6 +987,8 @@
                         </div>
                     </div>
                 </div>
+
+                <div class="card" id="ultimoServicoBox" style="margin-top:1.5rem;display:none;"></div>
             </div>
         </div>
     </div>
@@ -1150,7 +1152,7 @@
                     <h2>📜 Histórico de Fechamentos</h2>
                 </div>
                 <div class="card-body">
-                    <div id="listaHistorico" class="history-list"></div>
+                    <div id="listaHistorico" class="history-list" style="max-height:none;"></div>
                     <div id="historicoVazio" class="empty-state">
                         <div class="icon">📭</div>
                         <p>Nenhum fechamento registrado ainda.</p>
@@ -1793,6 +1795,7 @@
             renderMovimentacoes();
             renderStats();
             preencherSelects();
+            if (typeof renderUltimoServico === 'function') renderUltimoServico();
         }
 
         function renderEstoque() {
@@ -2517,22 +2520,95 @@
             const container = document.getElementById('listaHistorico');
             const vazio = document.getElementById('historicoVazio');
 
-            if (state.history.length === 0) {
+            if (!state.history || state.history.length === 0) {
                 container.innerHTML = '';
-                vazio.style.display = 'block';
+                if (vazio) vazio.style.display = 'block';
                 return;
             }
-            vazio.style.display = 'none';
+            if (vazio) vazio.style.display = 'none';
 
-            container.innerHTML = state.history.map(h => `
-                <div style="padding:1rem;border-bottom:1px solid var(--border);">
-                    <strong>${formatDate(h.date)}</strong> — ${escapeHtml(h.militar)}<br>
-                    <span style="font-size:0.85rem;color:var(--text-muted);">
-                        Entradas: ${h.summary.entradas} | Vendas: ${h.summary.vendas} | Valor: ${formatMoney(h.summary.valor)}
-                    </span>
-                </div>
-            `).join('');
+            container.innerHTML = state.history.map((h, idx) => {
+                const vendas = (h.movements || []).filter(m => m.type === 'venda');
+                const entradas = (h.movements || []).filter(m => m.type === 'entrada');
+                const detalhesId = 'hist-detalhe-' + idx;
+
+                let vendasHtml = '';
+                if (vendas.length === 0) {
+                    vendasHtml = '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhuma venda neste serviço.</p>';
+                } else {
+                    vendasHtml = '<table style="width:100%;font-size:0.85rem;margin-top:0.5rem;"><thead><tr>' +
+                        '<th style="text-align:left;">Produto</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>' +
+                        vendas.map(m => '<tr><td>' + escapeHtml(m.productName) + '</td><td style="text-align:center;">' +
+                        m.qty + '</td><td>' + formatMoney(m.qty * (m.price || 0)) + '</td></tr>').join('') +
+                        '</tbody></table>';
+                }
+
+                let entradasHtml = '';
+                if (entradas.length > 0) {
+                    entradasHtml = '<p style="margin-top:0.75rem;font-weight:600;font-size:0.85rem;">Entradas</p><ul style="font-size:0.85rem;margin:0.25rem 0 0 1rem;">' +
+                        entradas.map(m => '<li>' + escapeHtml(m.productName) + ' (+' + m.qty + ')</li>').join('') + '</ul>';
+                }
+
+                return '<div style="padding:1rem;border-bottom:1px solid var(--border);">' +
+                    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;flex-wrap:wrap;">' +
+                    '<div><strong>' + formatDate(h.date) + '</strong> — ' + escapeHtml(h.militar) + '<br>' +
+                    '<span style="font-size:0.85rem;color:var(--text-muted);">Entradas: ' +
+                    (h.summary && h.summary.entradas != null ? h.summary.entradas : entradas.reduce((s,m)=>s+m.qty,0)) +
+                    ' | Vendas: ' +
+                    (h.summary && h.summary.vendas != null ? h.summary.vendas : vendas.reduce((s,m)=>s+m.qty,0)) +
+                    ' | Valor: ' + formatMoney(h.summary && h.summary.valor != null ? h.summary.valor : vendas.reduce((s,m)=>s+m.qty*(m.price||0),0)) +
+                    '</span>' +
+                    (h.obs ? '<br><span style="font-size:0.8rem;color:var(--text-muted);">Obs: ' + escapeHtml(h.obs) + '</span>' : '') +
+                    '</div>' +
+                    '<button class="btn btn-sm btn-outline" onclick="toggleHistDetalhe(' + idx + ')">Ver vendas</button>' +
+                    '</div>' +
+                    '<div id="' + detalhesId + '" style="display:none;margin-top:0.75rem;padding-top:0.75rem;border-top:1px dashed var(--border);">' +
+                    '<p style="font-weight:600;font-size:0.85rem;margin:0;">Vendas do serviço</p>' +
+                    vendasHtml + entradasHtml + '</div></div>';
+            }).join('');
         }
+
+        function toggleHistDetalhe(idx) {
+            const el = document.getElementById('hist-detalhe-' + idx);
+            if (!el) return;
+            el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        function renderUltimoServico() {
+            const box = document.getElementById('ultimoServicoBox');
+            if (!box) return;
+            if (!state.history || state.history.length === 0) {
+                box.style.display = 'none';
+                return;
+            }
+            box.style.display = 'block';
+            const h = state.history[0];
+            const vendas = (h.movements || []).filter(m => m.type === 'venda');
+            const valor = h.summary && h.summary.valor != null
+                ? h.summary.valor
+                : vendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
+            const qtd = h.summary && h.summary.vendas != null
+                ? h.summary.vendas
+                : vendas.reduce((s, m) => s + m.qty, 0);
+
+            let lista = '';
+            if (vendas.length === 0) {
+                lista = '<p style="font-size:0.85rem;color:var(--text-muted);">Sem vendas registradas.</p>';
+            } else {
+                lista = '<div style="max-height:200px;overflow-y:auto;font-size:0.85rem;">' +
+                    vendas.map(m => '<div style="display:flex;justify-content:space-between;padding:0.3rem 0;border-bottom:1px solid var(--border);">' +
+                    '<span>' + escapeHtml(m.productName) + ' × ' + m.qty + '</span>' +
+                    '<span>' + formatMoney(m.qty * (m.price || 0)) + '</span></div>').join('') + '</div>';
+            }
+
+            box.innerHTML = '<div class="card-header"><h2>📋 Serviço Anterior</h2></div>' +
+                '<div class="card-body">' +
+                '<p style="font-size:0.9rem;margin-bottom:0.5rem;"><strong>' + escapeHtml(h.militar) + '</strong> — ' +
+                formatDate(h.date) + '</p>' +
+                '<p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">' +
+                qtd + ' un vendidas • ' + formatMoney(valor) + '</p>' + lista + '</div>';
+        }
+
 
         function adminAlterarSenha() {
             const atual = document.getElementById('senhaAtual').value;
