@@ -1272,20 +1272,27 @@
 
     <!-- Modal Venda -->
     <div class="modal-overlay" id="modalVenda">
-        <div class="modal">
+        <div class="modal" style="max-width:520px;">
             <div class="modal-header">
                 <h3>🛒 Registrar Venda</h3>
                 <button class="modal-close" onclick="fecharModal('modalVenda')">&times;</button>
             </div>
             <div class="modal-body">
-                <div class="form-group">
-                    <label>Produto</label>
-                    <select id="vendaProduto" class="form-control"></select>
+                <div class="form-row">
+                    <div class="form-group" style="flex:2;">
+                        <label>Produto</label>
+                        <select id="vendaProduto" class="form-control"></select>
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label>Qtd</label>
+                        <input type="number" id="vendaQtd" class="form-control" min="1" step="1" value="1">
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Quantidade Vendida</label>
-                    <input type="number" id="vendaQtd" class="form-control" min="1" step="1" value="1">
-                </div>
+                <button type="button" class="btn btn-outline btn-block" style="margin-bottom:1rem;" onclick="adicionarItemVenda()">
+                    ➕ Adicionar à lista
+                </button>
+                <div id="listaVendaItens" style="max-height:220px;overflow-y:auto;margin-bottom:0.75rem;"></div>
+                <div id="vendaTotalBox" class="alert alert-info" style="display:none;margin-bottom:0.75rem;"></div>
                 <div class="form-group">
                     <label>Observação (opcional)</label>
                     <input type="text" id="vendaObs" class="form-control" placeholder="Ex: Sócio nº 123">
@@ -1322,7 +1329,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Beneficente, Esportivo e Recreativo Antônio João — GBERAJ<br>
+        Grêmio Recreativo Antônio João — GRAJ<br>
         Sistema de Controle de Estoque • Uso interno
     </footer>
 
@@ -1330,13 +1337,13 @@
         // ==================== STATE & STORAGE ====================
         // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
         const FIREBASE_CONFIG = {
-            apiKey: "COLE_AQUI",
-            authDomain: "COLE_AQUI",
-            databaseURL: "COLE_AQUI",
-            projectId: "COLE_AQUI",
-            storageBucket: "COLE_AQUI",
-            messagingSenderId: "COLE_AQUI",
-            appId: "COLE_AQUI"
+       apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
+       authDomain: "estoque-graj-b32b2.firebaseapp.com",
+       databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
+       projectId: "estoque-graj-b32b2",
+       storageBucket: "estoque-graj-b32b2.firebasestorage.app",
+       messagingSenderId: "924249670911",
+       appId: "1:924249670911:web:283128ab7ceba163c478ca"
         };
 
         const STORAGE_KEY = 'gberaj_estoque_v1';
@@ -1971,15 +1978,91 @@
             openModal('modalEntrada');
         }
 
+        let vendaItens = []; // carrinho temporário da venda múltipla
+
         function abrirModalVenda() {
             if (state.products.length === 0) {
                 toast('Cadastre produtos primeiro (acesso admin).', 'error');
                 return;
             }
+            vendaItens = [];
             document.getElementById('vendaQtd').value = 1;
             document.getElementById('vendaObs').value = '';
             preencherSelects();
+            renderListaVendaItens();
             openModal('modalVenda');
+        }
+
+        function adicionarItemVenda() {
+            const productId = document.getElementById('vendaProduto').value;
+            const qty = parseInt(document.getElementById('vendaQtd').value, 10);
+            if (!productId || isNaN(qty) || qty <= 0) {
+                toast('Selecione o produto e a quantidade.', 'error');
+                return;
+            }
+            const product = state.products.find(p => p.id === productId);
+            if (!product) {
+                toast('Produto não encontrado.', 'error');
+                return;
+            }
+
+            // Quantidade já no carrinho deste produto
+            const jaNoCarrinho = vendaItens
+                .filter(i => i.productId === productId)
+                .reduce((s, i) => s + i.qty, 0);
+            const disponivel = product.qty - jaNoCarrinho;
+            if (qty > disponivel) {
+                toast('Estoque insuficiente! Disponível: ' + disponivel, 'error');
+                return;
+            }
+
+            // Se já existe na lista, soma a quantidade
+            const existente = vendaItens.find(i => i.productId === productId);
+            if (existente) {
+                existente.qty += qty;
+            } else {
+                vendaItens.push({
+                    productId: product.id,
+                    productName: product.name,
+                    price: product.price,
+                    unit: product.unit || 'un',
+                    qty: qty
+                });
+            }
+            document.getElementById('vendaQtd').value = 1;
+            renderListaVendaItens();
+            toast(product.name + ' adicionado (+' + qty + ')');
+        }
+
+        function removerItemVenda(idx) {
+            vendaItens.splice(idx, 1);
+            renderListaVendaItens();
+        }
+
+        function renderListaVendaItens() {
+            const box = document.getElementById('listaVendaItens');
+            const totalBox = document.getElementById('vendaTotalBox');
+            if (!box) return;
+            if (vendaItens.length === 0) {
+                box.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;text-align:center;padding:0.5rem;">Nenhum item na lista. Adicione produtos acima.</p>';
+                if (totalBox) totalBox.style.display = 'none';
+                return;
+            }
+            let totalQtd = 0;
+            let totalValor = 0;
+            box.innerHTML = vendaItens.map((item, idx) => {
+                totalQtd += item.qty;
+                totalValor += item.qty * (item.price || 0);
+                return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border);gap:0.5rem;">' +
+                    '<div style="flex:1;min-width:0;"><strong style="font-size:0.9rem;">' + escapeHtml(item.productName) + '</strong>' +
+                    '<div style="font-size:0.8rem;color:var(--text-muted);">' + formatMoney(item.price) + ' x ' + item.qty + ' = ' + formatMoney(item.qty * item.price) + '</div></div>' +
+                    '<button type="button" class="btn btn-sm btn-danger" onclick="removerItemVenda(' + idx + ')">✕</button></div>';
+            }).join('');
+            if (totalBox) {
+                totalBox.style.display = 'block';
+                totalBox.innerHTML = '<strong>' + vendaItens.length + ' produto(s)</strong> • ' +
+                    totalQtd + ' un • Total: <strong>' + formatMoney(totalValor) + '</strong>';
+            }
         }
 
         function registrarEntrada() {
@@ -2019,44 +2102,73 @@
         }
 
         function registrarVenda() {
-            const productId = document.getElementById('vendaProduto').value;
-            const qty = parseInt(document.getElementById('vendaQtd').value, 10);
             const obs = document.getElementById('vendaObs').value.trim();
 
-            if (!productId || isNaN(qty) || qty <= 0) {
-                toast('Preencha os dados corretamente.', 'error');
-                return;
+            // Se a lista estiver vazia, tenta vender o item selecionado no formulário (1 produto)
+            if (vendaItens.length === 0) {
+                const productId = document.getElementById('vendaProduto').value;
+                const qty = parseInt(document.getElementById('vendaQtd').value, 10);
+                if (!productId || isNaN(qty) || qty <= 0) {
+                    toast('Adicione pelo menos um produto à lista.', 'error');
+                    return;
+                }
+                const product = state.products.find(p => p.id === productId);
+                if (!product) {
+                    toast('Produto não encontrado.', 'error');
+                    return;
+                }
+                if (product.qty < qty) {
+                    toast('Estoque insuficiente! Disponível: ' + product.qty, 'error');
+                    return;
+                }
+                vendaItens.push({
+                    productId: product.id,
+                    productName: product.name,
+                    price: product.price,
+                    unit: product.unit || 'un',
+                    qty: qty
+                });
             }
 
-            const product = state.products.find(p => p.id === productId);
-            if (!product) {
-                toast('Produto não encontrado.', 'error');
-                return;
+            // Valida estoque de todos
+            for (const item of vendaItens) {
+                const product = state.products.find(p => p.id === item.productId);
+                if (!product) {
+                    toast('Produto não encontrado: ' + item.productName, 'error');
+                    return;
+                }
+                if (product.qty < item.qty) {
+                    toast('Estoque insuficiente de ' + product.name + '! Disponível: ' + product.qty, 'error');
+                    return;
+                }
             }
 
-            if (product.qty < qty) {
-                toast(`Estoque insuficiente! Disponível: ${product.qty}`, 'error');
-                return;
+            let totalItens = 0;
+            let totalValor = 0;
+            for (const item of vendaItens) {
+                const product = state.products.find(p => p.id === item.productId);
+                product.qty -= item.qty;
+                totalItens += item.qty;
+                totalValor += item.qty * (item.price || 0);
+                state.movements.push({
+                    id: generateId(),
+                    type: 'venda',
+                    productId: item.productId,
+                    productName: item.productName,
+                    qty: item.qty,
+                    price: item.price,
+                    obs: obs,
+                    militar: currentMilitar,
+                    date: todayISO()
+                });
             }
 
-            product.qty -= qty;
-
-            state.movements.push({
-                id: generateId(),
-                type: 'venda',
-                productId,
-                productName: product.name,
-                qty,
-                price: product.price,
-                obs,
-                militar: currentMilitar,
-                date: todayISO()
-            });
-
+            const qtdProdutos = vendaItens.length;
+            vendaItens = [];
             saveState();
             renderAll();
             fecharModal('modalVenda');
-            toast(`Venda de ${qty} ${product.unit || 'un'} de ${product.name}`);
+            toast('Venda OK: ' + qtdProdutos + ' produto(s), ' + totalItens + ' un, ' + formatMoney(totalValor));
         }
 
         function limparMovimentacoes() {
