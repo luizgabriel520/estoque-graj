@@ -1002,6 +1002,8 @@
         <div class="tabs">
             <button class="tab-btn active" onclick="mostrarTabAdmin('produtos')">Produtos</button>
             <button class="tab-btn" onclick="mostrarTabAdmin('vendas')">Vendas</button>
+            <button class="tab-btn" onclick="mostrarTabAdmin('socios')">Sócios</button>
+            <button class="tab-btn" onclick="mostrarTabAdmin('consulta')">Consulta</button>
             <button class="tab-btn" onclick="mostrarTabAdmin('ajustes')">Ajustes</button>
             <button class="tab-btn" onclick="mostrarTabAdmin('historico')">Histórico</button>
             <button class="tab-btn" onclick="mostrarTabAdmin('senha')">Senha</button>
@@ -1117,6 +1119,59 @@
                     <div id="adminVendasVazio" class="empty-state">
                         <div class="icon">🛒</div>
                         <p>Nenhuma venda registrada hoje.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Sócios -->
+        <div id="tab-socios" class="admin-tab" style="display:none;">
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="card-header"><h2>👥 Cadastrar Sócio</h2></div>
+                <div class="card-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Número / Código</label>
+                            <input type="text" id="socioNumero" class="form-control" placeholder="Ex: 123">
+                        </div>
+                        <div class="form-group">
+                            <label>Nome</label>
+                            <input type="text" id="socioNome" class="form-control" placeholder="Nome do sócio">
+                        </div>
+                    </div>
+                    <button class="btn btn-primary" onclick="adminAdicionarSocio()">Adicionar Sócio</button>
+                    <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">Ou cole a lista completa (um por linha: número - nome) abaixo:</p>
+                    <textarea id="socioListaLote" class="form-control" rows="4" placeholder="123 - João Silva&#10;124 - Maria Souza"></textarea>
+                    <button class="btn btn-outline" style="margin-top:0.5rem;" onclick="adminImportarSociosLote()">Importar lista</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="card-header"><h2>Lista de Sócios (<span id="sociosCount">0</span>)</h2></div>
+                <div class="card-body" style="max-height:400px;overflow-y:auto;">
+                    <input type="text" id="socioBuscaLista" class="form-control" placeholder="Filtrar sócio..." oninput="renderAdminSocios()" style="margin-bottom:0.75rem;">
+                    <div id="adminListaSocios"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Consulta Sócio -->
+        <div id="tab-consulta" class="admin-tab" style="display:none;">
+            <div class="card">
+                <div class="card-header"><h2>🔍 Consulta por Sócio no Mês</h2></div>
+                <div class="card-body">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Sócio</label>
+                            <input type="text" id="consultaSocioBusca" class="form-control" list="listaSociosDatalist" placeholder="Digite nome ou número" oninput="consultarSocioMes()">
+                            <datalist id="listaSociosDatalist"></datalist>
+                        </div>
+                        <div class="form-group">
+                            <label>Mês</label>
+                            <input type="month" id="consultaSocioMes" class="form-control" onchange="consultarSocioMes()">
+                        </div>
+                    </div>
+                    <div id="consultaSocioResultado">
+                        <p style="color:var(--text-muted);font-size:0.9rem;">Digite o sócio e escolha o mês.</p>
                     </div>
                 </div>
             </div>
@@ -1318,13 +1373,22 @@
                 <div id="vendaTotalBox" class="alert alert-info" style="display:none;margin-bottom:0.75rem;"></div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label>Sócio (nome ou número)</label>
-                        <input type="text" id="vendaSocio" class="form-control" placeholder="Ex: 123 ou João Silva">
+                        <label>Sócio</label>
+                        <input type="text" id="vendaSocio" class="form-control" list="listaSociosDatalistVenda" placeholder="Buscar sócio...">
+                        <datalist id="listaSociosDatalistVenda"></datalist>
                     </div>
                     <div class="form-group">
-                        <label>Observação (opcional)</label>
-                        <input type="text" id="vendaObs" class="form-control" placeholder="Opcional">
+                        <label>Pagamento</label>
+                        <select id="vendaPagamento" class="form-control">
+                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Pix">Pix</option>
+                            <option value="Sócio">Sócio (conta)</option>
+                        </select>
                     </div>
+                </div>
+                <div class="form-group">
+                    <label>Observação (opcional)</label>
+                    <input type="text" id="vendaObs" class="form-control" placeholder="Opcional">
                 </div>
             </div>
             <div class="modal-footer">
@@ -1471,7 +1535,152 @@
             lastCloseDate: null,
             serviceOpen: false,
             serviceMilitar: '',
-            serviceStartedAt: null
+            serviceStartedAt: null,
+            socios: [
+                { id: 's001', numero: '1', nome: 'TC CARON' },
+                { id: 's002', numero: '2', nome: 'TC SOVAT' },
+                { id: 's003', numero: '3', nome: 'TC NAREZI' },
+                { id: 's004', numero: '4', nome: 'CAP RODRIGUES' },
+                { id: 's005', numero: '5', nome: 'CAP VALES' },
+                { id: 's006', numero: '6', nome: 'CAP PICOLLO' },
+                { id: 's007', numero: '7', nome: 'CAP FERRAZ' },
+                { id: 's008', numero: '8', nome: 'CAP PAIVA' },
+                { id: 's009', numero: '9', nome: 'TEN MARÇAL' },
+                { id: 's010', numero: '10', nome: 'TEN MARTINS' },
+                { id: 's011', numero: '11', nome: 'TEN LEONARDO' },
+                { id: 's012', numero: '12', nome: 'TEN BORTOLATO' },
+                { id: 's013', numero: '13', nome: 'TEN SERGIO' },
+                { id: 's014', numero: '14', nome: 'TEN PERSSON' },
+                { id: 's015', numero: '15', nome: 'TEN XAVIER' },
+                { id: 's016', numero: '16', nome: 'TEN MATHEUS' },
+                { id: 's017', numero: '17', nome: 'TEN LENZ' },
+                { id: 's018', numero: '18', nome: 'TEN FOSTER' },
+                { id: 's019', numero: '19', nome: 'TEN JEFERSON' },
+                { id: 's020', numero: '20', nome: 'TEN MALUFF' },
+                { id: 's021', numero: '21', nome: 'ASP LUCAS HENRIQUE' },
+                { id: 's022', numero: '22', nome: 'ASP BRITSCHKA' },
+                { id: 's023', numero: '23', nome: 'ST GEDERSON' },
+                { id: 's024', numero: '24', nome: 'ST WALTEMAN' },
+                { id: 's025', numero: '25', nome: 'ST DALASTRA' },
+                { id: 's026', numero: '26', nome: 'ST GENOVA' },
+                { id: 's027', numero: '27', nome: 'ST ALEX' },
+                { id: 's028', numero: '28', nome: 'ST GUILHA' },
+                { id: 's029', numero: '29', nome: 'ST ROCHA' },
+                { id: 's030', numero: '30', nome: 'ST AGUIRRE' },
+                { id: 's031', numero: '31', nome: 'ST SOUZA' },
+                { id: 's032', numero: '32', nome: 'ST PIO' },
+                { id: 's033', numero: '33', nome: 'ST DANIEL RODRIGUES' },
+                { id: 's034', numero: '34', nome: 'ST ABREU' },
+                { id: 's035', numero: '35', nome: 'ST J. SILVA' },
+                { id: 's036', numero: '36', nome: '1º SGT A. FERNANDES' },
+                { id: 's037', numero: '37', nome: '1º SGT RUDINEI' },
+                { id: 's038', numero: '38', nome: '1° SGT KELSON' },
+                { id: 's039', numero: '39', nome: '1° SGT DIAS ALVES' },
+                { id: 's040', numero: '40', nome: '1° SGT AISLAN' },
+                { id: 's041', numero: '41', nome: '1° SGT DE PAULA' },
+                { id: 's042', numero: '42', nome: '1° SGT KEGLER' },
+                { id: 's043', numero: '43', nome: '2º SGT RODRIGO LOPES' },
+                { id: 's044', numero: '44', nome: '2º SGT NATAN' },
+                { id: 's045', numero: '45', nome: '2º SGT RAFAEL RODRIGUES' },
+                { id: 's046', numero: '46', nome: '2º SGT TABORDA' },
+                { id: 's047', numero: '47', nome: '2° SGT ANDRADE' },
+                { id: 's048', numero: '48', nome: '2° SGT FRANCKLIN' },
+                { id: 's049', numero: '49', nome: '2° SGT DIONE' },
+                { id: 's050', numero: '50', nome: '2º SGT BIONDO' },
+                { id: 's051', numero: '51', nome: '2º SGT ANDRIUS' },
+                { id: 's052', numero: '52', nome: '2º SGT DIEGO MEDEIROS' },
+                { id: 's053', numero: '53', nome: '2º SGT GODON' },
+                { id: 's054', numero: '54', nome: '2º SGT LIESENFELD' },
+                { id: 's055', numero: '55', nome: '2º SGT CRISTALDO' },
+                { id: 's056', numero: '56', nome: '2º SGT VERGILIO' },
+                { id: 's057', numero: '57', nome: '2º SGT STRUBELI' },
+                { id: 's058', numero: '58', nome: '2º SGT DE SOUZA' },
+                { id: 's059', numero: '59', nome: '2º SGT PHILIP' },
+                { id: 's060', numero: '60', nome: '2º SGT RONI' },
+                { id: 's061', numero: '61', nome: '2º SGT BRASIL' },
+                { id: 's062', numero: '62', nome: '2º SGT CLAUBER' },
+                { id: 's063', numero: '63', nome: '2º SGT FARIAS' },
+                { id: 's064', numero: '64', nome: '2º SGT R. PEREIRA' },
+                { id: 's065', numero: '65', nome: '2º SGT VIEIRA' },
+                { id: 's066', numero: '66', nome: '2º SGT JHONATAN' },
+                { id: 's067', numero: '67', nome: '2º SGT FIRMINO' },
+                { id: 's068', numero: '68', nome: '2º SGT RENAN ALVES' },
+                { id: 's069', numero: '69', nome: '3º SGT AWDREY' },
+                { id: 's070', numero: '70', nome: '3º SGT ARAMIS' },
+                { id: 's071', numero: '71', nome: '3º SGT CANTELLI' },
+                { id: 's072', numero: '72', nome: '3º SGT DIOGO' },
+                { id: 's073', numero: '73', nome: '3º SGT CAUÊ' },
+                { id: 's074', numero: '74', nome: '3º SGT VALVERDE' },
+                { id: 's075', numero: '75', nome: '3º SGT LEONARDO' },
+                { id: 's076', numero: '76', nome: '3º SGT RAMIRO' },
+                { id: 's077', numero: '77', nome: '3° SGT ALLAN VINICIUS' },
+                { id: 's078', numero: '78', nome: '3° SGT GABRIEL SILVA' },
+                { id: 's079', numero: '79', nome: '3° SGT WALLACE ORUÊ' },
+                { id: 's080', numero: '80', nome: '3° SGT EUGÊNIO' },
+                { id: 's081', numero: '81', nome: '3° SGT IZAIAS' },
+                { id: 's082', numero: '82', nome: '3° SGT MIRANDA' },
+                { id: 's083', numero: '83', nome: '3° SGT AFONSO JUNIOR' },
+                { id: 's084', numero: '84', nome: '3° SGT CENTURION' },
+                { id: 's085', numero: '85', nome: '3° SGT LUCAS VIEIRA' },
+                { id: 's086', numero: '86', nome: '3° SGT CAIO' },
+                { id: 's087', numero: '87', nome: '3° SGT CAIRO' },
+                { id: 's088', numero: '88', nome: '3° SGT BRENNO SALES' },
+                { id: 's089', numero: '89', nome: '3° SGT A. BARROS' },
+                { id: 's090', numero: '90', nome: '3° SGT DORE' },
+                { id: 's091', numero: '91', nome: '3° SGT BECALLI' },
+                { id: 's092', numero: '92', nome: '3° SGT LEONI' },
+                { id: 's093', numero: '93', nome: '3° SGT CASTELANI' },
+                { id: 's094', numero: '94', nome: '3° SGT ALFRED' },
+                { id: 's095', numero: '95', nome: '3° SGT ABELARDO' },
+                { id: 's096', numero: '96', nome: '3° SGT VITOR SANTOS' },
+                { id: 's097', numero: '97', nome: '3° SGT IZIDIO' },
+                { id: 's098', numero: '98', nome: '3° SGT SOUZA LIMA' },
+                { id: 's099', numero: '99', nome: '3° SGT MARQUES' },
+                { id: 's100', numero: '100', nome: '3° SGT MOREIRA' },
+                { id: 's101', numero: '101', nome: '3° SGT VERNOCH' },
+                { id: 's102', numero: '102', nome: '3° SGT MARCOS CAGERE' },
+                { id: 's103', numero: '103', nome: '3° SGT SILVEIRA' },
+                { id: 's104', numero: '104', nome: '3° SGT THAIS ADRIANA' },
+                { id: 's105', numero: '105', nome: '3° SGT NASCIMENTO' },
+                { id: 's106', numero: '106', nome: '3° SGT NICOLAS SANTANA' },
+                { id: 's107', numero: '107', nome: '3° SGT DENIZ' },
+                { id: 's108', numero: '108', nome: '3° SGT COELHO' },
+                { id: 's109', numero: '109', nome: '3° SGT ORTEGA' },
+                { id: 's110', numero: '110', nome: '3° SGT MARTINS' },
+                { id: 's111', numero: '111', nome: '3° SGT REBOUÇAS' },
+                { id: 's112', numero: '112', nome: '3° SGT PAIVA' },
+                { id: 's113', numero: '113', nome: '3° SGT GALDEZ' },
+                { id: 's114', numero: '114', nome: '3° SGT MACARIO' },
+                { id: 's115', numero: '115', nome: '3° SGT VASQUES' },
+                { id: 's116', numero: '116', nome: '3° SGT VICTOR REIS' },
+                { id: 's117', numero: '117', nome: '3° SGT B CAETANO' },
+                { id: 's118', numero: '118', nome: '3° SGT BRANDÃO' },
+                { id: 's119', numero: '119', nome: '3° SGT SILVA' },
+                { id: 's120', numero: '120', nome: '3° SGT ALISON ALVES' },
+                { id: 's121', numero: '121', nome: '3° SGT ASLEY' },
+                { id: 's122', numero: '122', nome: '3° SGT M TORRES' },
+                { id: 's123', numero: '123', nome: '3° SGT QUINTANA' },
+                { id: 's124', numero: '124', nome: '3° SGT VALDINEI' },
+                { id: 's125', numero: '125', nome: '3° SGT MIRIAN' },
+                { id: 's126', numero: '126', nome: 'CB DIOGO GIL' },
+                { id: 's127', numero: '127', nome: 'CB GUSTAVO RAMIRES' },
+                { id: 's128', numero: '128', nome: 'SD VITOR' },
+                { id: 's129', numero: '129', nome: 'SD GABRIEL RAMIRES' },
+                { id: 's130', numero: '130', nome: 'SD RODRIGO' },
+                { id: 's131', numero: '131', nome: 'SD MAYCON DOUGLAS' },
+                { id: 's132', numero: '132', nome: 'TEN JOSEMIR' },
+                { id: 's133', numero: '133', nome: 'TEN TELMO' },
+                { id: 's134', numero: '134', nome: 'SGT MARCO ANTONIO' },
+                { id: 's135', numero: '135', nome: 'SGT CABRAL' },
+                { id: 's136', numero: '136', nome: 'SGT CASSEMIRO' },
+                { id: 's137', numero: '137', nome: 'SGT NIVALDO' },
+                { id: 's138', numero: '138', nome: 'SGT SATURNINO' },
+                { id: 's139', numero: '139', nome: 'SGT ISAIAS' },
+                { id: 's140', numero: '140', nome: 'CIVIL ANA BEATRIZ (ST ROGÉRIO)' },
+                { id: 's141', numero: '141', nome: 'CIVIL RIBEIRO' },
+                { id: 's142', numero: '142', nome: 'CIVIL ROBERTO VIANA' },
+                { id: 's143', numero: '143', nome: 'CIVIL RENATO FAZZA' }
+            ]
         };
 
 
@@ -1484,6 +1693,9 @@
         }
 
         function migrateProducts(parsed) {
+            if (!parsed.socios || parsed.socios.length === 0) {
+                parsed.socios = JSON.parse(JSON.stringify(defaultData.socios));
+            }
             if (!parsed.products || parsed.products.length === 0) {
                 parsed.products = JSON.parse(JSON.stringify(defaultData.products));
             } else {
@@ -1773,6 +1985,16 @@
             if (tab === 'historico') renderHistorico();
             if (tab === 'ajustes') preencherSelectAjuste();
             if (tab === 'vendas') renderAdminVendas();
+            if (tab === 'socios') renderAdminSocios();
+            if (tab === 'consulta') {
+                const mes = document.getElementById('consultaSocioMes');
+                if (mes && !mes.value) {
+                    const n = new Date();
+                    mes.value = n.getFullYear() + '-' + String(n.getMonth()+1).padStart(2,'0');
+                }
+                preencherDatalistSocios();
+                consultarSocioMes();
+            }
         }
 
         function renderAdminVendas() {
@@ -2143,6 +2365,9 @@
             document.getElementById('vendaObs').value = '';
             const vs = document.getElementById('vendaSocio');
             if (vs) vs.value = '';
+            const vp = document.getElementById('vendaPagamento');
+            if (vp) vp.value = 'Dinheiro';
+            preencherDatalistSocios();
             const vb = document.getElementById('vendaBusca');
             if (vb) vb.value = '';
             preencherSelects();
@@ -2276,6 +2501,7 @@
         function registrarVenda() {
             const obs = document.getElementById('vendaObs').value.trim();
             const socio = (document.getElementById('vendaSocio') && document.getElementById('vendaSocio').value.trim()) || '';
+            const pagamento = (document.getElementById('vendaPagamento') && document.getElementById('vendaPagamento').value) || 'Dinheiro';
 
             // Se a lista estiver vazia, tenta vender o item selecionado no formulário (1 produto)
             if (vendaItens.length === 0) {
@@ -2332,6 +2558,7 @@
                     price: item.price,
                     obs: obs,
                     socio: socio,
+                    pagamento: pagamento,
                     militar: currentMilitar,
                     date: todayISO()
                 });
@@ -2443,6 +2670,7 @@
                     '<th style="text-align:left;padding:0.5rem;">Produto</th>' +
                     '<th style="padding:0.5rem;">Qtd</th>' +
                     '<th style="text-align:left;padding:0.5rem;">Sócio</th>' +
+                    '<th style="padding:0.5rem;">Pag.</th>' +
                     '<th style="padding:0.5rem;">Valor</th>' +
                     '</tr></thead><tbody>';
                 todasVendas.forEach(m => {
@@ -2453,6 +2681,7 @@
                         ' • ' + escapeHtml(m.militar || m._militarServico || '') + '</div></td>' +
                         '<td style="text-align:center;padding:0.45rem;">' + m.qty + '</td>' +
                         '<td style="padding:0.45rem 0.5rem;">' + escapeHtml(socio) + '</td>' +
+                        '<td style="text-align:center;padding:0.45rem;">' + escapeHtml(m.pagamento || '—') + '</td>' +
                         '<td style="text-align:right;padding:0.45rem 0.5rem;">' + formatMoney(m.qty * (m.price || 0)) + '</td></tr>';
                 });
                 html += '</tbody></table></div>';
@@ -2662,6 +2891,8 @@
             preencherSelectAjuste();
             renderHistorico();
             renderAdminVendas();
+            renderAdminSocios();
+            preencherDatalistSocios();
         }
 
         function renderAdminProdutos() {
@@ -2884,6 +3115,189 @@
                 formatDate(h.date) + '</p>' +
                 '<p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">' +
                 qtd + ' un vendidas • ' + formatMoney(valor) + '</p>' + lista + '</div>';
+        }
+
+
+
+        function preencherDatalistSocios() {
+            const socios = (state.socios || []).slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+            const opts = socios.map(s => {
+                const label = (s.numero ? s.numero + ' - ' : '') + (s.nome || '');
+                return '<option value="' + escapeHtml(label) + '"></option>';
+            }).join('');
+            ['listaSociosDatalist', 'listaSociosDatalistVenda'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.innerHTML = opts;
+            });
+        }
+
+        function adminAdicionarSocio() {
+            const numero = (document.getElementById('socioNumero').value || '').trim();
+            const nome = (document.getElementById('socioNome').value || '').trim();
+            if (!nome && !numero) {
+                toast('Informe número ou nome do sócio.', 'error');
+                return;
+            }
+            if (!state.socios) state.socios = [];
+            const existe = state.socios.some(s =>
+                (numero && s.numero === numero) ||
+                (nome && s.nome && s.nome.toLowerCase() === nome.toLowerCase())
+            );
+            if (existe) {
+                toast('Sócio já cadastrado.', 'error');
+                return;
+            }
+            state.socios.push({ id: generateId(), numero: numero, nome: nome || numero });
+            document.getElementById('socioNumero').value = '';
+            document.getElementById('socioNome').value = '';
+            saveState();
+            renderAdminSocios();
+            preencherDatalistSocios();
+            toast('Sócio adicionado.');
+        }
+
+        function adminImportarSociosLote() {
+            const raw = (document.getElementById('socioListaLote').value || '').trim();
+            if (!raw) {
+                toast('Cole a lista de sócios.', 'error');
+                return;
+            }
+            if (!state.socios) state.socios = [];
+            let add = 0;
+            raw.split(/\n+/).forEach(line => {
+                line = line.trim();
+                if (!line) return;
+                let numero = '', nome = '';
+                // formatos: "123 - Nome" | "123 Nome" | "Nome"
+                const m = line.match(/^(\d+)\s*[-–—:]?\s*(.*)$/);
+                if (m) {
+                    numero = m[1].trim();
+                    nome = (m[2] || '').trim() || numero;
+                } else {
+                    nome = line;
+                }
+                const existe = state.socios.some(s =>
+                    (numero && s.numero === numero) ||
+                    (nome && s.nome && s.nome.toLowerCase() === nome.toLowerCase())
+                );
+                if (!existe) {
+                    state.socios.push({ id: generateId(), numero: numero, nome: nome });
+                    add++;
+                }
+            });
+            document.getElementById('socioListaLote').value = '';
+            saveState();
+            renderAdminSocios();
+            preencherDatalistSocios();
+            toast(add + ' sócio(s) importado(s).');
+        }
+
+        function adminRemoverSocio(id) {
+            if (!confirm('Remover este sócio?')) return;
+            state.socios = (state.socios || []).filter(s => s.id !== id);
+            saveState();
+            renderAdminSocios();
+            preencherDatalistSocios();
+            toast('Sócio removido.');
+        }
+
+        function renderAdminSocios() {
+            const box = document.getElementById('adminListaSocios');
+            const count = document.getElementById('sociosCount');
+            if (!box) return;
+            const busca = ((document.getElementById('socioBuscaLista') || {}).value || '').toLowerCase();
+            let list = (state.socios || []).slice().sort((a,b) => (a.nome||'').localeCompare(b.nome||''));
+            if (busca) {
+                list = list.filter(s =>
+                    (s.nome && s.nome.toLowerCase().includes(busca)) ||
+                    (s.numero && String(s.numero).includes(busca))
+                );
+            }
+            if (count) count.textContent = (state.socios || []).length;
+            if (list.length === 0) {
+                box.innerHTML = '<p style="color:var(--text-muted);">Nenhum sócio cadastrado.</p>';
+                return;
+            }
+            box.innerHTML = list.map(s =>
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0;border-bottom:1px solid var(--border);">' +
+                '<span><strong>' + escapeHtml(s.numero || '—') + '</strong> — ' + escapeHtml(s.nome || '') + '</span>' +
+                '<button class="btn btn-sm btn-danger" data-id="' + s.id + '" onclick="adminRemoverSocio(this.getAttribute(\'data-id\'))">✕</button></div>'
+            ).join('');
+        }
+
+        function todasVendasHistorico() {
+            const list = [];
+            (state.history || []).forEach(h => {
+                (h.movements || []).filter(m => m.type === 'venda').forEach(m => {
+                    list.push({ ...m, _militarServico: h.militar });
+                });
+            });
+            (state.movements || []).filter(m => m.type === 'venda').forEach(m => {
+                list.push({ ...m, _militarServico: state.serviceMilitar || currentMilitar || '' });
+            });
+            return list;
+        }
+
+        function consultarSocioMes() {
+            const box = document.getElementById('consultaSocioResultado');
+            if (!box) return;
+            const busca = ((document.getElementById('consultaSocioBusca') || {}).value || '').trim().toLowerCase();
+            const mes = ((document.getElementById('consultaSocioMes') || {}).value || '');
+            if (!busca) {
+                box.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">Digite o sócio e escolha o mês.</p>';
+                return;
+            }
+            if (!mes) {
+                box.innerHTML = '<p style="color:var(--text-muted);">Escolha o mês.</p>';
+                return;
+            }
+
+            const vendas = todasVendasHistorico().filter(m => {
+                const socioTxt = (m.socio || '').toLowerCase();
+                if (!socioTxt.includes(busca) && !busca.split(/\s+/).every(t => socioTxt.includes(t))) {
+                    // também tenta match por número isolado
+                    if (!(m.socio && String(m.socio).toLowerCase().indexOf(busca) >= 0)) return false;
+                }
+                if (!m.date) return false;
+                const d = dataISOLocal(m.date);
+                return d.startsWith(mes);
+            });
+
+            if (vendas.length === 0) {
+                box.innerHTML = '<div class="alert alert-info">Nenhuma compra deste sócio neste mês.</div>';
+                return;
+            }
+
+            const totalQtd = vendas.reduce((s, m) => s + m.qty, 0);
+            const totalValor = vendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
+            // agrupar por produto
+            const porProduto = {};
+            vendas.forEach(m => {
+                const k = m.productName;
+                if (!porProduto[k]) porProduto[k] = { qty: 0, valor: 0 };
+                porProduto[k].qty += m.qty;
+                porProduto[k].valor += m.qty * (m.price || 0);
+            });
+
+            let html = '<div class="alert alert-info">' + totalQtd + ' un • Total: <strong>' +
+                formatMoney(totalValor) + '</strong> • ' + vendas.length + ' registro(s)</div>';
+            html += '<p style="font-weight:600;font-size:0.9rem;margin:0.5rem 0;">Resumo por produto</p><ul style="font-size:0.85rem;margin:0 0 1rem 1rem;">';
+            Object.keys(porProduto).sort().forEach(k => {
+                html += '<li>' + escapeHtml(k) + ': ' + porProduto[k].qty + ' un — ' + formatMoney(porProduto[k].valor) + '</li>';
+            });
+            html += '</ul><p style="font-weight:600;font-size:0.9rem;">Detalhes</p>';
+            html += '<div style="max-height:300px;overflow-y:auto;"><table style="width:100%;font-size:0.82rem;border-collapse:collapse;">' +
+                '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.4rem;">Data</th><th style="text-align:left;padding:0.4rem;">Produto</th><th>Qtd</th><th>Pag.</th><th>Valor</th></tr></thead><tbody>';
+            vendas.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(m => {
+                html += '<tr style="border-bottom:1px solid var(--border);">' +
+                    '<td style="padding:0.4rem;">' + formatDate(m.date) + '</td>' +
+                    '<td style="padding:0.4rem;">' + escapeHtml(m.productName) + '</td>' +
+                    '<td style="text-align:center;">' + m.qty + '</td>' +
+                    '<td style="text-align:center;">' + escapeHtml(m.pagamento || '—') + '</td>' +
+                    '<td style="text-align:right;padding:0.4rem;">' + formatMoney(m.qty * (m.price || 0)) + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+            box.innerHTML = html;
         }
 
 
