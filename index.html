@@ -827,7 +827,7 @@
                 <div class="badge" id="militarBadge">
                     👤 <span id="militarNome">—</span>
                 </div>
-                <div class="badge" id="dataBadge">
+                <div class="badge" id="dataBadge" style="cursor:pointer;" onclick="abrirModalConsultaData()" title="Ver serviço por data">
                     📅 <span id="dataAtual"></span>
                 </div>
                 <div class="badge" id="syncBadge" style="display:none;background:rgba(13,148,136,0.9);">
@@ -1316,14 +1316,42 @@
                 </button>
                 <div id="listaVendaItens" style="max-height:220px;overflow-y:auto;margin-bottom:0.75rem;"></div>
                 <div id="vendaTotalBox" class="alert alert-info" style="display:none;margin-bottom:0.75rem;"></div>
-                <div class="form-group">
-                    <label>Observação (opcional)</label>
-                    <input type="text" id="vendaObs" class="form-control" placeholder="Ex: Sócio nº 123">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Sócio (nome ou número)</label>
+                        <input type="text" id="vendaSocio" class="form-control" placeholder="Ex: 123 ou João Silva">
+                    </div>
+                    <div class="form-group">
+                        <label>Observação (opcional)</label>
+                        <input type="text" id="vendaObs" class="form-control" placeholder="Opcional">
+                    </div>
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="fecharModal('modalVenda')">Cancelar</button>
                 <button class="btn btn-danger" onclick="registrarVenda()">Confirmar Venda</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Consulta por Data -->
+    <div class="modal-overlay" id="modalConsultaData">
+        <div class="modal" style="max-width:560px;">
+            <div class="modal-header">
+                <h3>📅 Consultar serviço por data</h3>
+                <button class="modal-close" onclick="fecharModal('modalConsultaData')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Escolha a data</label>
+                    <input type="date" id="consultaDataInput" class="form-control" onchange="consultarServicoPorData()">
+                </div>
+                <div id="consultaDataResultado">
+                    <p style="color:var(--text-muted);font-size:0.9rem;">Selecione uma data para ver o serviço, vendas e sócios.</p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="fecharModal('modalConsultaData')">Fechar</button>
             </div>
         </div>
     </div>
@@ -1922,6 +1950,7 @@
                     '<div class="movement-info">' +
                     '<strong>' + escapeHtml(m.productName) + '</strong>' +
                     '<span>' + formatDate(m.date) + ' • ' + escapeHtml(m.militar || '') +
+                    (m.socio ? ' • Sócio: ' + escapeHtml(m.socio) : '') +
                     (m.obs ? ' • ' + escapeHtml(m.obs) : '') + '</span></div>' +
                     '<div style="display:flex;align-items:center;gap:0.25rem;">' +
                     '<div class="movement-qty ' + qtyClass + '">' + sign + m.qty + '</div>' +
@@ -2112,6 +2141,8 @@
             vendaItens = [];
             document.getElementById('vendaQtd').value = 1;
             document.getElementById('vendaObs').value = '';
+            const vs = document.getElementById('vendaSocio');
+            if (vs) vs.value = '';
             const vb = document.getElementById('vendaBusca');
             if (vb) vb.value = '';
             preencherSelects();
@@ -2244,6 +2275,7 @@
 
         function registrarVenda() {
             const obs = document.getElementById('vendaObs').value.trim();
+            const socio = (document.getElementById('vendaSocio') && document.getElementById('vendaSocio').value.trim()) || '';
 
             // Se a lista estiver vazia, tenta vender o item selecionado no formulário (1 produto)
             if (vendaItens.length === 0) {
@@ -2299,6 +2331,7 @@
                     qty: item.qty,
                     price: item.price,
                     obs: obs,
+                    socio: socio,
                     militar: currentMilitar,
                     date: todayISO()
                 });
@@ -2320,6 +2353,112 @@
                 renderAll();
                 toast('Log de movimentações limpo');
             }
+        }
+
+        function dataISOLocal(d) {
+            const x = d instanceof Date ? d : new Date(d);
+            const y = x.getFullYear();
+            const m = String(x.getMonth() + 1).padStart(2, '0');
+            const day = String(x.getDate()).padStart(2, '0');
+            return y + '-' + m + '-' + day;
+        }
+
+        function abrirModalConsultaData() {
+            const input = document.getElementById('consultaDataInput');
+            if (input && !input.value) {
+                input.value = dataISOLocal(new Date());
+            }
+            consultarServicoPorData();
+            openModal('modalConsultaData');
+        }
+
+        function consultarServicoPorData() {
+            const input = document.getElementById('consultaDataInput');
+            const box = document.getElementById('consultaDataResultado');
+            if (!input || !box) return;
+            const dataSel = input.value;
+            if (!dataSel) {
+                box.innerHTML = '<p style="color:var(--text-muted);">Selecione uma data.</p>';
+                return;
+            }
+
+            // Serviços fechados naquela data
+            const fechamentos = (state.history || []).filter(h => {
+                if (!h.date) return false;
+                return dataISOLocal(h.date) === dataSel;
+            });
+
+            // Movimentações de hoje se a data for hoje
+            const hoje = dataISOLocal(new Date());
+            const movHoje = (dataSel === hoje) ? (state.movements || []) : [];
+
+            let html = '';
+
+            if (dataSel === hoje && state.serviceOpen) {
+                html += '<div class="alert alert-warning" style="margin-bottom:0.75rem;">Serviço de hoje <strong>ainda aberto</strong> por ' +
+                    escapeHtml(state.serviceMilitar || '—') + '</div>';
+            }
+
+            // Monta lista de vendas a partir dos fechamentos + (se hoje) movimentos atuais
+            let todasVendas = [];
+            let todosFech = [];
+
+            fechamentos.forEach(h => {
+                todosFech.push(h);
+                (h.movements || []).filter(m => m.type === 'venda').forEach(m => {
+                    todasVendas.push({ ...m, _militarServico: h.militar, _fechamento: h.date });
+                });
+            });
+
+            if (dataSel === hoje) {
+                movHoje.filter(m => m.type === 'venda').forEach(m => {
+                    todasVendas.push({ ...m, _militarServico: state.serviceMilitar || currentMilitar || '—', _fechamento: null });
+                });
+            }
+
+            if (fechamentos.length === 0 && !(dataSel === hoje && (movHoje.length > 0 || state.serviceOpen))) {
+                box.innerHTML = '<div class="alert alert-info">Nenhum serviço encontrado nesta data.</div>';
+                return;
+            }
+
+            if (fechamentos.length > 0) {
+                html += '<p style="font-size:0.9rem;margin-bottom:0.5rem;"><strong>Fechamentos:</strong> ' + fechamentos.length + '</p>';
+                fechamentos.forEach(h => {
+                    html += '<div style="font-size:0.85rem;margin-bottom:0.35rem;color:var(--text-muted);">• ' +
+                        escapeHtml(h.militar) + ' — ' + formatDate(h.date) +
+                        (h.summary ? ' — ' + formatMoney(h.summary.valor || 0) : '') + '</div>';
+                });
+            }
+
+            const totalQtd = todasVendas.reduce((s, m) => s + m.qty, 0);
+            const totalValor = todasVendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
+            html += '<div class="alert alert-info" style="margin:0.75rem 0;">Vendas: <strong>' + totalQtd +
+                '</strong> un • Total: <strong>' + formatMoney(totalValor) + '</strong></div>';
+
+            if (todasVendas.length === 0) {
+                html += '<p style="color:var(--text-muted);font-size:0.9rem;">Nenhuma venda registrada neste dia.</p>';
+            } else {
+                html += '<div style="max-height:320px;overflow-y:auto;"><table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
+                    '<thead><tr style="background:#f0f7f2;">' +
+                    '<th style="text-align:left;padding:0.5rem;">Produto</th>' +
+                    '<th style="padding:0.5rem;">Qtd</th>' +
+                    '<th style="text-align:left;padding:0.5rem;">Sócio</th>' +
+                    '<th style="padding:0.5rem;">Valor</th>' +
+                    '</tr></thead><tbody>';
+                todasVendas.forEach(m => {
+                    const socio = m.socio || m.obs || '—';
+                    html += '<tr style="border-bottom:1px solid var(--border);">' +
+                        '<td style="padding:0.45rem 0.5rem;">' + escapeHtml(m.productName) +
+                        '<div style="font-size:0.75rem;color:var(--text-muted);">' + formatDate(m.date) +
+                        ' • ' + escapeHtml(m.militar || m._militarServico || '') + '</div></td>' +
+                        '<td style="text-align:center;padding:0.45rem;">' + m.qty + '</td>' +
+                        '<td style="padding:0.45rem 0.5rem;">' + escapeHtml(socio) + '</td>' +
+                        '<td style="text-align:right;padding:0.45rem 0.5rem;">' + formatMoney(m.qty * (m.price || 0)) + '</td></tr>';
+                });
+                html += '</tbody></table></div>';
+            }
+
+            box.innerHTML = html;
         }
 
         // ==================== CLOSE SERVICE ====================
