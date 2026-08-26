@@ -1452,7 +1452,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Recreativo Antônio João — GRAJ<br>
+        Grêmio Esportivo e Recreativo Antônio João — GRAJ<br>
         Sistema de Controle de Estoque • Uso interno
     </footer>
 
@@ -1697,7 +1697,8 @@
         let currentMilitar = '';
 
         function isFirebaseConfigured() {
-            return FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== 'COLE_AQUI' && FIREBASE_CONFIG.databaseURL && FIREBASE_CONFIG.databaseURL !== 'COLE_AQUI';
+            if (typeof FIREBASE_CONFIG === 'undefined' || !FIREBASE_CONFIG) return false;
+            return !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.apiKey !== 'COLE_AQUI' && FIREBASE_CONFIG.databaseURL && FIREBASE_CONFIG.databaseURL !== 'COLE_AQUI');
         }
 
         function migrateProducts(parsed) {
@@ -1754,6 +1755,34 @@
             }
         }
 
+        function updateWelcomeServiceAviso() {
+            const aviso = document.getElementById('avisoServicoAberto');
+            const btnC = document.getElementById('btnContinuarServico');
+            const welcome = document.getElementById('welcomeScreen');
+            // Só mostra na tela de boas-vindas
+            const naWelcome = welcome && (welcome.style.display !== 'none');
+            if (!state.serviceOpen || !state.serviceMilitar) {
+                if (aviso) aviso.style.display = 'none';
+                if (btnC) btnC.style.display = 'none';
+                return;
+            }
+            if (!naWelcome && welcome && welcome.style.display === 'none') {
+                // se já está no painel principal, não força o aviso
+            }
+            if (aviso) {
+                aviso.style.display = 'block';
+                aviso.innerHTML = '⚠️ Existe um serviço <strong>ABERTO</strong> por <strong>' +
+                    escapeHtml(state.serviceMilitar) + '</strong>' +
+                    (state.serviceStartedAt ? ' (desde ' + formatDate(state.serviceStartedAt) + ')' : '') +
+                    '. Feche-o antes de iniciar outro, ou continue como o mesmo militar.';
+            }
+            if (btnC) {
+                btnC.style.display = 'block';
+                const sel = document.getElementById('inputMilitar');
+                if (sel) sel.value = state.serviceMilitar;
+            }
+        }
+
         function applyRemoteState(data) {
             if (!data) return;
             suppressRemote = true;
@@ -1763,6 +1792,7 @@
             try {
                 if (typeof renderAll === 'function') renderAll();
                 if (typeof renderAdmin === 'function' && isAdmin) renderAdmin();
+                if (typeof updateWelcomeServiceAviso === 'function') updateWelcomeServiceAviso();
             } catch (e) {}
             suppressRemote = false;
         }
@@ -3382,24 +3412,9 @@
                 select.value = state.lastMilitar;
             }
         }
-        // Se serviço ficou aberto (ex: fechou o navegador sem fechar o serviço),
-        // avisa na tela inicial
-        setTimeout(function() {
-            if (state.serviceOpen && state.serviceMilitar) {
-                const aviso = document.getElementById('avisoServicoAberto');
-                if (aviso) {
-                    aviso.style.display = 'block';
-                    aviso.innerHTML = '⚠️ Existe um serviço <strong>ABERTO</strong> por <strong>' +
-                        escapeHtml(state.serviceMilitar) + '</strong>. Feche-o antes de iniciar outro, ou continue como o mesmo militar.';
-                }
-                const btnC = document.getElementById('btnContinuarServico');
-                if (btnC) {
-                    btnC.style.display = 'block';
-                    const sel = document.getElementById('inputMilitar');
-                    if (sel) sel.value = state.serviceMilitar;
-                }
-            }
-        }, 800);
+        // Aviso de serviço aberto (local + após sync Firebase)
+        setTimeout(function() { updateWelcomeServiceAviso(); }, 500);
+        setTimeout(function() { updateWelcomeServiceAviso(); }, 2000);
     </script>
 </body>
 </html>
