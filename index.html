@@ -2644,10 +2644,10 @@
             }
         }
 
-        function imprimirComprovanteVenda(dados) {
+                function imprimirComprovanteVenda(dados) {
             const agora = new Date();
             const dataStr = agora.toLocaleDateString('pt-BR', {
-                weekday: 'long', day: '2-digit', month: 'long', year: 'numeric'
+                day: '2-digit', month: '2-digit', year: 'numeric'
             });
             const horaStr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
@@ -2655,53 +2655,61 @@
             (dados.itens || []).forEach(function(item) {
                 const sub = (item.qty || 0) * (item.price || 0);
                 linhas += '<tr>' +
-                    '<td style="padding:6px 4px;border-bottom:1px solid #ddd;">' + escapeHtml(item.name) + '</td>' +
-                    '<td style="padding:6px 4px;border-bottom:1px solid #ddd;text-align:center;">' + item.qty + '</td>' +
-                    '<td style="padding:6px 4px;border-bottom:1px solid #ddd;text-align:right;">' + formatMoney(item.price || 0) + '</td>' +
-                    '<td style="padding:6px 4px;border-bottom:1px solid #ddd;text-align:right;">' + formatMoney(sub) + '</td>' +
+                    '<td class="prod">' + escapeHtml(item.name) + '</td>' +
+                    '<td class="qtd">' + item.qty + '</td>' +
+                    '<td class="val">' + formatMoney(sub) + '</td>' +
                     '</tr>';
             });
 
-            const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante de Venda - GRAJ</title>' +
+            const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+                '<title>Comprovante GRAJ</title>' +
                 '<style>' +
-                'body{font-family:Arial,Helvetica,sans-serif;max-width:400px;margin:0 auto;padding:16px;color:#111;}' +
-                'h1{font-size:16px;text-align:center;margin:0 0 4px;text-transform:uppercase;}' +
-                'h2{font-size:13px;text-align:center;margin:0 0 12px;font-weight:normal;}' +
-                '.line{border-top:1px dashed #333;margin:12px 0;}' +
-                'table{width:100%;border-collapse:collapse;font-size:12px;}' +
-                'th{text-align:left;border-bottom:2px solid #333;padding:6px 4px;font-size:11px;}' +
-                '.meta{font-size:12px;line-height:1.6;}' +
-                '.total{font-size:14px;font-weight:bold;margin-top:10px;}' +
-                '.assinatura{margin-top:40px;text-align:center;}' +
-                '.assinatura .risco{border-top:1px solid #333;width:80%;margin:40px auto 6px;}' +
-                '.footer{font-size:10px;text-align:center;margin-top:24px;color:#555;}' +
-                '@media print{body{padding:0;} button{display:none!important;}}' +
+                '@page { size: 80mm auto; margin: 2mm; }' +
+                '* { box-sizing: border-box; margin: 0; padding: 0; }' +
+                'html, body { width: 80mm; max-width: 80mm; background: #fff; color: #000; }' +
+                'body { font-family: Arial, Helvetica, sans-serif; font-size: 11px; padding: 4mm 3mm 8mm 3mm; line-height: 1.25; }' +
+                'h1 { font-size: 13px; text-align: center; text-transform: uppercase; margin-bottom: 2px; }' +
+                'h2 { font-size: 11px; text-align: center; font-weight: normal; margin-bottom: 6px; }' +
+                '.line { border-top: 1px dashed #000; margin: 6px 0; }' +
+                '.meta div { margin-bottom: 2px; }' +
+                'table { width: 100%; border-collapse: collapse; margin-top: 4px; }' +
+                'th { text-align: left; border-bottom: 1px solid #000; padding: 2px 0; font-size: 10px; }' +
+                'td { padding: 3px 0; vertical-align: top; border-bottom: 1px dotted #ccc; }' +
+                'td.prod { width: 55%; }' +
+                'td.qtd { width: 15%; text-align: center; }' +
+                'td.val { width: 30%; text-align: right; }' +
+                '.total { font-size: 13px; font-weight: bold; margin-top: 6px; text-align: right; }' +
+                '.assinatura { margin-top: 18px; text-align: center; }' +
+                '.assinatura .risco { border-top: 1px solid #000; width: 85%; margin: 28px auto 4px; }' +
+                '.footer { font-size: 9px; text-align: center; margin-top: 10px; }' +
+                '.no-print { text-align: center; margin-top: 10px; }' +
+                '@media print {' +
+                '  html, body { width: 80mm; }' +
+                '  body { padding: 2mm; }' +
+                '  .no-print { display: none !important; }' +
+                '  .assinatura { page-break-inside: avoid; }' +
+                '}' +
                 '</style></head><body>' +
-                '<h1>Grêmio Recreativo Antônio João</h1>' +
-                '<h2>GRAJ — Comprovante de Venda</h2>' +
+                '<h1>Gremio Recreativo Antonio Joao</h1>' +
+                '<h2>GRAJ - Comprovante de Venda</h2>' +
                 '<div class="line"></div>' +
                 '<div class="meta">' +
-                '<div><strong>Data:</strong> ' + escapeHtml(dataStr) + ' — ' + escapeHtml(horaStr) + '</div>' +
-                '<div><strong>Sócio:</strong> ' + escapeHtml(dados.socio || 'Não informado') + '</div>' +
-                '<div><strong>Militar:</strong> ' + escapeHtml(dados.militar || '—') + '</div>' +
-                '<div><strong>Pagamento:</strong> ' + escapeHtml(dados.pagamento || '—') + '</div>' +
+                '<div><strong>Data:</strong> ' + escapeHtml(dataStr) + ' ' + escapeHtml(horaStr) + '</div>' +
+                '<div><strong>Socio:</strong> ' + escapeHtml(dados.socio || 'Nao informado') + '</div>' +
+                '<div><strong>Militar:</strong> ' + escapeHtml(dados.militar || '-') + '</div>' +
+                '<div><strong>Pagamento:</strong> ' + escapeHtml(dados.pagamento || '-') + '</div>' +
                 (dados.obs ? '<div><strong>Obs:</strong> ' + escapeHtml(dados.obs) + '</div>' : '') +
                 '</div>' +
                 '<div class="line"></div>' +
-                '<table><thead><tr>' +
-                '<th>Produto</th><th style="text-align:center;">Qtd</th><th style="text-align:right;">Unit.</th><th style="text-align:right;">Total</th>' +
-                '</tr></thead><tbody>' + linhas + '</tbody></table>' +
-                '<div class="total">Total: ' + formatMoney(dados.totalValor || 0) +
-                ' (' + (dados.totalItens || 0) + ' un)</div>' +
+                '<table><thead><tr><th>Produto</th><th style="text-align:center;">Qtd</th><th style="text-align:right;">Total</th></tr></thead>' +
+                '<tbody>' + linhas + '</tbody></table>' +
+                '<div class="total">TOTAL: ' + formatMoney(dados.totalValor || 0) + '</div>' +
                 '<div class="line"></div>' +
-                '<div class="assinatura">' +
-                '<div class="risco"></div>' +
-                '<div>Assinatura do Sócio</div>' +
-                '<div style="margin-top:8px;font-size:12px;">' + escapeHtml(dados.socio || '') + '</div>' +
-                '</div>' +
-                '<div class="footer">Documento interno do clube — não é documento fiscal<br>GRAJ — Controle de Estoque</div>' +
-                '<div style="text-align:center;margin-top:16px;"><button onclick="window.print()">Imprimir</button></div>' +
-                '<script>window.onload=function(){setTimeout(function(){window.print();},300);}<\/script>' +
+                '<div class="assinatura"><div class="risco"></div>Assinatura do Socio<br>' +
+                '<span style="font-size:10px;">' + escapeHtml(dados.socio || '') + '</span></div>' +
+                '<div class="footer">Documento interno - nao fiscal<br>GRAJ</div>' +
+                '<div class="no-print"><button onclick="window.print()">Imprimir</button></div>' +
+                '<script>window.onload=function(){setTimeout(function(){window.print();},250);}<\\/script>' +
                 '</body></html>';
 
             try {
@@ -2713,11 +2721,11 @@
                 }
                 setTimeout(function() { URL.revokeObjectURL(url); }, 60000);
             } catch (e) {
-                toast('Não foi possível abrir o comprovante.', 'error');
+                toast('Nao foi possivel abrir o comprovante.', 'error');
             }
         }
 
-        function limparMovimentacoes() {
+function limparMovimentacoes() {
             if (state.movements.length === 0) return;
             if (confirm('Limpar apenas o log visual de hoje? O estoque NÃO será alterado.')) {
                 state.movements = [];
