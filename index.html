@@ -908,7 +908,6 @@
                     <div class="card-header">
                         <h2>📦 Estoque Atual</h2>
                         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                            <button class="btn btn-success btn-sm" onclick="abrirModalEntrada()">+ Entrada</button>
                             <button class="btn btn-danger btn-sm" onclick="abrirModalVenda()">− Venda</button>
                             <button class="btn btn-outline btn-sm no-print" onclick="imprimirRelatorioDia()">🖨️ Relatório</button>
                         </div>
@@ -1011,6 +1010,15 @@
 
         <!-- Tab Produtos -->
         <div id="tab-produtos" class="admin-tab">
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="card-header">
+                    <h2>📥 Entrada de Mercadoria</h2>
+                </div>
+                <div class="card-body">
+                    <p style="font-size:0.9rem;color:var(--text-muted);margin-bottom:0.75rem;">Somente o administrador pode lançar entradas no estoque.</p>
+                    <button class="btn btn-success" onclick="abrirModalEntrada()">+ Registrar Entrada</button>
+                </div>
+            </div>
             <div class="card" style="margin-bottom:1.5rem;">
                 <div class="card-header">
                     <h2>➕ Cadastrar Novo Produto</h2>
@@ -1451,14 +1459,14 @@
     <script>
         // ==================== STATE & STORAGE ====================
         // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
-        const FIREBASE_CONFIG = {
-       apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
-       authDomain: "estoque-graj-b32b2.firebaseapp.com",
-       databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
-       projectId: "estoque-graj-b32b2",
-       storageBucket: "estoque-graj-b32b2.firebasestorage.app",
-       messagingSenderId: "924249670911",
-       appId: "1:924249670911:web:283128ab7ceba163c478ca"
+        const firebaseConfig = {
+  apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
+  authDomain: "estoque-graj-b32b2.firebaseapp.com",
+  databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
+  projectId: "estoque-graj-b32b2",
+  storageBucket: "estoque-graj-b32b2.firebasestorage.app",
+  messagingSenderId: "924249670911",
+  appId: "1:924249670911:web:283128ab7ceba163c478ca"
         };
 
         const STORAGE_KEY = 'gberaj_estoque_v1';
@@ -2069,13 +2077,20 @@
                 const valorLinha = isVenda ? formatMoney(m.qty * (m.price || 0)) : '—';
                 const canUndo = m.type === 'entrada' || m.type === 'venda';
                 const undoBtn = canUndo
-                    ? '<button class="btn btn-sm btn-outline" style="margin-top:0.25rem;font-size:0.7rem;" onclick="desfazerMovimentacao(\'' + m.id + '\')">Desfazer</button>'
+                    ? '<button class="btn btn-sm btn-outline" style="margin-top:0.25rem;font-size:0.7rem;" data-id="' + m.id + '" onclick="desfazerMovimentacao(this.getAttribute(\'data-id\'))">Desfazer</button>'
+                    : '';
+                const comprador = isVenda
+                    ? ('<div style="margin-top:0.25rem;font-size:0.85rem;"><strong style="color:var(--primary);">👤 Comprador: ' +
+                       escapeHtml(m.socio || 'Não informado') + '</strong>' +
+                       (m.pagamento ? ' · <span style="color:var(--text-muted);">' + escapeHtml(m.pagamento) + '</span>' : '') +
+                       '</div>')
                     : '';
                 return '<div class="movement-item">' +
                     '<div class="movement-icon ' + (isEntrada ? 'entrada' : 'venda') + '">' + (isVenda ? '🛒' : (isEntrada ? '📥' : '🔧')) + '</div>' +
                     '<div class="movement-info">' +
                     '<strong>' + escapeHtml(m.productName) + '</strong>' +
-                    '<span>' + tipo + ' • ' + formatDate(m.date) + ' • ' + escapeHtml(m.militar || '') +
+                    comprador +
+                    '<span>' + tipo + ' • ' + formatDate(m.date) + ' • Militar: ' + escapeHtml(m.militar || '—') +
                     (m.obs ? ' • ' + escapeHtml(m.obs) : '') + '</span></div>' +
                     '<div style="text-align:right;"><div class="movement-qty" style="color:' + cor + '">' +
                     (isEntrada ? '+' : '−') + m.qty + '</div>' +
@@ -2283,6 +2298,10 @@
         }
 
         function abrirModalEntrada() {
+            if (!isAdmin) {
+                toast('Somente o administrador pode lançar entrada de mercadoria.', 'error');
+                return;
+            }
             if (state.products.length === 0) {
                 toast('Cadastre produtos primeiro (acesso admin).', 'error');
                 return;
@@ -2448,6 +2467,10 @@
         }
 
         function registrarEntrada() {
+            if (!isAdmin) {
+                toast('Somente o administrador pode lançar entrada de mercadoria.', 'error');
+                return;
+            }
             const obs = document.getElementById('entradaObs').value.trim();
 
             if (entradaItens.length === 0) {
@@ -2485,7 +2508,7 @@
                     qty: item.qty,
                     price: item.price,
                     obs: obs,
-                    militar: currentMilitar,
+                    militar: currentMilitar || (isAdmin ? 'ADMIN' : ''),
                     date: todayISO()
                 });
             }
@@ -2978,6 +3001,10 @@
         }
 
         function adminExcluirProduto(id) {
+            if (!isAdmin) {
+                toast('Somente o administrador pode excluir mercadoria.', 'error');
+                return;
+            }
             const p = state.products.find(x => x.id === id);
             if (!p) return;
             if (!confirm(`Excluir o produto "${p.name}"? Esta ação não pode ser desfeita.`)) return;
