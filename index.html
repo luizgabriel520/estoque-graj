@@ -806,6 +806,148 @@
             body { background: white; }
             .card { box-shadow: none; border: 1px solid #ccc; }
         }
+
+        /* Splash de abertura 3D */
+        .splash-screen {
+            position: fixed;
+            inset: 0;
+            z-index: 99999;
+            background: radial-gradient(ellipse at 50% 30%, #1a7a42 0%, #0d5c2e 45%, #042816 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            color: #fff;
+            perspective: 900px;
+            overflow: hidden;
+            transition: opacity 0.8s ease, visibility 0.8s ease;
+        }
+        .splash-screen.hide {
+            opacity: 0;
+            visibility: hidden;
+            pointer-events: none;
+        }
+        .splash-screen::before,
+        .splash-screen::after {
+            content: '';
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(40px);
+            opacity: 0.35;
+            pointer-events: none;
+        }
+        .splash-screen::before {
+            width: 280px; height: 280px;
+            background: #c9a227;
+            top: -60px; right: -40px;
+            animation: splashOrb 3s ease-in-out infinite alternate;
+        }
+        .splash-screen::after {
+            width: 220px; height: 220px;
+            background: #0d9488;
+            bottom: 10%; left: -50px;
+            animation: splashOrb 3.5s ease-in-out 0.5s infinite alternate-reverse;
+        }
+        .splash-stage {
+            position: relative;
+            transform-style: preserve-3d;
+            animation: splashStageIn 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+            opacity: 0;
+        }
+        .splash-logo {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            border: 3px solid rgba(255,255,255,0.95);
+            object-fit: cover;
+            display: block;
+            box-shadow:
+                0 20px 40px rgba(0,0,0,0.45),
+                0 0 0 8px rgba(201,162,39,0.25);
+            transform-style: preserve-3d;
+            animation: splashLogo3d 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.15s forwards;
+            opacity: 0;
+        }
+        .splash-title {
+            margin-top: 1.6rem;
+            font-size: 1.35rem;
+            font-weight: 800;
+            text-align: center;
+            max-width: 340px;
+            line-height: 1.35;
+            text-shadow: 0 8px 24px rgba(0,0,0,0.35);
+            animation: splashText3d 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.45s forwards;
+            opacity: 0;
+            transform-origin: center bottom;
+        }
+        .splash-sub {
+            margin-top: 0.55rem;
+            font-size: 1.15rem;
+            font-weight: 800;
+            letter-spacing: 0.28em;
+            color: #c9a227;
+            text-shadow: 0 4px 16px rgba(0,0,0,0.4);
+            animation: splashText3d 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.6s forwards;
+            opacity: 0;
+        }
+        .splash-credit {
+            position: absolute;
+            bottom: 2.2rem;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 0.85rem;
+            line-height: 1.55;
+            color: rgba(255,255,255,0.92);
+            animation: splashText3d 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.85s forwards;
+            opacity: 0;
+        }
+        .splash-credit strong {
+            color: #c9a227;
+            font-weight: 700;
+        }
+        .splash-bar {
+            width: 140px;
+            height: 4px;
+            background: rgba(255,255,255,0.18);
+            border-radius: 6px;
+            margin-top: 1.8rem;
+            overflow: hidden;
+            box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
+            animation: splashText3d 0.6s ease 0.7s forwards;
+            opacity: 0;
+        }
+        .splash-bar > span {
+            display: block;
+            height: 100%;
+            width: 0;
+            background: linear-gradient(90deg, #c9a227, #e0b82e, #c9a227);
+            border-radius: 6px;
+            box-shadow: 0 0 12px rgba(201,162,39,0.7);
+            animation: splashLoad 1.7s ease 0.75s forwards;
+        }
+        @keyframes splashStageIn {
+            from { opacity: 0; transform: translateZ(-120px) rotateX(18deg); }
+            to { opacity: 1; transform: translateZ(0) rotateX(0deg); }
+        }
+        @keyframes splashLogo3d {
+            0% { opacity: 0; transform: rotateY(-80deg) rotateX(25deg) scale(0.5) translateZ(-80px); }
+            60% { opacity: 1; transform: rotateY(12deg) rotateX(-6deg) scale(1.06) translateZ(40px); }
+            100% { opacity: 1; transform: rotateY(0deg) rotateX(0deg) scale(1) translateZ(0); }
+        }
+        @keyframes splashText3d {
+            from { opacity: 0; transform: translateY(28px) rotateX(40deg) translateZ(-40px); }
+            to { opacity: 1; transform: translateY(0) rotateX(0deg) translateZ(0); }
+        }
+        @keyframes splashLoad {
+            from { width: 0; }
+            to { width: 100%; }
+        }
+        @keyframes splashOrb {
+            from { transform: translate3d(0,0,0) scale(1); }
+            to { transform: translate3d(30px, 20px, 0) scale(1.15); }
+        }
+
     </style>
 
     <!-- Firebase SDK -->
@@ -813,6 +955,21 @@
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 </head>
 <body>
+
+    <!-- Splash abertura -->
+    <div class="splash-screen" id="splashScreen">
+        <div class="splash-stage">
+            <img class="splash-logo" src="logo-clube.jpg" alt="GRAJ" onerror="this.style.display='none'">
+            <div class="splash-title">Seja bem-vindo ao sistema de controle de estoque</div>
+            <div class="splash-sub">GRAJ</div>
+            <div class="splash-bar"><span></span></div>
+        </div>
+        <div class="splash-credit">
+            Sistema projetado e feito por<br>
+            <strong>Luiz Gabriel</strong> — @WEBPAGEART
+        </div>
+    </div>
+
     <!-- Header -->
     <header class="header">
         <div class="header-content">
@@ -1100,6 +1257,7 @@
             <div class="card" style="margin-bottom:1.5rem;">
                 <div class="card-header">
                     <h2>🛒 Vendas e Movimentações do Dia</h2>
+                    <button class="btn btn-primary btn-sm" onclick="baixarVendasPDF()">📄 Baixar PDF</button>
                 </div>
                 <div class="card-body">
                     <div class="stats-grid" style="margin-bottom:1rem;">
@@ -1388,9 +1546,9 @@
                     <div class="form-group">
                         <label>Pagamento</label>
                         <select id="vendaPagamento" class="form-control" onchange="onPagamentoChange()">
-                            <option value="Dinheiro">SOCIO CONTA</option>
+                            <option value="Dinheiro">Dinheiro</option>
                             <option value="Pix">Pix</option>
-                            <option value="Sócio (conta)">DINHEIRO</option>
+                            <option value="Sócio (conta)">Sócio (conta)</option>
                         </select>
                     </div>
                 </div>
@@ -1464,7 +1622,6 @@
     <footer class="footer no-print">
         Grêmio Recreativo Antônio João — GRAJ<br>
         Sistema de Controle de Estoque • Uso interno
-        SISTEMA FEITO POR LUIZ GABRIEL / @WEBPAGEART
     </footer>
 
     <script>
@@ -3575,6 +3732,86 @@ function limparMovimentacoes() {
         }
 
 
+
+        function baixarVendasPDF() {
+            const vendas = (state.movements || []).filter(m => m.type === 'venda');
+            const entradas = (state.movements || []).filter(m => m.type === 'entrada');
+            if (vendas.length === 0 && entradas.length === 0) {
+                toast('Nenhuma movimentação hoje para exportar.', 'error');
+                return;
+            }
+
+            const agora = new Date();
+            const dataStr = agora.toLocaleDateString('pt-BR');
+            const horaStr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            const totalValor = vendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
+            const totalQtd = vendas.reduce((s, m) => s + m.qty, 0);
+
+            let rows = '';
+            vendas.forEach(function(m) {
+                rows += '<tr>' +
+                    '<td>' + escapeHtml(m.productName || '') + '</td>' +
+                    '<td style="text-align:center;">' + m.qty + '</td>' +
+                    '<td>' + escapeHtml(m.socio || '—') + '</td>' +
+                    '<td style="text-align:center;">' + escapeHtml(m.pagamento || '—') + '</td>' +
+                    '<td style="text-align:right;">' + formatMoney(m.qty * (m.price || 0)) + '</td>' +
+                    '<td>' + escapeHtml(m.militar || '—') + '</td>' +
+                    '</tr>';
+            });
+
+            let entRows = '';
+            entradas.forEach(function(m) {
+                entRows += '<tr><td>' + escapeHtml(m.productName || '') + '</td>' +
+                    '<td style="text-align:center;">+' + m.qty + '</td>' +
+                    '<td>' + escapeHtml(m.militar || 'ADMIN') + '</td></tr>';
+            });
+
+            const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+                '<title>Vendas GRAJ - ' + dataStr + '</title>' +
+                '<style>' +
+                'body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:24px;font-size:12px;}' +
+                'h1{font-size:18px;margin:0 0 4px;color:#0d5c2e;}' +
+                'h2{font-size:14px;margin:18px 0 8px;color:#0d5c2e;}' +
+                '.sub{color:#555;margin-bottom:16px;}' +
+                'table{width:100%;border-collapse:collapse;margin-top:8px;}' +
+                'th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;}' +
+                'th{background:#e8f5ec;color:#084020;}' +
+                '.tot{margin-top:12px;font-size:13px;font-weight:bold;}' +
+                '.foot{margin-top:28px;font-size:10px;color:#666;text-align:center;}' +
+                '@media print{body{padding:10px;} .no-print{display:none!important;}}' +
+                '</style></head><body>' +
+                '<h1>Grêmio Recreativo Antônio João — GRAJ</h1>' +
+                '<div class="sub">Relatório de vendas do dia · ' + dataStr + ' às ' + horaStr + '</div>' +
+                '<div class="tot">Itens vendidos: ' + totalQtd + ' · Valor total: ' + formatMoney(totalValor) +
+                (state.serviceMilitar ? ' · Serviço: ' + escapeHtml(state.serviceMilitar) : '') + '</div>' +
+                '<h2>Vendas</h2>' +
+                (vendas.length ? ('<table><thead><tr>' +
+                '<th>Produto</th><th>Qtd</th><th>Comprador</th><th>Pagamento</th><th>Valor</th><th>Militar</th>' +
+                '</tr></thead><tbody>' + rows + '</tbody></table>') : '<p>Nenhuma venda.</p>') +
+                (entradas.length ? ('<h2>Entradas</h2><table><thead><tr><th>Produto</th><th>Qtd</th><th>Responsável</th></tr></thead><tbody>' +
+                entRows + '</tbody></table>') : '') +
+                '<div class="foot">Documento gerado pelo sistema de controle de estoque GRAJ<br>Luiz Gabriel — @WEBPAGEART</div>' +
+                '<div class="no-print" style="margin-top:16px;text-align:center;">' +
+                '<p><strong>Para baixar em PDF:</strong> na janela de impressão, escolha <em>Salvar como PDF</em> / <em>Microsoft Print to PDF</em>.</p>' +
+                '<button onclick="window.print()" style="padding:10px 18px;font-size:14px;cursor:pointer;">Imprimir / Salvar PDF</button></div>' +
+                '<script>window.onload=function(){setTimeout(function(){window.print();},400);}<\\/script>' +
+                '</body></html>';
+
+            try {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const w = window.open(url, '_blank');
+                if (!w) {
+                    toast('Permita pop-ups para gerar o PDF.', 'error');
+                    return;
+                }
+                toast('Na impressão, escolha "Salvar como PDF"');
+                setTimeout(function() { URL.revokeObjectURL(url); }, 120000);
+            } catch (e) {
+                toast('Erro ao gerar PDF.', 'error');
+            }
+        }
+
         function adminAlterarSenha() {
             const atual = document.getElementById('senhaAtual').value;
             const nova = document.getElementById('senhaNova').value;
@@ -3619,6 +3856,18 @@ function limparMovimentacoes() {
             renderAdmin();
             toast('Sistema zerado com sucesso! Todas as quantidades e histórico foram limpos.');
         }
+
+
+        (function initSplash() {
+            const splash = document.getElementById('splashScreen');
+            if (!splash) return;
+            setTimeout(function() {
+                splash.classList.add('hide');
+                setTimeout(function() {
+                    if (splash.parentNode) splash.parentNode.removeChild(splash);
+                }, 800);
+            }, 3200);
+        })();
 
         // ==================== START ====================
         updateHeaderDate();
