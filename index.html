@@ -1387,10 +1387,10 @@
                     </div>
                     <div class="form-group">
                         <label>Pagamento</label>
-                        <select id="vendaPagamento" class="form-control" onchange="toggleParcelasConta()">
-                            <option value="Dinheiro">SOCIO (CONTA)</option>
+                        <select id="vendaPagamento" class="form-control" onchange="onPagamentoChange()">
+                            <option value="Dinheiro">Dinheiro</option>
                             <option value="Pix">Pix</option>
-                            <option value="Sócio (conta)">DINHEIRO</option>
+                            <option value="Sócio (conta)">Sócio (conta)</option>
                         </select>
                     </div>
                 </div>
@@ -2429,6 +2429,7 @@
             if (vs) vs.value = '';
             const vp = document.getElementById('vendaPagamento');
             if (vp) vp.value = 'Dinheiro';
+            window._formaPagamentoSelecionada = 'Dinheiro';
             const vparc = document.getElementById('vendaParcelas');
             if (vparc) vparc.value = 1;
             if (typeof toggleParcelasConta === 'function') toggleParcelasConta();
@@ -2600,13 +2601,36 @@
             return dd + '/' + mm + '/' + yy;
         }
 
+        function onPagamentoChange() {
+            const pagEl = document.getElementById('vendaPagamento');
+            if (pagEl) {
+                window._formaPagamentoSelecionada = (pagEl.value || '').trim();
+            }
+            toggleParcelasConta();
+        }
+
         function toggleParcelasConta() {
             const pag = (document.getElementById('vendaPagamento') || {}).value || '';
             const box = document.getElementById('boxParcelasConta');
             if (!box) return;
-            const isConta = /s[oó]cio|conta/i.test(pag);
+            const isConta = /socio|sócio|conta/i.test(pag);
             box.style.display = isConta ? 'block' : 'none';
             if (isConta) atualizarPreviewParcelas();
+        }
+
+        function lerFormaPagamento() {
+            const pagEl = document.getElementById('vendaPagamento');
+            let pag = '';
+            if (pagEl) {
+                pag = (pagEl.value || '').trim();
+                if (!pag && pagEl.selectedIndex >= 0 && pagEl.options[pagEl.selectedIndex]) {
+                    pag = (pagEl.options[pagEl.selectedIndex].text || '').trim();
+                }
+            }
+            if (!pag && window._formaPagamentoSelecionada) {
+                pag = window._formaPagamentoSelecionada;
+            }
+            return pag || 'Dinheiro';
         }
 
         function atualizarPreviewParcelas() {
@@ -2629,15 +2653,8 @@
         function registrarVenda() {
             const obs = document.getElementById('vendaObs').value.trim();
             const socio = (document.getElementById('vendaSocio') && document.getElementById('vendaSocio').value.trim()) || '';
-            const pagEl = document.getElementById('vendaPagamento');
-            let pagamento = 'Dinheiro';
-            if (pagEl) {
-                const idx = pagEl.selectedIndex;
-                const byValue = (pagEl.value || '').trim();
-                const byText = (idx >= 0 && pagEl.options[idx]) ? (pagEl.options[idx].text || '').trim() : '';
-                pagamento = byValue || byText || 'Dinheiro';
-            }
-            const isContaPag = /s[oó]cio|conta/i.test(pagamento);
+            const pagamento = lerFormaPagamento();
+            const isContaPag = /socio|sócio|conta/i.test(pagamento);
             const numParcelas = isContaPag
                 ? Math.max(1, parseInt((document.getElementById('vendaParcelas') || {}).value, 10) || 1)
                 : 1;
@@ -2729,107 +2746,100 @@
             }
         }
 
-                function imprimirComprovanteVenda(dados) {
+                        function imprimirComprovanteVenda(dados) {
             const agora = new Date();
             const dataStr = agora.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
             const horaStr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
             const codVenda = String(Date.now()).slice(-6);
-            const venc = new Date(agora.getTime() + 3 * 24 * 60 * 60 * 1000);
-            const vencStr = venc.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-            const total = dados.totalValor || 0;
+            const total = Number(dados.totalValor) || 0;
             const totalFmt = formatMoney(total);
-            const isConta = /s[oó]cio|conta/i.test(dados.pagamento || '');
-            const formaPag = isConta ? 'Conta' : (dados.pagamento || 'Dinheiro');
+            const pagRaw = (dados.pagamento || '').trim();
+            const isConta = /socio|sócio|conta/i.test(pagRaw);
+            let formaPag = 'Dinheiro';
+            if (isConta) formaPag = 'Conta';
+            else if (/pix/i.test(pagRaw)) formaPag = 'Pix';
+            else if (/dinheiro/i.test(pagRaw)) formaPag = 'Dinheiro';
+            else if (pagRaw) formaPag = pagRaw;
+
             const parcelas = Math.max(1, parseInt(dados.parcelas, 10) || 1);
             let vencList = [];
             if (dados.vencimentos && dados.vencimentos.length) {
-                vencList = dados.vencimentos.map(function(v) {
-                    return (v instanceof Date) ? v : (typeof v === 'string' && v.indexOf('/') >= 0 ? v : new Date(v));
-                });
+                vencList = dados.vencimentos.slice();
             } else if (isConta) {
                 vencList = gerarVencimentosParcelas(parcelas);
             }
             const valorParc = total / parcelas;
 
-            let linhasCarne = '';
+            let itensHtml = '';
+            (dados.itens || []).forEach(function(item, i) {
+                const sub = (item.qty || 0) * (item.price || 0);
+                const cod = String(100000 + i + 1).slice(-6);
+                itensHtml +=
+                    '<div style="font-weight:900;margin-top:4px;">' + escapeHtml(item.name) + '</div>' +
+                    '<div style="display:flex;justify-content:space-between;font-weight:900;font-size:12px;">' +
+                    '<span>' + cod + '</span><span>' + item.qty + '</span><span>UN</span>' +
+                    '<span>' + formatMoney(item.price || 0) + '</span>' +
+                    '<span>' + formatMoney(sub) + '</span></div>';
+            });
+
+            let carneHtml = '';
             if (isConta) {
+                carneHtml = '<div style="border-top:2px solid #000;margin:6px 0;"></div>' +
+                    '<div style="text-align:center;font-weight:900;">Contrato de Compra - CARNE</div>' +
+                    '<div style="display:flex;justify-content:space-between;font-weight:900;border-bottom:2px solid #000;margin:4px 0;">' +
+                    '<span>Parc</span><span>Vencimento</span><span>Valor</span></div>';
                 for (let i = 0; i < parcelas; i++) {
                     const v = vencList[i];
                     const vStr = (typeof v === 'string') ? v : formatDateBR(v);
-                    linhasCarne += '<div class="item-lin"><span>' + (i+1) + '/' + parcelas + '</span><span>' + vStr + '</span><span>' +
-                        formatMoney(valorParc).replace(/^R\\$\\s?/, '') + '</span></div>';
+                    carneHtml += '<div style="display:flex;justify-content:space-between;font-weight:900;">' +
+                        '<span>' + (i + 1) + '/' + parcelas + '</span><span>' + vStr + '</span><span>' + formatMoney(valorParc) + '</span></div>';
                 }
+                carneHtml += '<div style="font-size:11px;font-weight:900;margin-top:6px;text-align:justify;line-height:1.25;">' +
+                    'Reconheco e confesso que possuo o debito de ' + totalFmt +
+                    ' e que pagarei a GREMIO RECREATIVO ANTONIO JOAO ou a quem esta estabelecer nas datas discriminadas. ' +
+                    'Aceito que o nao pagamento das parcelas no vencimento gerara multas e juros sobre o debito, ' +
+                    'e serao efetuados procedimentos de cobranca. Vencimento: todo dia 29.</div>';
             }
 
-            const textoCarne = isConta
-                ? ('<div class="sep"></div>' +
-                   '<div class="center bold">Contrato de Compra - CARNE</div>' +
-                   '<div class="item-lin head"><span>Parc</span><span>Vencimento</span><span>Valor</span></div>' +
-                   linhasCarne +
-                   '<div class="texto">Reconheco e confesso que possuo o debito de ' + totalFmt +
-                   ' e que pagarei a GREMIO RECREATIVO ANTONIO JOAO ou a quem esta estabelecer nas datas discriminadas. ' +
-                   'Aceito que o nao pagamento das parcelas no vencimento gerara multas e juros sobre o debito, ' +
-                   'e serao efetuados procedimentos de cobranca. Vencimento padrao: todo dia 29.</div>')
-                : '';
-
-const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante de Venda</title>' +
+            const html = '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Comprovante</title>' +
                 '<style>' +
-                '@page{size:80mm auto;margin:1.5mm;}' +
-                '*{box-sizing:border-box;margin:0;padding:0;}' +
-                'html,body{width:80mm;max-width:80mm;background:#fff;color:#000;}' +
-                'body{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;padding:2mm 2mm 5mm;line-height:1.3;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
-                '.center{text-align:center;}' +
-                '.bold{font-weight:900;}' +
-                'h1,h2,.tit{font-weight:900;}' +
-                '.sep{border-top:2px solid #000;margin:5px 0;}' +
-                '.sep-d{border-top:2px dashed #000;margin:5px 0;}' +
-                '.meta{display:flex;justify-content:space-between;margin:3px 0;font-weight:700;}' +
-                '.item-nome{margin-top:5px;font-weight:900;font-size:13px;}' +
-                '.item-lin{display:flex;justify-content:space-between;gap:2px;font-size:12px;font-weight:700;}' +
-                '.item-lin span{flex:1;}' +
-                '.item-lin.head{border-bottom:2px solid #000;margin-bottom:3px;font-weight:900;font-size:11px;}' +
-                '.tot{margin-top:5px;font-weight:700;}' +
-                '.tot div{display:flex;justify-content:space-between;margin:2px 0;}' +
-                '.tot .destaque{font-weight:900;font-size:14px;}' +
-                '.texto{font-size:11px;margin-top:6px;text-align:justify;font-weight:700;line-height:1.25;}' +
-                '.assinatura{margin-top:14px;text-align:center;}' +
-                '.assinatura .risco{border-top:2px solid #000;width:90%;margin:20px auto 4px;}' +
-                '.rodape{text-align:center;margin-top:8px;font-size:12px;font-weight:700;}' +
-                '.no-print{text-align:center;margin-top:8px;}' +
-                '@media print{body{padding:1mm;} .no-print{display:none!important;}}' +
+                '@page{size:80mm auto;margin:0;}' +
+                'html,body{width:72mm;margin:0 auto;background:#fff;color:#000!important;}' +
+                'body{font-family:Arial Black,Arial,Helvetica,sans-serif;font-size:13px;font-weight:900;' +
+                'padding:3mm 2mm 6mm;line-height:1.25;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
+                'div,span{color:#000!important;font-weight:900!important;}' +
+                '@media print{body{padding:2mm;}}' +
                 '</style></head><body>' +
-                '<div class="center bold">GREMIO RECREATIVO ANTONIO JOAO</div>' +
-                '<div class="center">VILA MILITAR</div>' +
-                '<div class="center">CNPJ:</div>' +
-                '<div class="center">Telefone:</div>' +
-                '<div class="sep"></div>' +
-                '<div class="center bold">COMPROVANTE DE VENDA</div>' +
-                '<div class="center">Cod. Venda: ' + codVenda + '</div>' +
-                '<div class="meta"><span>Data: ' + dataStr + '</span><span>Hora: ' + horaStr + '</span></div>' +
-                '<div class="sep"></div>' +
-                '<div class="item-lin head"><span>Codigo</span><span>Qtde</span><span>Und</span><span>V.Unit</span><span>Tot</span></div>' +
-                linhas +
-                '<div class="sep"></div>' +
-                '<div class="tot">' +
-                '<div><span>Total Bruto:</span><span>' + totalFmt + '</span></div>' +
-                '<div><span>Total desconto(R$):</span><span>R$ 0,00</span></div>' +
-                '<div class="destaque" style="display:flex;justify-content:space-between;font-weight:900;font-size:14px;"><span>VALOR A PAGAR:</span><span>' + totalFmt + '</span></div>' +
-                '<div><span>TROCO:</span><span>R$ 0,00</span></div>' +
-                '</div>' +
-                '<div class="sep"></div>' +
-                '<div class="meta"><span>Forma pagamento:</span><span></span></div>' +
-                '<div class="meta"><span>' + escapeHtml(formaPag) + '</span><span>Total ' + totalFmt + '</span></div>' +
-                textoCarne +
-                '<div class="assinatura"><div class="risco"></div><div class="bold">Assinatura</div></div>' +
+                '<div style="text-align:center;font-size:14px;">GREMIO RECREATIVO ANTONIO JOAO</div>' +
+                '<div style="text-align:center;">VILA MILITAR</div>' +
+                '<div style="text-align:center;">CNPJ:</div>' +
+                '<div style="text-align:center;">Telefone:</div>' +
+                '<div style="border-top:2px dashed #000;margin:5px 0;"></div>' +
+                '<div style="text-align:center;font-size:14px;">COMPROVANTE DE VENDA</div>' +
+                '<div style="text-align:center;">Cod. Venda: ' + codVenda + '</div>' +
+                '<div style="display:flex;justify-content:space-between;"><span>Data: ' + dataStr + '</span><span>Hora: ' + horaStr + '</span></div>' +
+                '<div style="border-top:2px solid #000;margin:5px 0;"></div>' +
+                '<div style="display:flex;justify-content:space-between;border-bottom:2px solid #000;font-size:11px;">' +
+                '<span>Codigo</span><span>Qtde</span><span>Und</span><span>V.Unit</span><span>Tot</span></div>' +
+                itensHtml +
+                '<div style="border-top:2px dashed #000;margin:5px 0;"></div>' +
+                '<div style="display:flex;justify-content:space-between;"><span>Total Bruto:</span><span>' + totalFmt + '</span></div>' +
+                '<div style="display:flex;justify-content:space-between;"><span>Total desconto(R$):</span><span>R$ 0,00</span></div>' +
+                '<div style="display:flex;justify-content:space-between;font-size:15px;"><span>VALOR A PAGAR:</span><span>' + totalFmt + '</span></div>' +
+                '<div style="display:flex;justify-content:space-between;"><span>TROCO:</span><span>R$ 0,00</span></div>' +
+                '<div style="border-top:2px dashed #000;margin:5px 0;"></div>' +
+                '<div>Forma pagamento:</div>' +
+                '<div style="display:flex;justify-content:space-between;"><span>' + escapeHtml(formaPag) + '</span><span>Total ' + totalFmt + '</span></div>' +
+                carneHtml +
+                '<div style="margin-top:16px;text-align:center;border-top:2px solid #000;padding-top:4px;">Assinatura</div>' +
                 '<div style="margin-top:8px;">Cliente: ' + escapeHtml(dados.socio || 'Nao informado') + '</div>' +
                 '<div>Vendedor: ' + escapeHtml(dados.militar || '-') + '</div>' +
-                '<div class="rodape">Obrigado pela preferencia<br>Volte sempre</div>' +
-                '<div class="no-print"><button onclick="window.print()">Imprimir</button></div>' +
-                '<script>window.onload=function(){setTimeout(function(){window.print();},250);}<\\/script>' +
+                '<div style="text-align:center;margin-top:8px;">Obrigado pela preferencia<br>Volte sempre</div>' +
+                '<script>window.onload=function(){setTimeout(function(){window.print();},300);}<\\/script>' +
                 '</body></html>';
 
             try {
-                const blob = new Blob([html], { type: 'text/html' });
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
                 const url = URL.createObjectURL(blob);
                 const w = window.open(url, '_blank');
                 if (!w) toast('Permita pop-ups para imprimir o comprovante.', 'error');
