@@ -1387,12 +1387,19 @@
                     </div>
                     <div class="form-group">
                         <label>Pagamento</label>
-                        <select id="vendaPagamento" class="form-control">
-                            <option value="Dinheiro">Dinheiro</option>
+                        <select id="vendaPagamento" class="form-control" onchange="toggleParcelasConta()">
+                            <option value="Dinheiro">SOCIO (CONTA)</option>
                             <option value="Pix">Pix</option>
-                            <option value="Sócio (conta)">Sócio (conta)</option>
+                            <option value="Sócio (conta)">DINHEIRO</option>
                         </select>
                     </div>
+                </div>
+                <div id="boxParcelasConta" style="display:none;margin-bottom:1rem;padding:0.75rem;background:#f0f7f2;border-radius:8px;border:1px solid var(--border);">
+                    <div class="form-group" style="margin-bottom:0.5rem;">
+                        <label>Nº de parcelas (vencimento todo dia 29)</label>
+                        <input type="number" id="vendaParcelas" class="form-control" min="1" max="24" value="1" oninput="atualizarPreviewParcelas()">
+                    </div>
+                    <div id="previewParcelas" style="font-size:0.85rem;color:var(--text-muted);"></div>
                 </div>
                 <div class="form-group">
                     <label>Observação (opcional)</label>
@@ -2422,6 +2429,9 @@
             if (vs) vs.value = '';
             const vp = document.getElementById('vendaPagamento');
             if (vp) vp.value = 'Dinheiro';
+            const vparc = document.getElementById('vendaParcelas');
+            if (vparc) vparc.value = 1;
+            if (typeof toggleParcelasConta === 'function') toggleParcelasConta();
             preencherDatalistSocios();
             const vb = document.getElementById('vendaBusca');
             if (vb) vb.value = '';
@@ -2557,6 +2567,65 @@
             toast('Entrada OK: ' + qtdProdutos + ' produto(s), ' + totalItens + ' un');
         }
 
+
+        function proximoDia29(fromDate) {
+            const d = fromDate ? new Date(fromDate) : new Date();
+            const y = d.getFullYear();
+            const m = d.getMonth();
+            const day = d.getDate();
+            // Se ainda nao passou do dia 29 deste mes, vence dia 29 deste mes
+            if (day <= 29) {
+                return new Date(y, m, 29);
+            }
+            // Senao, dia 29 do proximo mes
+            return new Date(y, m + 1, 29);
+        }
+
+        function gerarVencimentosParcelas(numParcelas) {
+            const n = Math.max(1, parseInt(numParcelas, 10) || 1);
+            const list = [];
+            let base = proximoDia29(new Date());
+            for (let i = 0; i < n; i++) {
+                const dt = new Date(base.getFullYear(), base.getMonth() + i, 29);
+                list.push(dt);
+            }
+            return list;
+        }
+
+        function formatDateBR(d) {
+            const x = d instanceof Date ? d : new Date(d);
+            const dd = String(x.getDate()).padStart(2, '0');
+            const mm = String(x.getMonth() + 1).padStart(2, '0');
+            const yy = x.getFullYear();
+            return dd + '/' + mm + '/' + yy;
+        }
+
+        function toggleParcelasConta() {
+            const pag = (document.getElementById('vendaPagamento') || {}).value || '';
+            const box = document.getElementById('boxParcelasConta');
+            if (!box) return;
+            const isConta = /s[oó]cio|conta/i.test(pag);
+            box.style.display = isConta ? 'block' : 'none';
+            if (isConta) atualizarPreviewParcelas();
+        }
+
+        function atualizarPreviewParcelas() {
+            const el = document.getElementById('previewParcelas');
+            if (!el) return;
+            const n = parseInt((document.getElementById('vendaParcelas') || {}).value, 10) || 1;
+            const vencs = gerarVencimentosParcelas(n);
+            const hoje = new Date();
+            hoje.setHours(0,0,0,0);
+            const prim = vencs[0];
+            const diff = Math.round((prim - hoje) / (24*60*60*1000));
+            let txt = '1ª parcela: <strong>' + formatDateBR(prim) + '</strong>';
+            if (diff >= 0) txt += ' (faltam ' + diff + ' dia(s))';
+            if (n > 1) {
+                txt += '<br>Demais: ' + vencs.slice(1).map(formatDateBR).join(', ');
+            }
+            el.innerHTML = txt;
+        }
+
         function registrarVenda() {
             const obs = document.getElementById('vendaObs').value.trim();
             const socio = (document.getElementById('vendaSocio') && document.getElementById('vendaSocio').value.trim()) || '';
@@ -2568,6 +2637,11 @@
                 const byText = (idx >= 0 && pagEl.options[idx]) ? (pagEl.options[idx].text || '').trim() : '';
                 pagamento = byValue || byText || 'Dinheiro';
             }
+            const isContaPag = /s[oó]cio|conta/i.test(pagamento);
+            const numParcelas = isContaPag
+                ? Math.max(1, parseInt((document.getElementById('vendaParcelas') || {}).value, 10) || 1)
+                : 1;
+            const vencimentos = isContaPag ? gerarVencimentosParcelas(numParcelas) : [];
 
             // Se a lista estiver vazia, tenta vender o item selecionado no formulário (1 produto)
             if (vendaItens.length === 0) {
@@ -2625,6 +2699,8 @@
                     obs: obs,
                     socio: socio,
                     pagamento: pagamento,
+                    parcelas: isContaPag ? numParcelas : null,
+                    vencimentos: isContaPag ? vencimentos.map(formatDateBR) : null,
                     militar: currentMilitar,
                     date: todayISO()
                 });
@@ -2646,7 +2722,9 @@
                     obs: obs,
                     totalItens: totalItens,
                     totalValor: totalValor,
-                    militar: currentMilitar || '—'
+                    militar: currentMilitar || '—',
+                    parcelas: numParcelas,
+                    vencimentos: vencimentos
                 });
             }
         }
@@ -2662,53 +2740,61 @@
             const totalFmt = formatMoney(total);
             const isConta = /s[oó]cio|conta/i.test(dados.pagamento || '');
             const formaPag = isConta ? 'Conta' : (dados.pagamento || 'Dinheiro');
+            const parcelas = Math.max(1, parseInt(dados.parcelas, 10) || 1);
+            let vencList = [];
+            if (dados.vencimentos && dados.vencimentos.length) {
+                vencList = dados.vencimentos.map(function(v) {
+                    return (v instanceof Date) ? v : (typeof v === 'string' && v.indexOf('/') >= 0 ? v : new Date(v));
+                });
+            } else if (isConta) {
+                vencList = gerarVencimentosParcelas(parcelas);
+            }
+            const valorParc = total / parcelas;
 
-            let linhas = '';
-            (dados.itens || []).forEach(function(item, i) {
-                const sub = (item.qty || 0) * (item.price || 0);
-                const cod = String(100000 + (i + 1)).slice(-6);
-                linhas +=
-                    '<div class="item-nome">' + escapeHtml(item.name) + '</div>' +
-                    '<div class="item-lin">' +
-                    '<span>' + cod + '</span>' +
-                    '<span>' + item.qty + '</span>' +
-                    '<span>UN</span>' +
-                    '<span>' + formatMoney(item.price || 0).replace('R$\\u00a0', '').replace('R$ ', '') + '</span>' +
-                    '<span>' + formatMoney(sub).replace('R$\\u00a0', '').replace('R$ ', '') + '</span>' +
-                    '</div>';
-            });
+            let linhasCarne = '';
+            if (isConta) {
+                for (let i = 0; i < parcelas; i++) {
+                    const v = vencList[i];
+                    const vStr = (typeof v === 'string') ? v : formatDateBR(v);
+                    linhasCarne += '<div class="item-lin"><span>' + (i+1) + '/' + parcelas + '</span><span>' + vStr + '</span><span>' +
+                        formatMoney(valorParc).replace(/^R\\$\\s?/, '') + '</span></div>';
+                }
+            }
 
             const textoCarne = isConta
                 ? ('<div class="sep"></div>' +
                    '<div class="center bold">Contrato de Compra - CARNE</div>' +
                    '<div class="item-lin head"><span>Parc</span><span>Vencimento</span><span>Valor</span></div>' +
-                   '<div class="item-lin"><span>1/1</span><span>' + vencStr + '</span><span>' + totalFmt.replace('R$\\u00a0', '').replace('R$ ', '') + '</span></div>' +
+                   linhasCarne +
                    '<div class="texto">Reconheco e confesso que possuo o debito de ' + totalFmt +
                    ' e que pagarei a GREMIO RECREATIVO ANTONIO JOAO ou a quem esta estabelecer nas datas discriminadas. ' +
                    'Aceito que o nao pagamento das parcelas no vencimento gerara multas e juros sobre o debito, ' +
-                   'e serao efetuados procedimentos de cobranca.</div>')
+                   'e serao efetuados procedimentos de cobranca. Vencimento padrao: todo dia 29.</div>')
                 : '';
 
-            const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante de Venda</title>' +
+const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>Comprovante de Venda</title>' +
                 '<style>' +
-                '@page{size:80mm auto;margin:2mm;}' +
+                '@page{size:80mm auto;margin:1.5mm;}' +
                 '*{box-sizing:border-box;margin:0;padding:0;}' +
                 'html,body{width:80mm;max-width:80mm;background:#fff;color:#000;}' +
-                'body{font-family:"Courier New",Courier,monospace;font-size:11px;padding:3mm 2.5mm 6mm;line-height:1.2;}' +
+                'body{font-family:Arial,Helvetica,sans-serif;font-size:13px;font-weight:700;padding:2mm 2mm 5mm;line-height:1.3;-webkit-print-color-adjust:exact;print-color-adjust:exact;}' +
                 '.center{text-align:center;}' +
-                '.bold{font-weight:bold;}' +
-                '.sep{border-top:1px dashed #000;margin:6px 0;}' +
-                '.meta{display:flex;justify-content:space-between;margin:2px 0;}' +
-                '.item-nome{margin-top:4px;font-weight:bold;}' +
-                '.item-lin{display:flex;justify-content:space-between;gap:2px;font-size:10px;}' +
+                '.bold{font-weight:900;}' +
+                'h1,h2,.tit{font-weight:900;}' +
+                '.sep{border-top:2px solid #000;margin:5px 0;}' +
+                '.sep-d{border-top:2px dashed #000;margin:5px 0;}' +
+                '.meta{display:flex;justify-content:space-between;margin:3px 0;font-weight:700;}' +
+                '.item-nome{margin-top:5px;font-weight:900;font-size:13px;}' +
+                '.item-lin{display:flex;justify-content:space-between;gap:2px;font-size:12px;font-weight:700;}' +
                 '.item-lin span{flex:1;}' +
-                '.item-lin.head{border-bottom:1px solid #000;margin-bottom:2px;font-weight:bold;}' +
-                '.tot{margin-top:4px;}' +
-                '.tot div{display:flex;justify-content:space-between;}' +
-                '.texto{font-size:9px;margin-top:6px;text-align:justify;}' +
-                '.assinatura{margin-top:16px;text-align:center;}' +
-                '.assinatura .risco{border-top:1px solid #000;width:90%;margin:22px auto 4px;}' +
-                '.rodape{text-align:center;margin-top:8px;font-size:10px;}' +
+                '.item-lin.head{border-bottom:2px solid #000;margin-bottom:3px;font-weight:900;font-size:11px;}' +
+                '.tot{margin-top:5px;font-weight:700;}' +
+                '.tot div{display:flex;justify-content:space-between;margin:2px 0;}' +
+                '.tot .destaque{font-weight:900;font-size:14px;}' +
+                '.texto{font-size:11px;margin-top:6px;text-align:justify;font-weight:700;line-height:1.25;}' +
+                '.assinatura{margin-top:14px;text-align:center;}' +
+                '.assinatura .risco{border-top:2px solid #000;width:90%;margin:20px auto 4px;}' +
+                '.rodape{text-align:center;margin-top:8px;font-size:12px;font-weight:700;}' +
                 '.no-print{text-align:center;margin-top:8px;}' +
                 '@media print{body{padding:1mm;} .no-print{display:none!important;}}' +
                 '</style></head><body>' +
@@ -2727,7 +2813,7 @@
                 '<div class="tot">' +
                 '<div><span>Total Bruto:</span><span>' + totalFmt + '</span></div>' +
                 '<div><span>Total desconto(R$):</span><span>R$ 0,00</span></div>' +
-                '<div class="bold"><span>VALOR A PAGAR:</span><span>' + totalFmt + '</span></div>' +
+                '<div class="destaque" style="display:flex;justify-content:space-between;font-weight:900;font-size:14px;"><span>VALOR A PAGAR:</span><span>' + totalFmt + '</span></div>' +
                 '<div><span>TROCO:</span><span>R$ 0,00</span></div>' +
                 '</div>' +
                 '<div class="sep"></div>' +
