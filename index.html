@@ -1388,18 +1388,15 @@
                     <div class="form-group">
                         <label>Pagamento</label>
                         <select id="vendaPagamento" class="form-control" onchange="onPagamentoChange()">
-                            <option value="Dinheiro">Dinheiro</option>
+                            <option value="Dinheiro">SOCIO CONTA</option>
                             <option value="Pix">Pix</option>
-                            <option value="Sócio (conta)">Sócio (conta)</option>
+                            <option value="Sócio (conta)">DINHEIRO</option>
                         </select>
                     </div>
                 </div>
                 <div id="boxParcelasConta" style="display:none;margin-bottom:1rem;padding:0.75rem;background:#f0f7f2;border-radius:8px;border:1px solid var(--border);">
-                    <div class="form-group" style="margin-bottom:0.5rem;">
-                        <label>Nº de parcelas (vencimento todo dia 29)</label>
-                        <input type="number" id="vendaParcelas" class="form-control" min="1" max="24" value="1" oninput="atualizarPreviewParcelas()">
-                    </div>
-                    <div id="previewParcelas" style="font-size:0.85rem;color:var(--text-muted);"></div>
+                    <input type="hidden" id="vendaParcelas" value="1">
+                    <div id="previewParcelas" style="font-size:0.9rem;font-weight:600;color:var(--primary-dark);"></div>
                 </div>
                 <div class="form-group">
                     <label>Observação (opcional)</label>
@@ -1465,7 +1462,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Recreativo Antônio João — GRAJ<br>
+        Grêmio Beneficente, Esportivo e Recreativo Antônio João — GBERAJ<br>
         Sistema de Controle de Estoque • Uso interno
     </footer>
 
@@ -2636,17 +2633,12 @@
         function atualizarPreviewParcelas() {
             const el = document.getElementById('previewParcelas');
             if (!el) return;
-            const n = parseInt((document.getElementById('vendaParcelas') || {}).value, 10) || 1;
-            const vencs = gerarVencimentosParcelas(n);
+            const prim = proximoDia29(new Date());
             const hoje = new Date();
             hoje.setHours(0,0,0,0);
-            const prim = vencs[0];
             const diff = Math.round((prim - hoje) / (24*60*60*1000));
-            let txt = '1ª parcela: <strong>' + formatDateBR(prim) + '</strong>';
-            if (diff >= 0) txt += ' (faltam ' + diff + ' dia(s))';
-            if (n > 1) {
-                txt += '<br>Demais: ' + vencs.slice(1).map(formatDateBR).join(', ');
-            }
+            let txt = 'Vencimento: <strong>' + formatDateBR(prim) + '</strong> (todo dia 29)';
+            if (diff >= 0) txt += ' — faltam ' + diff + ' dia(s)';
             el.innerHTML = txt;
         }
 
@@ -2761,14 +2753,9 @@
             else if (/dinheiro/i.test(pagRaw)) formaPag = 'Dinheiro';
             else if (pagRaw) formaPag = pagRaw;
 
-            const parcelas = Math.max(1, parseInt(dados.parcelas, 10) || 1);
-            let vencList = [];
-            if (dados.vencimentos && dados.vencimentos.length) {
-                vencList = dados.vencimentos.slice();
-            } else if (isConta) {
-                vencList = gerarVencimentosParcelas(parcelas);
-            }
-            const valorParc = total / parcelas;
+            // Na nota: sempre 1 parcela, vencimento no proximo dia 29, valor integral
+            const vencUnico = proximoDia29(new Date());
+            const vencStrUnico = formatDateBR(vencUnico);
 
             let itensHtml = '';
             (dados.itens || []).forEach(function(item, i) {
@@ -2787,17 +2774,13 @@
                 carneHtml = '<div style="border-top:2px solid #000;margin:6px 0;"></div>' +
                     '<div style="text-align:center;font-weight:900;">Contrato de Compra - CARNE</div>' +
                     '<div style="display:flex;justify-content:space-between;font-weight:900;border-bottom:2px solid #000;margin:4px 0;">' +
-                    '<span>Parc</span><span>Vencimento</span><span>Valor</span></div>';
-                for (let i = 0; i < parcelas; i++) {
-                    const v = vencList[i];
-                    const vStr = (typeof v === 'string') ? v : formatDateBR(v);
-                    carneHtml += '<div style="display:flex;justify-content:space-between;font-weight:900;">' +
-                        '<span>' + (i + 1) + '/' + parcelas + '</span><span>' + vStr + '</span><span>' + formatMoney(valorParc) + '</span></div>';
-                }
-                carneHtml += '<div style="font-size:11px;font-weight:900;margin-top:6px;text-align:justify;line-height:1.25;">' +
+                    '<span>Parc</span><span>Vencimento</span><span>Valor</span></div>' +
+                    '<div style="display:flex;justify-content:space-between;font-weight:900;">' +
+                    '<span>1/1</span><span>' + vencStrUnico + '</span><span>' + totalFmt + '</span></div>' +
+                    '<div style="font-size:11px;font-weight:900;margin-top:6px;text-align:justify;line-height:1.25;">' +
                     'Reconheco e confesso que possuo o debito de ' + totalFmt +
                     ' e que pagarei a GREMIO RECREATIVO ANTONIO JOAO ou a quem esta estabelecer nas datas discriminadas. ' +
-                    'Aceito que o nao pagamento das parcelas no vencimento gerara multas e juros sobre o debito, ' +
+                    'Aceito que o nao pagamento no vencimento gerara multas e juros sobre o debito, ' +
                     'e serao efetuados procedimentos de cobranca. Vencimento: todo dia 29.</div>';
             }
 
