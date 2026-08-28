@@ -1019,6 +1019,12 @@
                 </select>
             </div>
 
+            <div class="form-group" style="text-align:left;">
+                <label for="inputAberturaCaixa">💵 Abertura de caixa (R$)</label>
+                <input type="number" id="inputAberturaCaixa" class="form-control" min="0" step="0.01" placeholder="Ex: 100,00" value="">
+                <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.35rem;">Valor em dinheiro que está no caixa no início do serviço (troco / fundo).</p>
+            </div>
+
             <div id="avisoServicoAberto" class="alert alert-warning" style="display:none;text-align:left;margin-bottom:1rem;"></div>
 
             <button class="btn btn-primary btn-block" style="margin-bottom:0.6rem;" onclick="iniciarServico()">
@@ -1107,6 +1113,34 @@
                     </div>
                 </div>
 
+                <!-- Abertura de Caixa (militar) -->
+                <div class="card no-print" id="cardAberturaCaixa" style="margin-bottom:1.5rem;">
+                    <div class="card-header">
+                        <h2>💵 Abertura de Caixa</h2>
+                    </div>
+                    <div class="card-body">
+                        <div id="caixaAberturaStatus" class="alert alert-info" style="margin-bottom:0.75rem;">
+                            Caixa ainda não aberto neste serviço.
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex:1;">
+                                <label>Valor em dinheiro no início (R$)</label>
+                                <input type="number" id="caixaAberturaValor" class="form-control" min="0" step="0.01" placeholder="Ex: 100,00">
+                            </div>
+                            <div class="form-group" style="flex:1;">
+                                <label>Observação (opcional)</label>
+                                <input type="text" id="caixaAberturaObs" class="form-control" placeholder="Ex: Troco do dia">
+                            </div>
+                        </div>
+                        <button class="btn btn-primary btn-block" onclick="registrarAberturaCaixa()">
+                            💾 Registrar / Atualizar Abertura
+                        </button>
+                        <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">
+                            Informe quanto há em dinheiro no caixa ao iniciar. Esse valor entra no Fluxo de Caixa para o presidente.
+                        </p>
+                    </div>
+                </div>
+
                 <!-- Close Service -->
                 <div class="card no-print">
                     <div class="card-header">
@@ -1116,6 +1150,7 @@
                         <div class="alert alert-info">
                             ℹ️ Ao fechar o serviço, o estoque atual será salvo como estoque inicial do próximo dia. As movimentações de hoje serão arquivadas.
                         </div>
+                        <div id="caixaResumoFechamento" style="display:none;margin-bottom:0.75rem;"></div>
                         <div class="form-group">
                             <label>Observação do fechamento (opcional)</label>
                             <input type="text" id="obsFechamento" class="form-control" placeholder="Ex: Tudo conferido, sem divergências">
@@ -1632,13 +1667,13 @@
         // ==================== STATE & STORAGE ====================
         // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
         const FIREBASE_CONFIG = {
-  apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
-  authDomain: "estoque-graj-b32b2.firebaseapp.com",
-  databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
-  projectId: "estoque-graj-b32b2",
-  storageBucket: "estoque-graj-b32b2.firebasestorage.app",
-  messagingSenderId: "924249670911",
-  appId: "1:924249670911:web:283128ab7ceba163c478ca"
+       apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
+       authDomain: "estoque-graj-b32b2.firebaseapp.com",
+       databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
+       projectId: "estoque-graj-b32b2",
+       storageBucket: "estoque-graj-b32b2.firebasestorage.app",
+       messagingSenderId: "924249670911",
+       appId: "1:924249670911:web:283128ab7ceba163c478ca"
         };
 
         const STORAGE_KEY = 'gberaj_estoque_v1';
@@ -1716,6 +1751,7 @@
             serviceOpen: false,
             serviceMilitar: '',
             serviceStartedAt: null,
+            caixaAbertura: null, // { valor, militar, timestamp, obs }
             socios: [
                 { id: 's001', numero: '1', nome: 'TC CARON' },
                 { id: 's002', numero: '2', nome: 'TC SOVAT' },
@@ -2105,6 +2141,20 @@
             state.serviceOpen = true;
             state.serviceMilitar = nome;
             state.serviceStartedAt = todayISO();
+
+            // Abertura de caixa informada na tela de login
+            const valorAberturaRaw = (document.getElementById('inputAberturaCaixa') || {}).value;
+            const valorAbertura = parseFloat(String(valorAberturaRaw || '').replace(',', '.'));
+            if (!isNaN(valorAbertura) && valorAbertura >= 0 && valorAberturaRaw !== '' && valorAberturaRaw != null) {
+                state.caixaAbertura = {
+                    valor: Math.round(valorAbertura * 100) / 100,
+                    militar: nome,
+                    timestamp: new Date().toISOString(),
+                    obs: ''
+                };
+            } else {
+                state.caixaAbertura = null;
+            }
             saveState();
 
             document.getElementById('welcomeScreen').style.display = 'none';
@@ -2114,9 +2164,17 @@
             document.getElementById('adminBadge').style.display = 'none';
             isAdmin = false;
 
+            if (document.getElementById('inputAberturaCaixa')) {
+                document.getElementById('inputAberturaCaixa').value = '';
+            }
+
             updateHeaderDate();
             renderAll();
-            toast('Serviço iniciado: ' + nome);
+            if (state.caixaAbertura) {
+                toast('Serviço iniciado: ' + nome + ' · Caixa aberto com ' + formatMoney(state.caixaAbertura.valor));
+            } else {
+                toast('Serviço iniciado: ' + nome + ' · Registre a abertura de caixa no painel');
+            }
         }
 
         function continuarServicoAberto() {
@@ -2308,6 +2366,80 @@
             renderStats();
             preencherSelects();
             if (typeof renderUltimoServico === 'function') renderUltimoServico();
+            if (typeof renderCaixaAbertura === 'function') renderCaixaAbertura();
+        }
+
+        function renderCaixaAbertura() {
+            const statusEl = document.getElementById('caixaAberturaStatus');
+            const valorEl = document.getElementById('caixaAberturaValor');
+            const obsEl = document.getElementById('caixaAberturaObs');
+            const resumoEl = document.getElementById('caixaResumoFechamento');
+            if (!statusEl) return;
+
+            const ab = state.caixaAbertura;
+            if (ab && typeof ab.valor === 'number') {
+                const quando = ab.timestamp
+                    ? new Date(ab.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+                    : '—';
+                statusEl.className = 'alert alert-success';
+                statusEl.innerHTML = '✅ Caixa aberto com <strong>' + formatMoney(ab.valor) + '</strong>' +
+                    (ab.militar ? ' por ' + escapeHtml(ab.militar) : '') +
+                    ' · ' + quando +
+                    (ab.obs ? '<br><span style="font-size:0.85rem;">Obs: ' + escapeHtml(ab.obs) + '</span>' : '');
+                if (valorEl && document.activeElement !== valorEl) valorEl.value = ab.valor;
+                if (obsEl && document.activeElement !== obsEl && ab.obs) obsEl.value = ab.obs;
+            } else {
+                statusEl.className = 'alert alert-warning';
+                statusEl.innerHTML = '⚠️ Caixa ainda <strong>não aberto</strong> neste serviço. Informe o valor em dinheiro do início.';
+            }
+
+            // Resumo esperado no fechamento (abertura + vendas em dinheiro)
+            if (resumoEl) {
+                const vendas = (state.movements || []).filter(m => m.type === 'venda');
+                let totalDinheiro = 0;
+                let totalPix = 0;
+                let totalConta = 0;
+                vendas.forEach(function(m) {
+                    const p = (m.pagamento || '').toLowerCase();
+                    const v = m.qty * (m.price || 0);
+                    if (/sócio|socio|conta/.test(p)) totalConta += v;
+                    else if (/pix/.test(p)) totalPix += v;
+                    else totalDinheiro += v;
+                });
+                const abertura = (ab && typeof ab.valor === 'number') ? ab.valor : 0;
+                const esperadoCaixa = abertura + totalDinheiro;
+                resumoEl.style.display = 'block';
+                resumoEl.innerHTML = '<div class="alert alert-info" style="margin:0;font-size:0.9rem;">' +
+                    '<strong>Resumo de caixa</strong><br>' +
+                    'Abertura: <strong>' + formatMoney(abertura) + '</strong> · ' +
+                    'Vendas em dinheiro: <strong>' + formatMoney(totalDinheiro) + '</strong><br>' +
+                    'Esperado em caixa (abertura + dinheiro): <strong>' + formatMoney(esperadoCaixa) + '</strong><br>' +
+                    'Pix: ' + formatMoney(totalPix) + ' · Conta sócio: ' + formatMoney(totalConta) +
+                    '</div>';
+            }
+        }
+
+        function registrarAberturaCaixa() {
+            if (!state.serviceOpen && !isAdmin) {
+                toast('Inicie o serviço antes de abrir o caixa.', 'error');
+                return;
+            }
+            const raw = (document.getElementById('caixaAberturaValor') || {}).value;
+            const valor = parseFloat(String(raw || '').replace(',', '.'));
+            if (raw === '' || raw == null || isNaN(valor) || valor < 0) {
+                toast('Informe um valor válido de abertura (R$).', 'error');
+                return;
+            }
+            const obs = ((document.getElementById('caixaAberturaObs') || {}).value || '').trim();
+            state.caixaAbertura = {
+                valor: Math.round(valor * 100) / 100,
+                militar: currentMilitar || state.serviceMilitar || (isAdmin ? 'ADMIN' : '—'),
+                timestamp: new Date().toISOString(),
+                obs: obs
+            };
+            saveState();
+            renderCaixaAbertura();
+            toast('Abertura de caixa registrada: ' + formatMoney(state.caixaAbertura.valor));
         }
 
         function renderEstoque() {
@@ -3083,8 +3215,11 @@ function limparMovimentacoes() {
 
             const totalQtd = todasVendas.reduce((s, m) => s + m.qty, 0);
             const totalValor = todasVendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
-            html += '<div class="alert alert-info" style="margin:0.75rem 0;">Vendas: <strong>' + totalQtd +
-                '</strong> un • Total: <strong>' + formatMoney(totalValor) + '</strong></div>';
+            html += '<div class="alert alert-info" style="margin:0.75rem 0;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">' +
+                '<span>Vendas: <strong>' + totalQtd +
+                '</strong> un • Total: <strong>' + formatMoney(totalValor) + '</strong></span>' +
+                '<button type="button" class="btn btn-primary btn-sm" onclick="baixarFluxoCaixaPDF(\'' + dataSel + '\')">📄 Fluxo de Caixa PDF</button>' +
+                '</div>';
 
             if (todasVendas.length === 0) {
                 html += '<p style="color:var(--text-muted);font-size:0.9rem;">Nenhuma venda registrada neste dia.</p>';
@@ -3121,6 +3256,15 @@ function limparMovimentacoes() {
             const valor = state.movements.filter(m => m.type === 'venda').reduce((s, m) => s + m.qty * (m.price || 0), 0);
             const obs = document.getElementById('obsFechamento')?.value.trim() || '';
 
+            let totalDinheiro = 0;
+            (state.movements || []).filter(m => m.type === 'venda').forEach(function(m) {
+                const p = (m.pagamento || '').toLowerCase();
+                if (!/sócio|socio|conta|pix/.test(p)) totalDinheiro += m.qty * (m.price || 0);
+            });
+            const abertura = (state.caixaAbertura && typeof state.caixaAbertura.valor === 'number')
+                ? state.caixaAbertura.valor : null;
+            const esperado = (abertura != null ? abertura : 0) + totalDinheiro;
+
             document.getElementById('resumoFechamento').innerHTML = `
                 <strong>Militar:</strong> ${escapeHtml(currentMilitar)}<br>
                 <strong>Data:</strong> ${new Date().toLocaleString('pt-BR')}<br><br>
@@ -3128,7 +3272,10 @@ function limparMovimentacoes() {
                 • Entradas: <strong>${entradas}</strong> unidades<br>
                 • Vendas: <strong>${vendas}</strong> unidades<br>
                 • Valor vendido: <strong>${formatMoney(valor)}</strong><br>
-                • Produtos no estoque: <strong>${state.products.length}</strong>
+                • Produtos no estoque: <strong>${state.products.length}</strong><br>
+                • Abertura de caixa: <strong>${abertura != null ? formatMoney(abertura) : 'não informada'}</strong><br>
+                • Vendas em dinheiro: <strong>${formatMoney(totalDinheiro)}</strong><br>
+                • Esperado em caixa: <strong>${formatMoney(esperado)}</strong>
                 ${obs ? '<br>• Observação: ' + escapeHtml(obs) : ''}
             `;
             openModal('modalFechamento');
@@ -3150,6 +3297,10 @@ function limparMovimentacoes() {
             const valor = state.movements.filter(m => m.type === 'venda').reduce((s, m) => s + m.qty * (m.price || 0), 0);
             const obs = document.getElementById('obsFechamento')?.value.trim() || '';
 
+            const caixaAberturaSalva = state.caixaAbertura
+                ? { ...state.caixaAbertura }
+                : null;
+
             state.history.unshift({
                 id: generateId(),
                 date: todayISO(),
@@ -3157,6 +3308,7 @@ function limparMovimentacoes() {
                 snapshot,
                 movements: [...state.movements],
                 summary: { entradas, vendas, valor },
+                caixaAbertura: caixaAberturaSalva,
                 obs
             });
 
@@ -3169,8 +3321,15 @@ function limparMovimentacoes() {
             state.serviceOpen = false;
             state.serviceMilitar = '';
             state.serviceStartedAt = null;
+            state.caixaAbertura = null;
             if (document.getElementById('obsFechamento')) {
                 document.getElementById('obsFechamento').value = '';
+            }
+            if (document.getElementById('caixaAberturaValor')) {
+                document.getElementById('caixaAberturaValor').value = '';
+            }
+            if (document.getElementById('caixaAberturaObs')) {
+                document.getElementById('caixaAberturaObs').value = '';
             }
             saveState();
 
@@ -3480,6 +3639,16 @@ function limparMovimentacoes() {
                 const entradas = (h.movements || []).filter(m => m.type === 'entrada');
                 const detalhesId = 'hist-detalhe-' + idx;
 
+                const totalEntQtd = h.summary && h.summary.entradas != null
+                    ? h.summary.entradas
+                    : entradas.reduce((s, m) => s + m.qty, 0);
+                const totalVenQtd = h.summary && h.summary.vendas != null
+                    ? h.summary.vendas
+                    : vendas.reduce((s, m) => s + m.qty, 0);
+                const totalVenValor = h.summary && h.summary.valor != null
+                    ? h.summary.valor
+                    : vendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
+
                 let vendasHtml = '';
                 if (vendas.length === 0) {
                     vendasHtml = '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhuma venda neste serviço.</p>';
@@ -3498,28 +3667,79 @@ function limparMovimentacoes() {
                         '</tbody></table>';
                 }
 
+                // Entradas de mercadoria — tabela detalhada
                 let entradasHtml = '';
+                if (entradas.length === 0) {
+                    entradasHtml = '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhuma entrada de mercadoria neste serviço.</p>';
+                } else {
+                    // Agrupa por produto (soma quantidades se houver várias entradas do mesmo item)
+                    const porProduto = {};
+                    entradas.forEach(function(m) {
+                        const k = m.productName || '—';
+                        if (!porProduto[k]) {
+                            porProduto[k] = { qty: 0, militar: m.militar || '—', obs: m.obs || '' };
+                        }
+                        porProduto[k].qty += m.qty;
+                        if (m.obs) porProduto[k].obs = m.obs;
+                        if (m.militar) porProduto[k].militar = m.militar;
+                    });
+                    entradasHtml = '<table style="width:100%;font-size:0.8rem;margin-top:0.5rem;"><thead><tr>' +
+                        '<th style="text-align:left;">Mercadoria</th>' +
+                        '<th style="text-align:center;">Qtd entrada</th>' +
+                        '<th style="text-align:left;">Responsável</th>' +
+                        '<th style="text-align:left;">Obs</th></tr></thead><tbody>' +
+                        Object.keys(porProduto).sort().map(function(nome) {
+                            const e = porProduto[nome];
+                            return '<tr><td style="padding:0.35rem 0.25rem;">' + escapeHtml(nome) + '</td>' +
+                                '<td style="text-align:center;color:var(--success);font-weight:600;">+' + e.qty + '</td>' +
+                                '<td style="padding:0.35rem 0.25rem;">' + escapeHtml(e.militar) + '</td>' +
+                                '<td style="padding:0.35rem 0.25rem;color:var(--text-muted);">' + escapeHtml(e.obs || '—') + '</td></tr>';
+                        }).join('') +
+                        '<tr style="background:#f0f7f2;font-weight:600;"><td>Total</td><td style="text-align:center;">+' + totalEntQtd + '</td><td colspan="2"></td></tr>' +
+                        '</tbody></table>';
+                }
+
+                // Prévia das entradas no resumo (nomes das mercadorias)
+                let previewEntradas = '';
                 if (entradas.length > 0) {
-                    entradasHtml = '<p style="margin-top:0.75rem;font-weight:600;font-size:0.85rem;">Entradas</p><ul style="font-size:0.85rem;margin:0.25rem 0 0 1rem;">' +
-                        entradas.map(m => '<li>' + escapeHtml(m.productName) + ' (+' + m.qty + ')</li>').join('') + '</ul>';
+                    const nomes = [];
+                    const visto = {};
+                    entradas.forEach(function(m) {
+                        const n = m.productName || '';
+                        if (n && !visto[n]) { visto[n] = true; nomes.push(n); }
+                    });
+                    const maxShow = 4;
+                    const texto = nomes.slice(0, maxShow).join(', ') +
+                        (nomes.length > maxShow ? ' e mais ' + (nomes.length - maxShow) : '');
+                    previewEntradas = '<br><span style="font-size:0.8rem;color:var(--success);">📦 Entradas: ' +
+                        escapeHtml(texto) + ' (+' + totalEntQtd + ' un)</span>';
+                } else {
+                    previewEntradas = '<br><span style="font-size:0.8rem;color:var(--text-muted);">📦 Nenhuma entrada de mercadoria</span>';
                 }
 
                 return '<div style="padding:1rem;border-bottom:1px solid var(--border);">' +
                     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;flex-wrap:wrap;">' +
                     '<div><strong>' + formatDate(h.date) + '</strong> — ' + escapeHtml(h.militar) + '<br>' +
-                    '<span style="font-size:0.85rem;color:var(--text-muted);">Entradas: ' +
-                    (h.summary && h.summary.entradas != null ? h.summary.entradas : entradas.reduce((s,m)=>s+m.qty,0)) +
-                    ' | Vendas: ' +
-                    (h.summary && h.summary.vendas != null ? h.summary.vendas : vendas.reduce((s,m)=>s+m.qty,0)) +
-                    ' | Valor: ' + formatMoney(h.summary && h.summary.valor != null ? h.summary.valor : vendas.reduce((s,m)=>s+m.qty*(m.price||0),0)) +
+                    '<span style="font-size:0.85rem;color:var(--text-muted);">Entradas: ' + totalEntQtd +
+                    ' | Vendas: ' + totalVenQtd +
+                    ' | Valor: ' + formatMoney(totalVenValor) +
+                    (h.caixaAbertura && typeof h.caixaAbertura.valor === 'number'
+                        ? ' | Abertura: ' + formatMoney(h.caixaAbertura.valor) : '') +
                     '</span>' +
+                    previewEntradas +
                     (h.obs ? '<br><span style="font-size:0.8rem;color:var(--text-muted);">Obs: ' + escapeHtml(h.obs) + '</span>' : '') +
                     '</div>' +
-                    '<button class="btn btn-sm btn-outline" onclick="toggleHistDetalhe(' + idx + ')">Ver vendas</button>' +
+                    '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;">' +
+                    '<button class="btn btn-sm btn-primary" onclick="baixarFluxoCaixaPDF(' + idx + ')" title="PDF para o presidente">📄 Fluxo de Caixa</button>' +
+                    '<button class="btn btn-sm btn-outline" onclick="toggleHistDetalhe(' + idx + ')">Ver detalhes</button>' +
+                    '</div>' +
                     '</div>' +
                     '<div id="' + detalhesId + '" style="display:none;margin-top:0.75rem;padding-top:0.75rem;border-top:1px dashed var(--border);">' +
-                    '<p style="font-weight:600;font-size:0.85rem;margin:0;">Vendas do serviço</p>' +
-                    vendasHtml + entradasHtml + '</div></div>';
+                    '<p style="font-weight:600;font-size:0.85rem;margin:0;color:var(--success);">📦 Entradas de mercadoria</p>' +
+                    entradasHtml +
+                    '<p style="font-weight:600;font-size:0.85rem;margin:1rem 0 0;color:var(--danger);">🛒 Vendas do serviço</p>' +
+                    vendasHtml +
+                    '</div></div>';
             }).join('');
         }
 
@@ -3752,21 +3972,80 @@ function limparMovimentacoes() {
 
 
         /**
-         * Fluxo de Caixa em PDF — para enviar ao presidente no fim do serviço.
+         * Fluxo de Caixa em PDF — para enviar ao presidente.
          * Inclui: resumo por forma de pagamento, lista detalhada de cada mercadoria
          * com comprador (sócio), pagamento e valor.
-         * @param {boolean} posFechamento - se true, usa o último histórico (após fechar serviço)
+         *
+         * Uso:
+         *   baixarFluxoCaixaPDF()           → serviço atual (movimentações de hoje)
+         *   baixarFluxoCaixaPDF(true)       → último fechamento (após fechar serviço)
+         *   baixarFluxoCaixaPDF(2)          → índice no histórico (0 = mais recente)
+         *   baixarFluxoCaixaPDF('2026-08-20') → por data ISO (YYYY-MM-DD)
          */
-        function baixarFluxoCaixaPDF(posFechamento) {
+        function baixarFluxoCaixaPDF(arg) {
             let movements = state.movements || [];
             let militarNome = currentMilitar || state.serviceMilitar || '—';
             let dataServico = todayISO();
+            let caixaAberturaRef = state.caixaAbertura || null;
 
-            if (posFechamento && state.history && state.history.length > 0) {
-                const h = state.history[0];
+            if (arg === true) {
+                // Último fechamento (pós fechar serviço)
+                if (state.history && state.history.length > 0) {
+                    const h = state.history[0];
+                    movements = h.movements || [];
+                    militarNome = h.militar || militarNome;
+                    dataServico = h.date || dataServico;
+                    caixaAberturaRef = h.caixaAbertura || null;
+                }
+            } else if (typeof arg === 'number') {
+                // Índice no histórico
+                const h = (state.history || [])[arg];
+                if (!h) {
+                    toast('Serviço do histórico não encontrado.', 'error');
+                    return;
+                }
                 movements = h.movements || [];
                 militarNome = h.militar || militarNome;
                 dataServico = h.date || dataServico;
+                caixaAberturaRef = h.caixaAbertura || null;
+            } else if (typeof arg === 'string' && /^\d{4}-\d{2}-\d{2}/.test(arg)) {
+                // Por data ISO
+                const dataSel = arg.slice(0, 10);
+                const fechamentos = (state.history || []).filter(function(h) {
+                    if (!h.date) return false;
+                    return dataISOLocal(h.date) === dataSel;
+                });
+                const hoje = dataISOLocal(new Date());
+                let allMov = [];
+                let militares = [];
+                let aberturas = [];
+                fechamentos.forEach(function(h) {
+                    (h.movements || []).forEach(function(m) { allMov.push(m); });
+                    if (h.militar) militares.push(h.militar);
+                    if (h.caixaAbertura) aberturas.push(h.caixaAbertura);
+                });
+                if (dataSel === hoje) {
+                    (state.movements || []).forEach(function(m) { allMov.push(m); });
+                    if (state.serviceMilitar) militares.push(state.serviceMilitar);
+                    else if (currentMilitar) militares.push(currentMilitar);
+                    if (state.caixaAbertura) aberturas.push(state.caixaAbertura);
+                }
+                if (allMov.length === 0) {
+                    toast('Nenhuma movimentação nesta data.', 'error');
+                    return;
+                }
+                movements = allMov;
+                militarNome = militares.length ? [...new Set(militares)].join(', ') : '—';
+                dataServico = dataSel;
+                // Soma aberturas se houver mais de um serviço no dia
+                if (aberturas.length === 1) {
+                    caixaAberturaRef = aberturas[0];
+                } else if (aberturas.length > 1) {
+                    const soma = aberturas.reduce(function(s, a) { return s + (a.valor || 0); }, 0);
+                    caixaAberturaRef = { valor: soma, militar: militarNome, obs: aberturas.length + ' aberturas no dia' };
+                } else {
+                    caixaAberturaRef = null;
+                }
             }
 
             const vendas = movements.filter(m => m.type === 'venda');
@@ -3808,6 +4087,10 @@ function limparMovimentacoes() {
             const totalConta = (porPagamento['Conta (Sócio)'] && porPagamento['Conta (Sócio)'].valor) || 0;
             const totalRecebido = totalDinheiro + totalPix; // caixa físico / digital imediato
             const totalAReceber = totalConta;
+            const valorAbertura = (caixaAberturaRef && typeof caixaAberturaRef.valor === 'number')
+                ? caixaAberturaRef.valor : 0;
+            const temAbertura = !!(caixaAberturaRef && typeof caixaAberturaRef.valor === 'number');
+            const esperadoEmCaixa = valorAbertura + totalDinheiro;
 
             // Linhas detalhadas de vendas (com comprador)
             let rowsVendas = '';
@@ -3898,6 +4181,17 @@ function limparMovimentacoes() {
                 '<div class="card ok"><div class="lbl">Recebido (Dinheiro + Pix)</div><div class="val">' + formatMoney(totalRecebido) + '</div></div>' +
                 '<div class="card danger"><div class="lbl">A receber (Conta sócio)</div><div class="val">' + formatMoney(totalAReceber) + '</div></div>' +
                 '</div>' +
+
+                '<h2>Caixa (dinheiro)</h2>' +
+                '<table><thead><tr><th>Descrição</th><th style="text-align:right;">Valor</th></tr></thead><tbody>' +
+                '<tr><td>Abertura de caixa' +
+                (temAbertura && caixaAberturaRef.militar ? ' (' + escapeHtml(caixaAberturaRef.militar) + ')' : '') +
+                (temAbertura && caixaAberturaRef.obs ? ' — ' + escapeHtml(caixaAberturaRef.obs) : '') +
+                '</td><td style="text-align:right;">' + (temAbertura ? formatMoney(valorAbertura) : 'Não informada') + '</td></tr>' +
+                '<tr><td>Vendas em dinheiro no serviço</td><td style="text-align:right;">' + formatMoney(totalDinheiro) + '</td></tr>' +
+                '<tr style="background:#e8f5ec;font-weight:700;"><td>Esperado em caixa (abertura + dinheiro)</td><td style="text-align:right;">' + formatMoney(esperadoEmCaixa) + '</td></tr>' +
+                '<tr><td>Vendas no Pix</td><td style="text-align:right;">' + formatMoney(totalPix) + '</td></tr>' +
+                '</tbody></table>' +
 
                 '<h2>Resumo por forma de pagamento</h2>' +
                 (Object.keys(porPagamento).length
