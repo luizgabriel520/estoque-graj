@@ -1138,6 +1138,24 @@
                         <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">
                             Informe quanto há em dinheiro no caixa ao iniciar. Esse valor entra no Fluxo de Caixa para o presidente.
                         </p>
+
+                        <hr style="border:none;border-top:1px solid var(--border);margin:1.25rem 0;">
+
+                        <h3 style="font-size:1rem;margin:0 0 0.75rem;color:var(--text);">💸 Retirada de dinheiro do caixa</h3>
+                        <div class="form-row">
+                            <div class="form-group" style="flex:1;">
+                                <label>Valor da retirada (R$)</label>
+                                <input type="number" id="caixaRetiradaValor" class="form-control" min="0.01" step="0.01" placeholder="Ex: 50,00">
+                            </div>
+                            <div class="form-group" style="flex:1.4;">
+                                <label>Motivo da retirada</label>
+                                <input type="text" id="caixaRetiradaMotivo" class="form-control" placeholder="Ex: Pagamento de entrega, sangria para cofre...">
+                            </div>
+                        </div>
+                        <button class="btn btn-danger btn-block" onclick="registrarRetiradaCaixa()">
+                            💸 Registrar retirada
+                        </button>
+                        <div id="listaRetiradasCaixa" style="margin-top:0.75rem;"></div>
                     </div>
                 </div>
 
@@ -1752,6 +1770,7 @@
             serviceMilitar: '',
             serviceStartedAt: null,
             caixaAbertura: null, // { valor, militar, timestamp, obs }
+            caixaRetiradas: [], // [{ id, valor, motivo, militar, timestamp }]
             socios: [
                 { id: 's001', numero: '1', nome: 'TC CARON' },
                 { id: 's002', numero: '2', nome: 'TC SOVAT' },
@@ -2155,6 +2174,8 @@
             } else {
                 state.caixaAbertura = null;
             }
+            // Novo serviço: zera retiradas do caixa
+            state.caixaRetiradas = [];
             saveState();
 
             document.getElementById('welcomeScreen').style.display = 'none';
@@ -2369,12 +2390,19 @@
             if (typeof renderCaixaAbertura === 'function') renderCaixaAbertura();
         }
 
+        function totalRetiradasCaixa(lista) {
+            return (lista || []).reduce(function(s, r) { return s + (r.valor || 0); }, 0);
+        }
+
         function renderCaixaAbertura() {
             const statusEl = document.getElementById('caixaAberturaStatus');
             const valorEl = document.getElementById('caixaAberturaValor');
             const obsEl = document.getElementById('caixaAberturaObs');
             const resumoEl = document.getElementById('caixaResumoFechamento');
+            const listaRetEl = document.getElementById('listaRetiradasCaixa');
             if (!statusEl) return;
+
+            if (!Array.isArray(state.caixaRetiradas)) state.caixaRetiradas = [];
 
             const ab = state.caixaAbertura;
             if (ab && typeof ab.valor === 'number') {
@@ -2393,7 +2421,35 @@
                 statusEl.innerHTML = '⚠️ Caixa ainda <strong>não aberto</strong> neste serviço. Informe o valor em dinheiro do início.';
             }
 
-            // Resumo esperado no fechamento (abertura + vendas em dinheiro)
+            // Lista de retiradas
+            if (listaRetEl) {
+                const rets = state.caixaRetiradas || [];
+                if (rets.length === 0) {
+                    listaRetEl.innerHTML = '<p style="font-size:0.82rem;color:var(--text-muted);margin:0;">Nenhuma retirada registrada neste serviço.</p>';
+                } else {
+                    const totalRet = totalRetiradasCaixa(rets);
+                    let html = '<div style="font-size:0.85rem;"><strong>Retiradas do dia:</strong> ' + rets.length +
+                        ' · Total: <strong style="color:var(--danger);">' + formatMoney(totalRet) + '</strong></div>';
+                    html += '<div style="max-height:180px;overflow-y:auto;margin-top:0.4rem;">';
+                    rets.slice().reverse().forEach(function(r) {
+                        const hora = r.timestamp
+                            ? new Date(r.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                            : '—';
+                        html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;padding:0.4rem 0;border-bottom:1px solid var(--border);font-size:0.82rem;">' +
+                            '<div><strong style="color:var(--danger);">− ' + formatMoney(r.valor) + '</strong>' +
+                            ' · ' + escapeHtml(r.motivo || 'Sem motivo') +
+                            '<br><span style="color:var(--text-muted);font-size:0.75rem;">' + hora +
+                            (r.militar ? ' · ' + escapeHtml(r.militar) : '') + '</span></div>' +
+                            '<button type="button" class="btn btn-sm btn-outline" style="font-size:0.7rem;padding:0.15rem 0.4rem;" ' +
+                            'onclick="excluirRetiradaCaixa(\'' + r.id + '\')" title="Excluir retirada">✕</button>' +
+                            '</div>';
+                    });
+                    html += '</div>';
+                    listaRetEl.innerHTML = html;
+                }
+            }
+
+            // Resumo esperado no fechamento (abertura + vendas em dinheiro − retiradas)
             if (resumoEl) {
                 const vendas = (state.movements || []).filter(m => m.type === 'venda');
                 let totalDinheiro = 0;
@@ -2407,13 +2463,15 @@
                     else totalDinheiro += v;
                 });
                 const abertura = (ab && typeof ab.valor === 'number') ? ab.valor : 0;
-                const esperadoCaixa = abertura + totalDinheiro;
+                const totalRet = totalRetiradasCaixa(state.caixaRetiradas);
+                const esperadoCaixa = abertura + totalDinheiro - totalRet;
                 resumoEl.style.display = 'block';
                 resumoEl.innerHTML = '<div class="alert alert-info" style="margin:0;font-size:0.9rem;">' +
                     '<strong>Resumo de caixa</strong><br>' +
                     'Abertura: <strong>' + formatMoney(abertura) + '</strong> · ' +
                     'Vendas em dinheiro: <strong>' + formatMoney(totalDinheiro) + '</strong><br>' +
-                    'Esperado em caixa (abertura + dinheiro): <strong>' + formatMoney(esperadoCaixa) + '</strong><br>' +
+                    'Retiradas: <strong style="color:var(--danger);">' + formatMoney(totalRet) + '</strong><br>' +
+                    'Esperado em caixa: <strong>' + formatMoney(esperadoCaixa) + '</strong><br>' +
                     'Pix: ' + formatMoney(totalPix) + ' · Conta sócio: ' + formatMoney(totalConta) +
                     '</div>';
             }
@@ -2440,6 +2498,46 @@
             saveState();
             renderCaixaAbertura();
             toast('Abertura de caixa registrada: ' + formatMoney(state.caixaAbertura.valor));
+        }
+
+        function registrarRetiradaCaixa() {
+            if (!state.serviceOpen && !isAdmin) {
+                toast('Inicie o serviço antes de registrar retirada.', 'error');
+                return;
+            }
+            const raw = (document.getElementById('caixaRetiradaValor') || {}).value;
+            const valor = parseFloat(String(raw || '').replace(',', '.'));
+            const motivo = ((document.getElementById('caixaRetiradaMotivo') || {}).value || '').trim();
+            if (raw === '' || raw == null || isNaN(valor) || valor <= 0) {
+                toast('Informe um valor válido de retirada (maior que zero).', 'error');
+                return;
+            }
+            if (!motivo) {
+                toast('Informe o motivo da retirada.', 'error');
+                return;
+            }
+            if (!Array.isArray(state.caixaRetiradas)) state.caixaRetiradas = [];
+            state.caixaRetiradas.push({
+                id: generateId(),
+                valor: Math.round(valor * 100) / 100,
+                motivo: motivo,
+                militar: currentMilitar || state.serviceMilitar || (isAdmin ? 'ADMIN' : '—'),
+                timestamp: new Date().toISOString()
+            });
+            saveState();
+            if (document.getElementById('caixaRetiradaValor')) document.getElementById('caixaRetiradaValor').value = '';
+            if (document.getElementById('caixaRetiradaMotivo')) document.getElementById('caixaRetiradaMotivo').value = '';
+            renderCaixaAbertura();
+            toast('Retirada registrada: ' + formatMoney(valor) + ' — ' + motivo);
+        }
+
+        function excluirRetiradaCaixa(id) {
+            if (!id) return;
+            if (!confirm('Excluir esta retirada do caixa?')) return;
+            state.caixaRetiradas = (state.caixaRetiradas || []).filter(function(r) { return r.id !== id; });
+            saveState();
+            renderCaixaAbertura();
+            toast('Retirada excluída.');
         }
 
         function renderEstoque() {
@@ -3263,7 +3361,8 @@ function limparMovimentacoes() {
             });
             const abertura = (state.caixaAbertura && typeof state.caixaAbertura.valor === 'number')
                 ? state.caixaAbertura.valor : null;
-            const esperado = (abertura != null ? abertura : 0) + totalDinheiro;
+            const totalRet = totalRetiradasCaixa(state.caixaRetiradas);
+            const esperado = (abertura != null ? abertura : 0) + totalDinheiro - totalRet;
 
             document.getElementById('resumoFechamento').innerHTML = `
                 <strong>Militar:</strong> ${escapeHtml(currentMilitar)}<br>
@@ -3275,6 +3374,7 @@ function limparMovimentacoes() {
                 • Produtos no estoque: <strong>${state.products.length}</strong><br>
                 • Abertura de caixa: <strong>${abertura != null ? formatMoney(abertura) : 'não informada'}</strong><br>
                 • Vendas em dinheiro: <strong>${formatMoney(totalDinheiro)}</strong><br>
+                • Retiradas: <strong>${formatMoney(totalRet)}</strong><br>
                 • Esperado em caixa: <strong>${formatMoney(esperado)}</strong>
                 ${obs ? '<br>• Observação: ' + escapeHtml(obs) : ''}
             `;
@@ -3300,6 +3400,9 @@ function limparMovimentacoes() {
             const caixaAberturaSalva = state.caixaAbertura
                 ? { ...state.caixaAbertura }
                 : null;
+            const caixaRetiradasSalvas = Array.isArray(state.caixaRetiradas)
+                ? state.caixaRetiradas.map(function(r) { return { ...r }; })
+                : [];
 
             state.history.unshift({
                 id: generateId(),
@@ -3309,6 +3412,7 @@ function limparMovimentacoes() {
                 movements: [...state.movements],
                 summary: { entradas, vendas, valor },
                 caixaAbertura: caixaAberturaSalva,
+                caixaRetiradas: caixaRetiradasSalvas,
                 obs
             });
 
@@ -3322,6 +3426,7 @@ function limparMovimentacoes() {
             state.serviceMilitar = '';
             state.serviceStartedAt = null;
             state.caixaAbertura = null;
+            state.caixaRetiradas = [];
             if (document.getElementById('obsFechamento')) {
                 document.getElementById('obsFechamento').value = '';
             }
@@ -3330,6 +3435,12 @@ function limparMovimentacoes() {
             }
             if (document.getElementById('caixaAberturaObs')) {
                 document.getElementById('caixaAberturaObs').value = '';
+            }
+            if (document.getElementById('caixaRetiradaValor')) {
+                document.getElementById('caixaRetiradaValor').value = '';
+            }
+            if (document.getElementById('caixaRetiradaMotivo')) {
+                document.getElementById('caixaRetiradaMotivo').value = '';
             }
             saveState();
 
@@ -3725,6 +3836,8 @@ function limparMovimentacoes() {
                     ' | Valor: ' + formatMoney(totalVenValor) +
                     (h.caixaAbertura && typeof h.caixaAbertura.valor === 'number'
                         ? ' | Abertura: ' + formatMoney(h.caixaAbertura.valor) : '') +
+                    (Array.isArray(h.caixaRetiradas) && h.caixaRetiradas.length
+                        ? ' | Retiradas: ' + formatMoney(totalRetiradasCaixa(h.caixaRetiradas)) : '') +
                     '</span>' +
                     previewEntradas +
                     (h.obs ? '<br><span style="font-size:0.8rem;color:var(--text-muted);">Obs: ' + escapeHtml(h.obs) + '</span>' : '') +
@@ -3907,38 +4020,56 @@ function limparMovimentacoes() {
             return list;
         }
 
-        function consultarSocioMes() {
-            const box = document.getElementById('consultaSocioResultado');
-            if (!box) return;
-            const busca = ((document.getElementById('consultaSocioBusca') || {}).value || '').trim().toLowerCase();
-            const mes = ((document.getElementById('consultaSocioMes') || {}).value || '');
-            if (!busca) {
-                box.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">Digite o sócio e escolha o mês.</p>';
-                return;
-            }
-            if (!mes) {
-                box.innerHTML = '<p style="color:var(--text-muted);">Escolha o mês.</p>';
-                return;
-            }
-
-            const vendas = todasVendasHistorico().filter(m => {
+        function filtrarVendasSocioMes(busca, mes) {
+            const buscaLow = (busca || '').trim().toLowerCase();
+            if (!buscaLow || !mes) return [];
+            return todasVendasHistorico().filter(m => {
                 const socioTxt = (m.socio || '').toLowerCase();
-                if (!socioTxt.includes(busca) && !busca.split(/\s+/).every(t => socioTxt.includes(t))) {
-                    // também tenta match por número isolado
-                    if (!(m.socio && String(m.socio).toLowerCase().indexOf(busca) >= 0)) return false;
+                if (!socioTxt.includes(buscaLow) && !buscaLow.split(/\s+/).every(t => socioTxt.includes(t))) {
+                    if (!(m.socio && String(m.socio).toLowerCase().indexOf(buscaLow) >= 0)) return false;
                 }
                 if (!m.date) return false;
                 const d = dataISOLocal(m.date);
                 return d.startsWith(mes);
             });
+        }
+
+        function consultarSocioMes() {
+            const box = document.getElementById('consultaSocioResultado');
+            if (!box) return;
+            const buscaRaw = ((document.getElementById('consultaSocioBusca') || {}).value || '').trim();
+            const busca = buscaRaw.toLowerCase();
+            const mes = ((document.getElementById('consultaSocioMes') || {}).value || '');
+            if (!busca) {
+                box.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">Digite o sócio e escolha o mês.</p>';
+                window._ultimoConsumoSocio = null;
+                return;
+            }
+            if (!mes) {
+                box.innerHTML = '<p style="color:var(--text-muted);">Escolha o mês.</p>';
+                window._ultimoConsumoSocio = null;
+                return;
+            }
+
+            const vendas = filtrarVendasSocioMes(busca, mes);
 
             if (vendas.length === 0) {
                 box.innerHTML = '<div class="alert alert-info">Nenhuma compra deste sócio neste mês.</div>';
+                window._ultimoConsumoSocio = null;
                 return;
             }
 
             const totalQtd = vendas.reduce((s, m) => s + m.qty, 0);
             const totalValor = vendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
+            // Nome mais frequente do sócio nos registros
+            const nomesCount = {};
+            vendas.forEach(m => {
+                const n = (m.socio || buscaRaw).trim();
+                if (!n) return;
+                nomesCount[n] = (nomesCount[n] || 0) + 1;
+            });
+            const socioNome = Object.keys(nomesCount).sort((a, b) => nomesCount[b] - nomesCount[a])[0] || buscaRaw;
+
             // agrupar por produto
             const porProduto = {};
             vendas.forEach(m => {
@@ -3948,13 +4079,48 @@ function limparMovimentacoes() {
                 porProduto[k].valor += m.qty * (m.price || 0);
             });
 
-            let html = '<div class="alert alert-info">' + totalQtd + ' un • Total: <strong>' +
-                formatMoney(totalValor) + '</strong> • ' + vendas.length + ' registro(s)</div>';
-            html += '<p style="font-weight:600;font-size:0.9rem;margin:0.5rem 0;">Resumo por produto</p><ul style="font-size:0.85rem;margin:0 0 1rem 1rem;">';
-            Object.keys(porProduto).sort().forEach(k => {
-                html += '<li>' + escapeHtml(k) + ': ' + porProduto[k].qty + ' un — ' + formatMoney(porProduto[k].valor) + '</li>';
+            // Totais por pagamento
+            const porPag = {};
+            vendas.forEach(m => {
+                const p = m.pagamento || 'Não informado';
+                if (!porPag[p]) porPag[p] = 0;
+                porPag[p] += m.qty * (m.price || 0);
             });
-            html += '</ul><p style="font-weight:600;font-size:0.9rem;">Detalhes</p>';
+
+            window._ultimoConsumoSocio = {
+                socioNome: socioNome,
+                busca: buscaRaw,
+                mes: mes,
+                vendas: vendas.slice(),
+                porProduto: porProduto,
+                porPag: porPag,
+                totalQtd: totalQtd,
+                totalValor: totalValor
+            };
+
+            // Mês legível
+            let mesLabel = mes;
+            try {
+                const [y, mo] = mes.split('-');
+                const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                mesLabel = (nomes[parseInt(mo, 10) - 1] || mo) + '/' + y;
+            } catch (e) {}
+
+            let html = '<div class="alert alert-info" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">' +
+                '<span><strong>' + escapeHtml(socioNome) + '</strong> · ' + escapeHtml(mesLabel) + '<br>' +
+                totalQtd + ' un • Total: <strong>' + formatMoney(totalValor) + '</strong> • ' + vendas.length + ' registro(s)</span>' +
+                '<button type="button" class="btn btn-primary btn-sm" onclick="baixarConsumoSocioPDF()">📄 PDF do consumo</button>' +
+                '</div>';
+            html += '<p style="font-weight:600;font-size:0.9rem;margin:0.5rem 0;">Resumo por produto</p>';
+            html += '<div style="max-height:160px;overflow-y:auto;margin-bottom:0.75rem;"><table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
+                '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.35rem;">Produto</th><th style="text-align:center;">Qtd</th><th style="text-align:right;">Valor</th></tr></thead><tbody>';
+            Object.keys(porProduto).sort().forEach(k => {
+                html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:0.35rem;">' + escapeHtml(k) +
+                    '</td><td style="text-align:center;">' + porProduto[k].qty +
+                    '</td><td style="text-align:right;padding:0.35rem;">' + formatMoney(porProduto[k].valor) + '</td></tr>';
+            });
+            html += '</tbody></table></div>';
+            html += '<p style="font-weight:600;font-size:0.9rem;">Detalhes</p>';
             html += '<div style="max-height:300px;overflow-y:auto;"><table style="width:100%;font-size:0.82rem;border-collapse:collapse;">' +
                 '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.4rem;">Data</th><th style="text-align:left;padding:0.4rem;">Produto</th><th>Qtd</th><th>Pag.</th><th>Valor</th></tr></thead><tbody>';
             vendas.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(m => {
@@ -3967,6 +4133,130 @@ function limparMovimentacoes() {
             });
             html += '</tbody></table></div>';
             box.innerHTML = html;
+        }
+
+        function baixarConsumoSocioPDF() {
+            const dados = window._ultimoConsumoSocio;
+            if (!dados || !dados.vendas || dados.vendas.length === 0) {
+                toast('Consulte um sócio com consumo antes de gerar o PDF.', 'error');
+                return;
+            }
+
+            const agora = new Date();
+            const dataStr = agora.toLocaleDateString('pt-BR');
+            const horaStr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            let mesLabel = dados.mes;
+            try {
+                const [y, mo] = String(dados.mes).split('-');
+                const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                mesLabel = (nomes[parseInt(mo, 10) - 1] || mo) + ' de ' + y;
+            } catch (e) {}
+
+            // Resumo por produto
+            let rowsProd = '';
+            Object.keys(dados.porProduto).sort().forEach(function(k) {
+                const p = dados.porProduto[k];
+                rowsProd += '<tr><td>' + escapeHtml(k) + '</td>' +
+                    '<td style="text-align:center;">' + p.qty + '</td>' +
+                    '<td style="text-align:right;">' + formatMoney(p.valor) + '</td></tr>';
+            });
+
+            // Por pagamento
+            let rowsPag = '';
+            Object.keys(dados.porPag).sort().forEach(function(k) {
+                rowsPag += '<tr><td>' + escapeHtml(k) + '</td>' +
+                    '<td style="text-align:right;">' + formatMoney(dados.porPag[k]) + '</td></tr>';
+            });
+
+            // Detalhes
+            const vendasOrd = dados.vendas.slice().sort(function(a, b) {
+                return String(a.date || '').localeCompare(String(b.date || ''));
+            });
+            let rowsDet = '';
+            vendasOrd.forEach(function(m, idx) {
+                rowsDet += '<tr>' +
+                    '<td style="text-align:center;">' + (idx + 1) + '</td>' +
+                    '<td>' + escapeHtml(formatDate(m.date)) + '</td>' +
+                    '<td>' + escapeHtml(m.productName || '') + '</td>' +
+                    '<td style="text-align:center;">' + m.qty + '</td>' +
+                    '<td style="text-align:center;">' + escapeHtml(m.pagamento || '—') + '</td>' +
+                    '<td style="text-align:right;">' + formatMoney(m.qty * (m.price || 0)) + '</td>' +
+                    '</tr>';
+            });
+
+            const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+                '<title>Consumo ' + escapeHtml(dados.socioNome) + ' - ' + escapeHtml(mesLabel) + '</title>' +
+                '<style>' +
+                'body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:22px;font-size:12px;max-width:800px;margin:0 auto;}' +
+                'h1{font-size:18px;margin:0 0 2px;color:#0d5c2e;}' +
+                'h2{font-size:14px;margin:18px 0 8px;color:#0d5c2e;border-bottom:2px solid #0d5c2e;padding-bottom:4px;}' +
+                '.sub{color:#555;margin-bottom:14px;font-size:12px;}' +
+                '.box{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 16px;}' +
+                '.card{flex:1;min-width:120px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;}' +
+                '.card .lbl{font-size:10px;color:#555;text-transform:uppercase;}' +
+                '.card .val{font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;}' +
+                'table{width:100%;border-collapse:collapse;margin-top:6px;font-size:11px;}' +
+                'th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;}' +
+                'th{background:#e8f5ec;color:#084020;font-size:10px;}' +
+                'tr:nth-child(even){background:#fafafa;}' +
+                '.assin{margin-top:36px;display:flex;justify-content:space-between;gap:24px;}' +
+                '.assin div{flex:1;text-align:center;border-top:1px solid #333;padding-top:6px;font-size:11px;}' +
+                '.foot{margin-top:28px;font-size:10px;color:#666;text-align:center;}' +
+                '@media print{body{padding:8px;} .no-print{display:none!important;}}' +
+                '</style></head><body>' +
+                '<h1>Grêmio Recreativo Antônio João — GRAJ</h1>' +
+                '<div class="sub"><strong>EXTRATO DE CONSUMO DO SÓCIO</strong><br>' +
+                'Sócio: <strong>' + escapeHtml(dados.socioNome) + '</strong> · Período: <strong>' + escapeHtml(mesLabel) + '</strong><br>' +
+                'Gerado em ' + dataStr + ' às ' + horaStr + '</div>' +
+
+                '<div class="box">' +
+                '<div class="card"><div class="lbl">Itens consumidos</div><div class="val">' + dados.totalQtd + '</div></div>' +
+                '<div class="card"><div class="lbl">Registros</div><div class="val">' + dados.vendas.length + '</div></div>' +
+                '<div class="card"><div class="lbl">Valor total</div><div class="val">' + formatMoney(dados.totalValor) + '</div></div>' +
+                '</div>' +
+
+                '<h2>Resumo por produto</h2>' +
+                '<table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>' +
+                rowsProd +
+                '<tr style="background:#e8f5ec;font-weight:700;"><td>TOTAL</td><td style="text-align:center;">' + dados.totalQtd +
+                '</td><td style="text-align:right;">' + formatMoney(dados.totalValor) + '</td></tr>' +
+                '</tbody></table>' +
+
+                '<h2>Por forma de pagamento</h2>' +
+                '<table><thead><tr><th>Pagamento</th><th>Valor</th></tr></thead><tbody>' + rowsPag + '</tbody></table>' +
+
+                '<h2>Detalhamento das compras</h2>' +
+                '<table><thead><tr><th>#</th><th>Data</th><th>Produto</th><th>Qtd</th><th>Pagamento</th><th>Valor</th></tr></thead><tbody>' +
+                rowsDet + '</tbody></table>' +
+
+                '<div class="assin">' +
+                '<div>Sócio<br><strong>' + escapeHtml(dados.socioNome) + '</strong></div>' +
+                '<div>Conferência / Administração</div>' +
+                '</div>' +
+
+                '<div class="foot">Documento gerado pelo sistema de controle de estoque GRAJ · Uso interno<br>' +
+                'Na janela de impressão, escolha <em>Salvar como PDF</em>.</div>' +
+                '<div class="no-print" style="margin-top:16px;text-align:center;">' +
+                '<p><strong>Para baixar em PDF:</strong> na janela de impressão, escolha <em>Salvar como PDF</em>.</p>' +
+                '<button onclick="window.print()" style="padding:10px 18px;font-size:14px;cursor:pointer;background:#0d5c2e;color:#fff;border:none;border-radius:6px;">Imprimir / Salvar PDF</button></div>' +
+                '<script>window.onload=function(){setTimeout(function(){window.print();},400);}<\\/script>' +
+                '</body></html>';
+
+            try {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const w = window.open(url, '_blank');
+                if (!w) {
+                    toast('Permita pop-ups para gerar o PDF.', 'error');
+                    return;
+                }
+                toast('Extrato do sócio gerado! Na impressão, escolha "Salvar como PDF".');
+                setTimeout(function() { URL.revokeObjectURL(url); }, 120000);
+            } catch (e) {
+                toast('Erro ao gerar PDF do consumo.', 'error');
+                console.error(e);
+            }
         }
 
 
@@ -3987,6 +4277,7 @@ function limparMovimentacoes() {
             let militarNome = currentMilitar || state.serviceMilitar || '—';
             let dataServico = todayISO();
             let caixaAberturaRef = state.caixaAbertura || null;
+            let caixaRetiradasRef = Array.isArray(state.caixaRetiradas) ? state.caixaRetiradas.slice() : [];
 
             if (arg === true) {
                 // Último fechamento (pós fechar serviço)
@@ -3996,6 +4287,7 @@ function limparMovimentacoes() {
                     militarNome = h.militar || militarNome;
                     dataServico = h.date || dataServico;
                     caixaAberturaRef = h.caixaAbertura || null;
+                    caixaRetiradasRef = Array.isArray(h.caixaRetiradas) ? h.caixaRetiradas.slice() : [];
                 }
             } else if (typeof arg === 'number') {
                 // Índice no histórico
@@ -4008,6 +4300,7 @@ function limparMovimentacoes() {
                 militarNome = h.militar || militarNome;
                 dataServico = h.date || dataServico;
                 caixaAberturaRef = h.caixaAbertura || null;
+                caixaRetiradasRef = Array.isArray(h.caixaRetiradas) ? h.caixaRetiradas.slice() : [];
             } else if (typeof arg === 'string' && /^\d{4}-\d{2}-\d{2}/.test(arg)) {
                 // Por data ISO
                 const dataSel = arg.slice(0, 10);
@@ -4019,24 +4312,28 @@ function limparMovimentacoes() {
                 let allMov = [];
                 let militares = [];
                 let aberturas = [];
+                let rets = [];
                 fechamentos.forEach(function(h) {
                     (h.movements || []).forEach(function(m) { allMov.push(m); });
                     if (h.militar) militares.push(h.militar);
                     if (h.caixaAbertura) aberturas.push(h.caixaAbertura);
+                    if (Array.isArray(h.caixaRetiradas)) rets = rets.concat(h.caixaRetiradas);
                 });
                 if (dataSel === hoje) {
                     (state.movements || []).forEach(function(m) { allMov.push(m); });
                     if (state.serviceMilitar) militares.push(state.serviceMilitar);
                     else if (currentMilitar) militares.push(currentMilitar);
                     if (state.caixaAbertura) aberturas.push(state.caixaAbertura);
+                    if (Array.isArray(state.caixaRetiradas)) rets = rets.concat(state.caixaRetiradas);
                 }
-                if (allMov.length === 0) {
+                if (allMov.length === 0 && rets.length === 0 && aberturas.length === 0) {
                     toast('Nenhuma movimentação nesta data.', 'error');
                     return;
                 }
                 movements = allMov;
                 militarNome = militares.length ? [...new Set(militares)].join(', ') : '—';
                 dataServico = dataSel;
+                caixaRetiradasRef = rets;
                 // Soma aberturas se houver mais de um serviço no dia
                 if (aberturas.length === 1) {
                     caixaAberturaRef = aberturas[0];
@@ -4051,7 +4348,9 @@ function limparMovimentacoes() {
             const vendas = movements.filter(m => m.type === 'venda');
             const entradas = movements.filter(m => m.type === 'entrada');
 
-            if (vendas.length === 0 && entradas.length === 0) {
+            if (vendas.length === 0 && entradas.length === 0 &&
+                !(caixaRetiradasRef && caixaRetiradasRef.length) &&
+                !(caixaAberturaRef && typeof caixaAberturaRef.valor === 'number')) {
                 toast('Nenhuma movimentação para gerar o fluxo de caixa.', 'error');
                 return;
             }
@@ -4090,7 +4389,22 @@ function limparMovimentacoes() {
             const valorAbertura = (caixaAberturaRef && typeof caixaAberturaRef.valor === 'number')
                 ? caixaAberturaRef.valor : 0;
             const temAbertura = !!(caixaAberturaRef && typeof caixaAberturaRef.valor === 'number');
-            const esperadoEmCaixa = valorAbertura + totalDinheiro;
+            const totalRetiradas = totalRetiradasCaixa(caixaRetiradasRef);
+            const esperadoEmCaixa = valorAbertura + totalDinheiro - totalRetiradas;
+
+            let rowsRet = '';
+            (caixaRetiradasRef || []).forEach(function(r, idx) {
+                const hora = r.timestamp
+                    ? new Date(r.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                    : '—';
+                rowsRet += '<tr>' +
+                    '<td style="text-align:center;">' + (idx + 1) + '</td>' +
+                    '<td>' + escapeHtml(hora) + '</td>' +
+                    '<td style="text-align:right;color:#b91c1c;font-weight:600;">' + formatMoney(r.valor || 0) + '</td>' +
+                    '<td>' + escapeHtml(r.motivo || '—') + '</td>' +
+                    '<td>' + escapeHtml(r.militar || '—') + '</td>' +
+                    '</tr>';
+            });
 
             // Linhas detalhadas de vendas (com comprador)
             let rowsVendas = '';
@@ -4189,9 +4503,18 @@ function limparMovimentacoes() {
                 (temAbertura && caixaAberturaRef.obs ? ' — ' + escapeHtml(caixaAberturaRef.obs) : '') +
                 '</td><td style="text-align:right;">' + (temAbertura ? formatMoney(valorAbertura) : 'Não informada') + '</td></tr>' +
                 '<tr><td>Vendas em dinheiro no serviço</td><td style="text-align:right;">' + formatMoney(totalDinheiro) + '</td></tr>' +
-                '<tr style="background:#e8f5ec;font-weight:700;"><td>Esperado em caixa (abertura + dinheiro)</td><td style="text-align:right;">' + formatMoney(esperadoEmCaixa) + '</td></tr>' +
+                '<tr><td>Retiradas de dinheiro (−)</td><td style="text-align:right;color:#b91c1c;">' + formatMoney(totalRetiradas) + '</td></tr>' +
+                '<tr style="background:#e8f5ec;font-weight:700;"><td>Esperado em caixa (abertura + dinheiro − retiradas)</td><td style="text-align:right;">' + formatMoney(esperadoEmCaixa) + '</td></tr>' +
                 '<tr><td>Vendas no Pix</td><td style="text-align:right;">' + formatMoney(totalPix) + '</td></tr>' +
                 '</tbody></table>' +
+
+                ((caixaRetiradasRef && caixaRetiradasRef.length)
+                    ? ('<h2>Retiradas de dinheiro do caixa</h2>' +
+                       '<table><thead><tr><th>#</th><th>Hora</th><th>Valor</th><th>Motivo</th><th>Responsável</th></tr></thead><tbody>' +
+                       rowsRet +
+                       '<tr style="background:#fef2f2;font-weight:700;"><td colspan="2">TOTAL RETIRADO</td><td style="text-align:right;color:#b91c1c;">' +
+                       formatMoney(totalRetiradas) + '</td><td colspan="2"></td></tr></tbody></table>')
+                    : '') +
 
                 '<h2>Resumo por forma de pagamento</h2>' +
                 (Object.keys(porPagamento).length
