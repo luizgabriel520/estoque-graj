@@ -1067,6 +1067,7 @@
                         <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
                             <button class="btn btn-danger btn-sm" onclick="abrirModalVenda()">− Venda</button>
                             <button class="btn btn-outline btn-sm no-print" onclick="imprimirRelatorioDia()">🖨️ Relatório</button>
+                            <button class="btn btn-primary btn-sm no-print" onclick="baixarFluxoCaixaPDF()">📄 Fluxo de Caixa</button>
                         </div>
                     </div>
                     <div class="card-body" style="padding:0;">
@@ -1257,7 +1258,10 @@
             <div class="card" style="margin-bottom:1.5rem;">
                 <div class="card-header">
                     <h2>🛒 Vendas e Movimentações do Dia</h2>
-                    <button class="btn btn-primary btn-sm" onclick="baixarVendasPDF()">📄 Baixar PDF</button>
+                    <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                        <button class="btn btn-primary btn-sm" onclick="baixarFluxoCaixaPDF()">📄 Fluxo de Caixa</button>
+                        <button class="btn btn-outline btn-sm" onclick="baixarVendasPDF()">📄 Vendas PDF</button>
+                    </div>
                 </div>
                 <div class="card-body">
                     <div class="stats-grid" style="margin-bottom:1rem;">
@@ -1620,9 +1624,8 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Recreativo Antônio João — GRAJ<br>
+        Grêmio Beneficente, Esportivo e Recreativo Antônio João — GBERAJ<br>
         Sistema de Controle de Estoque • Uso interno
-        SISTEMA FEITO POR : LUIZ GABRIEL / @WEBPAGEART
     </footer>
 
     <script>
@@ -2712,7 +2715,8 @@
                     price: item.price,
                     obs: obs,
                     militar: currentMilitar || (isAdmin ? 'ADMIN' : ''),
-                    date: todayISO()
+                    date: todayISO(),
+                    timestamp: new Date().toISOString()
                 });
             }
 
@@ -2870,7 +2874,8 @@
                     parcelas: isContaPag ? numParcelas : null,
                     vencimentos: isContaPag ? vencimentos.map(formatDateBR) : null,
                     militar: currentMilitar,
-                    date: todayISO()
+                    date: todayISO(),
+                    timestamp: new Date().toISOString()
                 });
             }
 
@@ -3178,17 +3183,25 @@ function limparMovimentacoes() {
             currentMilitar = '';
             toast('Serviço fechado com sucesso! Estoque salvo para o próximo dia.');
             
-            // Oferece imprimir relatório
+            // Oferece Fluxo de Caixa para o presidente (usa o histórico recém-salvo)
             setTimeout(() => {
-                if (confirm('Deseja imprimir o relatório do dia agora?')) {
-                    imprimirRelatorioDia(true);
+                if (confirm('Deseja gerar o Fluxo de Caixa em PDF para enviar ao presidente?')) {
+                    baixarFluxoCaixaPDF(true);
                 }
             }, 400);
         }
 
         function imprimirRelatorioDia(posFechamento = false) {
-            const entradas = state.movements.filter(m => m.type === 'entrada');
-            const vendas = state.movements.filter(m => m.type === 'venda');
+            // Após fechamento as movimentações já foram arquivadas em history[0]
+            let movements = state.movements || [];
+            let militarNome = currentMilitar || state.serviceMilitar || '—';
+            if (posFechamento && state.history && state.history.length > 0) {
+                const h = state.history[0];
+                movements = h.movements || [];
+                militarNome = h.militar || militarNome;
+            }
+            const entradas = movements.filter(m => m.type === 'entrada');
+            const vendas = movements.filter(m => m.type === 'venda');
             const totalEntradas = entradas.reduce((s, m) => s + m.qty, 0);
             const totalVendas = vendas.reduce((s, m) => s + m.qty, 0);
             const valor = vendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
@@ -3199,7 +3212,11 @@ function limparMovimentacoes() {
                 .join('');
 
             const linhasVendas = vendas.map(m =>
-                '<tr><td>' + escapeHtml(m.productName) + '</td><td>' + m.qty + '</td><td>' + formatMoney(m.qty * (m.price||0)) + '</td><td>' + escapeHtml(m.obs||'') + '</td></tr>'
+                '<tr><td>' + escapeHtml(m.productName) + '</td><td style="text-align:center;">' + m.qty + '</td>' +
+                '<td>' + escapeHtml(m.socio || '—') + '</td>' +
+                '<td>' + escapeHtml(m.pagamento || '—') + '</td>' +
+                '<td style="text-align:right;">' + formatMoney(m.qty * (m.price||0)) + '</td>' +
+                '<td>' + escapeHtml(m.obs||'') + '</td></tr>'
             ).join('');
 
             const linhasEntradas = entradas.map(m =>
@@ -3222,7 +3239,7 @@ function limparMovimentacoes() {
             html += '<h1>Gremio Recreativo Antonio Joao — GRAJ</h1>';
             html += '<p><strong>Relatorio de Controle de Estoque</strong></p>';
             html += '<div class="resumo">';
-            html += '<strong>Militar:</strong> ' + escapeHtml(currentMilitar || '\u2014') + '<br>';
+            html += '<strong>Militar:</strong> ' + escapeHtml(militarNome) + '<br>';
             html += '<strong>Data:</strong> ' + new Date().toLocaleString('pt-BR') + '<br>';
             html += '<strong>Entradas:</strong> ' + totalEntradas + ' un &nbsp;|&nbsp; ';
             html += '<strong>Vendas:</strong> ' + totalVendas + ' un &nbsp;|&nbsp; ';
@@ -3234,7 +3251,7 @@ function limparMovimentacoes() {
             html += '<\/tbody><\/table>';
             if (vendas.length) {
                 html += '<h2>Vendas do Dia</h2>';
-                html += '<table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor</th><th>Obs</th></tr></thead><tbody>';
+                html += '<table><thead><tr><th>Produto</th><th>Qtd</th><th>Comprador</th><th>Pagamento</th><th>Valor</th><th>Obs</th></tr></thead><tbody>';
                 html += linhasVendas;
                 html += '<\/tbody><\/table>';
             }
@@ -3733,6 +3750,205 @@ function limparMovimentacoes() {
         }
 
 
+
+        /**
+         * Fluxo de Caixa em PDF — para enviar ao presidente no fim do serviço.
+         * Inclui: resumo por forma de pagamento, lista detalhada de cada mercadoria
+         * com comprador (sócio), pagamento e valor.
+         * @param {boolean} posFechamento - se true, usa o último histórico (após fechar serviço)
+         */
+        function baixarFluxoCaixaPDF(posFechamento) {
+            let movements = state.movements || [];
+            let militarNome = currentMilitar || state.serviceMilitar || '—';
+            let dataServico = todayISO();
+
+            if (posFechamento && state.history && state.history.length > 0) {
+                const h = state.history[0];
+                movements = h.movements || [];
+                militarNome = h.militar || militarNome;
+                dataServico = h.date || dataServico;
+            }
+
+            const vendas = movements.filter(m => m.type === 'venda');
+            const entradas = movements.filter(m => m.type === 'entrada');
+
+            if (vendas.length === 0 && entradas.length === 0) {
+                toast('Nenhuma movimentação para gerar o fluxo de caixa.', 'error');
+                return;
+            }
+
+            const agora = new Date();
+            const dataStr = agora.toLocaleDateString('pt-BR');
+            const horaStr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            // Totais gerais
+            const totalQtd = vendas.reduce((s, m) => s + m.qty, 0);
+            const totalValor = vendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
+
+            // Agrupa por forma de pagamento
+            function classificarPagamento(pag) {
+                const p = (pag || '').toLowerCase();
+                if (/sócio|socio|conta/.test(p)) return 'Conta (Sócio)';
+                if (/pix/.test(p)) return 'Pix';
+                if (/dinheiro|cash/.test(p) || !p) return 'Dinheiro';
+                return pag || 'Dinheiro';
+            }
+
+            const porPagamento = {};
+            vendas.forEach(function(m) {
+                const key = classificarPagamento(m.pagamento);
+                if (!porPagamento[key]) porPagamento[key] = { qtd: 0, valor: 0, itens: 0 };
+                porPagamento[key].qtd += m.qty;
+                porPagamento[key].valor += m.qty * (m.price || 0);
+                porPagamento[key].itens += 1;
+            });
+
+            const totalDinheiro = (porPagamento['Dinheiro'] && porPagamento['Dinheiro'].valor) || 0;
+            const totalPix = (porPagamento['Pix'] && porPagamento['Pix'].valor) || 0;
+            const totalConta = (porPagamento['Conta (Sócio)'] && porPagamento['Conta (Sócio)'].valor) || 0;
+            const totalRecebido = totalDinheiro + totalPix; // caixa físico / digital imediato
+            const totalAReceber = totalConta;
+
+            // Linhas detalhadas de vendas (com comprador)
+            let rowsVendas = '';
+            // Ordena por horário se disponível, senão mantém ordem
+            const vendasOrdenadas = vendas.slice().sort(function(a, b) {
+                return (a.timestamp || a.time || '').localeCompare(b.timestamp || b.time || '');
+            });
+            vendasOrdenadas.forEach(function(m, idx) {
+                const hora = m.timestamp
+                    ? new Date(m.timestamp).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                    : (m.time || '—');
+                rowsVendas += '<tr>' +
+                    '<td style="text-align:center;">' + (idx + 1) + '</td>' +
+                    '<td>' + escapeHtml(hora) + '</td>' +
+                    '<td>' + escapeHtml(m.productName || '') + '</td>' +
+                    '<td style="text-align:center;">' + m.qty + '</td>' +
+                    '<td style="text-align:right;">' + formatMoney(m.price || 0) + '</td>' +
+                    '<td style="text-align:right;font-weight:600;">' + formatMoney(m.qty * (m.price || 0)) + '</td>' +
+                    '<td><strong>' + escapeHtml(m.socio || 'Não informado') + '</strong></td>' +
+                    '<td style="text-align:center;">' + escapeHtml(m.pagamento || '—') + '</td>' +
+                    '<td>' + escapeHtml(m.militar || militarNome) + '</td>' +
+                    '</tr>';
+            });
+
+            // Resumo por pagamento (tabela)
+            let rowsPag = '';
+            Object.keys(porPagamento).sort().forEach(function(k) {
+                const g = porPagamento[k];
+                rowsPag += '<tr>' +
+                    '<td>' + escapeHtml(k) + '</td>' +
+                    '<td style="text-align:center;">' + g.itens + '</td>' +
+                    '<td style="text-align:center;">' + g.qtd + '</td>' +
+                    '<td style="text-align:right;font-weight:600;">' + formatMoney(g.valor) + '</td>' +
+                    '</tr>';
+            });
+
+            // Entradas (opcional)
+            let rowsEnt = '';
+            entradas.forEach(function(m) {
+                rowsEnt += '<tr><td>' + escapeHtml(m.productName || '') + '</td>' +
+                    '<td style="text-align:center;">+' + m.qty + '</td>' +
+                    '<td>' + escapeHtml(m.militar || 'ADMIN') + '</td>' +
+                    '<td>' + escapeHtml(m.obs || '—') + '</td></tr>';
+            });
+
+            // Data legível do serviço
+            let dataServicoStr = dataStr;
+            try {
+                if (dataServico && /^\d{4}-\d{2}-\d{2}/.test(dataServico)) {
+                    const parts = dataServico.split('-');
+                    dataServicoStr = parts[2] + '/' + parts[1] + '/' + parts[0];
+                }
+            } catch (e) {}
+
+            const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+                '<title>Fluxo de Caixa GRAJ - ' + dataServicoStr + '</title>' +
+                '<style>' +
+                'body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:22px;font-size:12px;max-width:900px;margin:0 auto;}' +
+                'h1{font-size:18px;margin:0 0 2px;color:#0d5c2e;}' +
+                'h2{font-size:14px;margin:20px 0 8px;color:#0d5c2e;border-bottom:2px solid #0d5c2e;padding-bottom:4px;}' +
+                '.sub{color:#555;margin-bottom:14px;font-size:12px;}' +
+                '.box{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 16px;}' +
+                '.card{flex:1;min-width:140px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;}' +
+                '.card .lbl{font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;}' +
+                '.card .val{font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;}' +
+                '.card.danger{background:#fef2f2;border-color:#f5c2c2;}' +
+                '.card.danger .val{color:#b91c1c;}' +
+                '.card.ok{background:#ecfdf5;border-color:#a7f3d0;}' +
+                'table{width:100%;border-collapse:collapse;margin-top:6px;font-size:11px;}' +
+                'th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;}' +
+                'th{background:#e8f5ec;color:#084020;font-size:10px;}' +
+                'tr:nth-child(even){background:#fafafa;}' +
+                '.tot{margin-top:10px;font-size:13px;font-weight:bold;}' +
+                '.assin{margin-top:36px;display:flex;justify-content:space-between;gap:24px;}' +
+                '.assin div{flex:1;text-align:center;border-top:1px solid #333;padding-top:6px;font-size:11px;}' +
+                '.foot{margin-top:28px;font-size:10px;color:#666;text-align:center;}' +
+                '@media print{body{padding:8px;} .no-print{display:none!important;}}' +
+                '</style></head><body>' +
+                '<h1>Grêmio Recreativo Antônio João — GRAJ</h1>' +
+                '<div class="sub"><strong>FLUXO DE CAIXA DO SERVIÇO</strong> · Data do serviço: ' + escapeHtml(dataServicoStr) +
+                ' · Gerado em ' + dataStr + ' às ' + horaStr +
+                (militarNome && militarNome !== '—' ? ' · Militar: <strong>' + escapeHtml(militarNome) + '</strong>' : '') +
+                '</div>' +
+
+                '<div class="box">' +
+                '<div class="card"><div class="lbl">Itens vendidos</div><div class="val">' + totalQtd + '</div></div>' +
+                '<div class="card"><div class="lbl">Valor total vendido</div><div class="val">' + formatMoney(totalValor) + '</div></div>' +
+                '<div class="card ok"><div class="lbl">Recebido (Dinheiro + Pix)</div><div class="val">' + formatMoney(totalRecebido) + '</div></div>' +
+                '<div class="card danger"><div class="lbl">A receber (Conta sócio)</div><div class="val">' + formatMoney(totalAReceber) + '</div></div>' +
+                '</div>' +
+
+                '<h2>Resumo por forma de pagamento</h2>' +
+                (Object.keys(porPagamento).length
+                    ? ('<table><thead><tr><th>Forma de pagamento</th><th>Nº vendas</th><th>Qtd itens</th><th>Valor</th></tr></thead><tbody>' +
+                       rowsPag +
+                       '<tr style="background:#e8f5ec;font-weight:700;"><td>TOTAL</td><td style="text-align:center;">' + vendas.length +
+                       '</td><td style="text-align:center;">' + totalQtd + '</td><td style="text-align:right;">' + formatMoney(totalValor) +
+                       '</td></tr></tbody></table>')
+                    : '<p>Sem vendas.</p>') +
+
+                '<h2>Detalhamento das vendas — para quem foi vendido cada mercadoria</h2>' +
+                (vendas.length
+                    ? ('<table><thead><tr>' +
+                       '<th>#</th><th>Hora</th><th>Produto / Mercadoria</th><th>Qtd</th><th>Preço un.</th><th>Valor</th>' +
+                       '<th>Comprador (Sócio)</th><th>Pagamento</th><th>Militar</th>' +
+                       '</tr></thead><tbody>' + rowsVendas + '</tbody></table>')
+                    : '<p>Nenhuma venda registrada.</p>') +
+
+                (entradas.length
+                    ? ('<h2>Entradas de estoque no dia</h2><table><thead><tr><th>Produto</th><th>Qtd</th><th>Responsável</th><th>Obs</th></tr></thead><tbody>' +
+                       rowsEnt + '</tbody></table>')
+                    : '') +
+
+                '<div class="assin">' +
+                '<div>Militar responsável<br><strong>' + escapeHtml(militarNome) + '</strong></div>' +
+                '<div>Presidente / Conferência</div>' +
+                '</div>' +
+
+                '<div class="foot">Documento gerado pelo sistema de controle de estoque GRAJ · Uso interno<br>' +
+                'Na janela de impressão, escolha <em>Salvar como PDF</em> para enviar ao presidente.</div>' +
+                '<div class="no-print" style="margin-top:16px;text-align:center;">' +
+                '<p><strong>Para baixar em PDF:</strong> na janela de impressão, escolha <em>Salvar como PDF</em> / <em>Microsoft Print to PDF</em>.</p>' +
+                '<button onclick="window.print()" style="padding:10px 18px;font-size:14px;cursor:pointer;background:#0d5c2e;color:#fff;border:none;border-radius:6px;">Imprimir / Salvar PDF</button></div>' +
+                '<script>window.onload=function(){setTimeout(function(){window.print();},400);}<\\/script>' +
+                '</body></html>';
+
+            try {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const w = window.open(url, '_blank');
+                if (!w) {
+                    toast('Permita pop-ups para gerar o PDF.', 'error');
+                    return;
+                }
+                toast('Fluxo de Caixa gerado! Na impressão, escolha "Salvar como PDF".');
+                setTimeout(function() { URL.revokeObjectURL(url); }, 120000);
+            } catch (e) {
+                toast('Erro ao gerar Fluxo de Caixa.', 'error');
+                console.error(e);
+            }
+        }
 
         function baixarVendasPDF() {
             const vendas = (state.movements || []).filter(m => m.type === 'venda');
