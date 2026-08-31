@@ -1361,10 +1361,15 @@
                             <label>Nome</label>
                             <input type="text" id="socioNome" class="form-control" placeholder="Nome do sócio">
                         </div>
+                        <div class="form-group">
+                            <label>WhatsApp (com DDD)</label>
+                            <input type="tel" id="socioWhatsapp" class="form-control" placeholder="Ex: 11999998888">
+                        </div>
                     </div>
                     <button class="btn btn-primary" onclick="adminAdicionarSocio()">Adicionar Sócio</button>
-                    <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">Ou cole a lista completa (um por linha: número - nome) abaixo:</p>
-                    <textarea id="socioListaLote" class="form-control" rows="4" placeholder="123 - João Silva&#10;124 - Maria Souza"></textarea>
+                    <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">Ou cole a lista completa (um por linha). Formatos:<br>
+                    <code>123 - João Silva</code> · <code>123 - João Silva - 11999998888</code></p>
+                    <textarea id="socioListaLote" class="form-control" rows="4" placeholder="123 - João Silva - 11999998888&#10;124 - Maria Souza - 21988887777"></textarea>
                     <button class="btn btn-outline" style="margin-top:0.5rem;" onclick="adminImportarSociosLote()">Importar lista</button>
                 </div>
             </div>
@@ -3913,9 +3918,22 @@ function limparMovimentacoes() {
             });
         }
 
+        function normalizarWhatsapp(raw) {
+            let d = String(raw || '').replace(/\D/g, '');
+            if (!d) return '';
+            // Remove zero inicial de DDD antigo (ex: 011...)
+            if (d.length >= 11 && d.charAt(0) === '0') d = d.slice(1);
+            // Se já tem 55 e tamanho ok, mantém
+            if (d.startsWith('55') && d.length >= 12) return d;
+            // Brasil: DDD + número (10 ou 11 dígitos)
+            if (d.length >= 10 && d.length <= 11) return '55' + d;
+            return d;
+        }
+
         function adminAdicionarSocio() {
             const numero = (document.getElementById('socioNumero').value || '').trim();
             const nome = (document.getElementById('socioNome').value || '').trim();
+            const whatsapp = normalizarWhatsapp((document.getElementById('socioWhatsapp') || {}).value);
             if (!nome && !numero) {
                 toast('Informe número ou nome do sócio.', 'error');
                 return;
@@ -3929,9 +3947,15 @@ function limparMovimentacoes() {
                 toast('Sócio já cadastrado.', 'error');
                 return;
             }
-            state.socios.push({ id: generateId(), numero: numero, nome: nome || numero });
+            state.socios.push({
+                id: generateId(),
+                numero: numero,
+                nome: nome || numero,
+                whatsapp: whatsapp || ''
+            });
             document.getElementById('socioNumero').value = '';
             document.getElementById('socioNome').value = '';
+            if (document.getElementById('socioWhatsapp')) document.getElementById('socioWhatsapp').value = '';
             saveState();
             renderAdminSocios();
             preencherDatalistSocios();
@@ -3946,10 +3970,19 @@ function limparMovimentacoes() {
             }
             if (!state.socios) state.socios = [];
             let add = 0;
+            let atualizados = 0;
             raw.split(/\n+/).forEach(line => {
                 line = line.trim();
                 if (!line) return;
-                let numero = '', nome = '';
+                let numero = '', nome = '', whatsapp = '';
+
+                // Formato com WhatsApp no final: "123 - Nome - 11999998888" ou "123 - Nome 11999998888"
+                const mPhone = line.match(/^(.*?)[\s\-–—]+(\d{10,13})\s*$/);
+                if (mPhone) {
+                    line = mPhone[1].trim();
+                    whatsapp = normalizarWhatsapp(mPhone[2]);
+                }
+
                 // formatos: "123 - Nome" | "123 Nome" | "Nome"
                 const m = line.match(/^(\d+)\s*[-–—:]?\s*(.*)$/);
                 if (m) {
@@ -3958,12 +3991,24 @@ function limparMovimentacoes() {
                 } else {
                     nome = line;
                 }
-                const existe = state.socios.some(s =>
+
+                const idx = state.socios.findIndex(s =>
                     (numero && s.numero === numero) ||
                     (nome && s.nome && s.nome.toLowerCase() === nome.toLowerCase())
                 );
-                if (!existe) {
-                    state.socios.push({ id: generateId(), numero: numero, nome: nome });
+                if (idx >= 0) {
+                    // Já existe: atualiza WhatsApp se veio na lista
+                    if (whatsapp) {
+                        state.socios[idx].whatsapp = whatsapp;
+                        atualizados++;
+                    }
+                } else {
+                    state.socios.push({
+                        id: generateId(),
+                        numero: numero,
+                        nome: nome,
+                        whatsapp: whatsapp || ''
+                    });
                     add++;
                 }
             });
@@ -3971,7 +4016,9 @@ function limparMovimentacoes() {
             saveState();
             renderAdminSocios();
             preencherDatalistSocios();
-            toast(add + ' sócio(s) importado(s).');
+            let msg = add + ' sócio(s) importado(s)';
+            if (atualizados) msg += ', ' + atualizados + ' WhatsApp atualizado(s)';
+            toast(msg + '.');
         }
 
         function adminRemoverSocio(id) {
@@ -4001,10 +4048,47 @@ function limparMovimentacoes() {
                 return;
             }
             box.innerHTML = list.map(s =>
-                '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0;border-bottom:1px solid var(--border);">' +
-                '<span><strong>' + escapeHtml(s.numero || '—') + '</strong> — ' + escapeHtml(s.nome || '') + '</span>' +
-                '<button class="btn btn-sm btn-danger" data-id="' + s.id + '" onclick="adminRemoverSocio(this.getAttribute(\'data-id\'))">✕</button></div>'
+                '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0;border-bottom:1px solid var(--border);gap:0.5rem;flex-wrap:wrap;">' +
+                '<span><strong>' + escapeHtml(s.numero || '—') + '</strong> — ' + escapeHtml(s.nome || '') +
+                (s.whatsapp ? '<br><span style="font-size:0.78rem;color:var(--text-muted);">📱 ' + escapeHtml(s.whatsapp) + '</span>' : '') +
+                '</span>' +
+                '<div style="display:flex;gap:0.3rem;">' +
+                '<button class="btn btn-sm btn-outline" data-id="' + s.id + '" onclick="adminEditarWhatsappSocio(this.getAttribute(\'data-id\'))" title="WhatsApp">📱</button>' +
+                '<button class="btn btn-sm btn-danger" data-id="' + s.id + '" onclick="adminRemoverSocio(this.getAttribute(\'data-id\'))">✕</button>' +
+                '</div></div>'
             ).join('');
+        }
+
+        function adminEditarWhatsappSocio(id) {
+            const s = (state.socios || []).find(x => x.id === id);
+            if (!s) return;
+            const atual = s.whatsapp || '';
+            const raw = prompt('WhatsApp do sócio ' + (s.nome || s.numero) + ' (com DDD, só números):\nEx: 11999998888', atual.replace(/^55/, ''));
+            if (raw === null) return;
+            s.whatsapp = normalizarWhatsapp(raw);
+            saveState();
+            renderAdminSocios();
+            toast(s.whatsapp ? 'WhatsApp atualizado.' : 'WhatsApp removido.');
+        }
+
+        function buscarWhatsappSocio(nomeOuBusca) {
+            const q = String(nomeOuBusca || '').toLowerCase().trim();
+            if (!q) return '';
+            const socios = state.socios || [];
+            // Match exato por label "numero - nome" ou nome
+            let hit = socios.find(s => {
+                const label = ((s.numero ? s.numero + ' - ' : '') + (s.nome || '')).toLowerCase();
+                return label === q || (s.nome && s.nome.toLowerCase() === q) ||
+                    (s.numero && String(s.numero) === q);
+            });
+            if (!hit) {
+                hit = socios.find(s =>
+                    (s.nome && s.nome.toLowerCase().includes(q)) ||
+                    (s.numero && String(s.numero).includes(q)) ||
+                    q.includes((s.nome || '').toLowerCase())
+                );
+            }
+            return hit && hit.whatsapp ? hit.whatsapp : '';
         }
 
         function todasVendasHistorico() {
@@ -4087,6 +4171,8 @@ function limparMovimentacoes() {
                 porPag[p] += m.qty * (m.price || 0);
             });
 
+            const whatsappSocio = buscarWhatsappSocio(socioNome) || buscarWhatsappSocio(buscaRaw);
+
             window._ultimoConsumoSocio = {
                 socioNome: socioNome,
                 busca: buscaRaw,
@@ -4095,7 +4181,8 @@ function limparMovimentacoes() {
                 porProduto: porProduto,
                 porPag: porPag,
                 totalQtd: totalQtd,
-                totalValor: totalValor
+                totalValor: totalValor,
+                whatsapp: whatsappSocio
             };
 
             // Mês legível
@@ -4107,10 +4194,13 @@ function limparMovimentacoes() {
             } catch (e) {}
 
             let html = '<div class="alert alert-info" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">' +
-                '<span><strong>' + escapeHtml(socioNome) + '</strong> · ' + escapeHtml(mesLabel) + '<br>' +
-                totalQtd + ' un • Total: <strong>' + formatMoney(totalValor) + '</strong> • ' + vendas.length + ' registro(s)</span>' +
+                '<span><strong>' + escapeHtml(socioNome) + '</strong> · ' + escapeHtml(mesLabel) +
+                (whatsappSocio ? '<br><span style="font-size:0.85rem;">📱 WhatsApp: ' + escapeHtml(whatsappSocio) + '</span>' : '<br><span style="font-size:0.85rem;color:#b45309;">📱 WhatsApp não cadastrado — pode informar na hora do envio</span>') +
+                '<br>' + totalQtd + ' un • Total: <strong>' + formatMoney(totalValor) + '</strong> • ' + vendas.length + ' registro(s)</span>' +
+                '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;">' +
                 '<button type="button" class="btn btn-primary btn-sm" onclick="baixarConsumoSocioPDF()">📄 PDF do consumo</button>' +
-                '</div>';
+                '<button type="button" class="btn btn-sm" style="background:#25D366;color:#fff;border:none;" onclick="enviarConsumoSocioWhatsApp()">📲 Enviar no WhatsApp</button>' +
+                '</div></div>';
             html += '<p style="font-weight:600;font-size:0.9rem;margin:0.5rem 0;">Resumo por produto</p>';
             html += '<div style="max-height:160px;overflow-y:auto;margin-bottom:0.75rem;"><table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
                 '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.35rem;">Produto</th><th style="text-align:center;">Qtd</th><th style="text-align:right;">Valor</th></tr></thead><tbody>';
@@ -4133,6 +4223,98 @@ function limparMovimentacoes() {
             });
             html += '</tbody></table></div>';
             box.innerHTML = html;
+        }
+
+        function montarMensagemConsumoSocio(dados, mesLabel) {
+            let msg = '*GRAJ — Extrato de consumo*\n';
+            msg += 'Sócio: *' + dados.socioNome + '*\n';
+            msg += 'Período: *' + mesLabel + '*\n\n';
+            msg += 'Itens: *' + dados.totalQtd + '* un\n';
+            msg += 'Valor total: *' + formatMoney(dados.totalValor) + '*\n\n';
+            msg += '*Resumo por produto:*\n';
+            Object.keys(dados.porProduto).sort().forEach(function(k) {
+                const p = dados.porProduto[k];
+                msg += '• ' + k + ': ' + p.qty + ' un — ' + formatMoney(p.valor) + '\n';
+            });
+            msg += '\n*Por pagamento:*\n';
+            Object.keys(dados.porPag).sort().forEach(function(k) {
+                msg += '• ' + k + ': ' + formatMoney(dados.porPag[k]) + '\n';
+            });
+            msg += '\n_Documento gerado pelo sistema de estoque GRAJ._\n';
+            msg += '_O PDF detalhado pode ser anexado em seguida, se necessário._';
+            return msg;
+        }
+
+        function enviarConsumoSocioWhatsApp() {
+            const dados = window._ultimoConsumoSocio;
+            if (!dados || !dados.vendas || dados.vendas.length === 0) {
+                toast('Consulte um sócio com consumo antes de enviar.', 'error');
+                return;
+            }
+
+            let mesLabel = dados.mes;
+            try {
+                const [y, mo] = String(dados.mes).split('-');
+                const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                mesLabel = (nomes[parseInt(mo, 10) - 1] || mo) + '/' + y;
+            } catch (e) {}
+
+            // Usa o número já salvo no cadastro do sócio
+            let phone = normalizarWhatsapp(dados.whatsapp || buscarWhatsappSocio(dados.socioNome) || buscarWhatsappSocio(dados.busca));
+            if (!phone) {
+                const raw = prompt(
+                    'Este sócio ainda não tem WhatsApp cadastrado.\n' +
+                    'Digite o número com DDD (ex: 11999998888).\n\n' +
+                    'Depois de salvar uma vez em Admin → Sócios, não precisa digitar de novo.'
+                );
+                if (raw === null) return;
+                phone = normalizarWhatsapp(raw);
+                if (!phone || phone.length < 12) {
+                    toast('Número de WhatsApp inválido. Use DDD + número, ex: 11999998888', 'error');
+                    return;
+                }
+                const socio = (state.socios || []).find(s =>
+                    (s.nome && s.nome.toLowerCase() === String(dados.socioNome).toLowerCase()) ||
+                    (s.numero && String(dados.socioNome).indexOf(String(s.numero)) >= 0)
+                );
+                if (socio) {
+                    socio.whatsapp = phone;
+                    saveState();
+                    renderAdminSocios();
+                    dados.whatsapp = phone;
+                    toast('WhatsApp salvo no cadastro de ' + (socio.nome || socio.numero));
+                } else if (confirm('Sócio não encontrado no cadastro. Deseja cadastrá-lo agora com este WhatsApp?')) {
+                    if (!state.socios) state.socios = [];
+                    state.socios.push({
+                        id: generateId(),
+                        numero: '',
+                        nome: dados.socioNome,
+                        whatsapp: phone
+                    });
+                    saveState();
+                    renderAdminSocios();
+                    preencherDatalistSocios();
+                    dados.whatsapp = phone;
+                }
+            }
+
+            const msg = montarMensagemConsumoSocio(dados, mesLabel);
+            const url = 'https://api.whatsapp.com/send?phone=' + encodeURIComponent(phone) +
+                '&text=' + encodeURIComponent(msg);
+
+            // Gera o PDF em paralelo para o admin anexar se quiser
+            try {
+                baixarConsumoSocioPDF();
+            } catch (e) {}
+
+            const w = window.open(url, '_blank');
+            if (!w) {
+                // Fallback: copia e abre
+                toast('Permita pop-ups. Abrindo WhatsApp...', 'error');
+                window.location.href = url;
+                return;
+            }
+            toast('WhatsApp aberto com o extrato. Confirme o envio e, se quiser, anexe o PDF.');
         }
 
         function baixarConsumoSocioPDF() {
