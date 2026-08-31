@@ -1484,15 +1484,31 @@
                 </div>
             </div>
 
-            <div class="card" style="margin-bottom:1.5rem;">
-                <div class="card-header">
-                    <h2>📧 Envio de extrato por e-mail (EmailJS)</h2>
+            <div class="card" style="margin-bottom:1.5rem;border-color:#86efac;">
+                <div class="card-header" style="background:#f0fdf4;">
+                    <h2>📧 Envio de extrato com PDF (Google / Gmail)</h2>
                 </div>
                 <div class="card-body">
                     <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">
-                        Crie uma conta grátis em <strong>emailjs.com</strong>, um Service (Gmail/Outlook) e um Template com as variáveis:
-                        <code>to_email</code>, <code>to_name</code>, <code>subject</code>, <code>message</code>, <code>periodo</code>, <code>total</code>.
-                        Depois cole as chaves abaixo.
+                        <strong>Recomendado:</strong> envia o PDF anexado pelo Gmail, grátis.
+                        Siga o arquivo <code>COMO-ENVIAR-PDF-GMAIL.txt</code> do ZIP, publique o script e cole a URL abaixo.
+                    </p>
+                    <div class="form-group">
+                        <label>URL do Google Apps Script (termina com /exec)</label>
+                        <input type="url" id="gasWebAppUrl" class="form-control" placeholder="https://script.google.com/macros/s/XXXX/exec">
+                    </div>
+                    <button class="btn btn-primary" onclick="salvarConfigGasEmail()">💾 Salvar URL do Gmail</button>
+                    <p id="gasEmailStatus" style="font-size:0.8rem;margin-top:0.5rem;color:var(--text-muted);"></p>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="card-header">
+                    <h2>📧 E-mail só texto (EmailJS — opcional)</h2>
+                </div>
+                <div class="card-body">
+                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">
+                        Plano grátis do EmailJS <strong>não anexa PDF</strong>. Use só se não configurar o Google acima.
                     </p>
                     <div class="form-group">
                         <label>Public Key</label>
@@ -1506,7 +1522,7 @@
                         <label>Template ID</label>
                         <input type="text" id="emailjsTemplateId" class="form-control" placeholder="Ex: template_xxxxxxx">
                     </div>
-                    <button class="btn btn-primary" onclick="salvarConfigEmailJS()">💾 Salvar configuração de e-mail</button>
+                    <button class="btn btn-outline" onclick="salvarConfigEmailJS()">💾 Salvar EmailJS</button>
                     <p id="emailjsStatus" style="font-size:0.8rem;margin-top:0.5rem;color:var(--text-muted);"></p>
                 </div>
             </div>
@@ -1735,12 +1751,13 @@
        storageBucket: "estoque-graj-b32b2.firebasestorage.app",
        messagingSenderId: "924249670911",
        appId: "1:924249670911:web:283128ab7ceba163c478ca"
-
         };
 
         // Configuração de e-mail (também pode ser salva pelo Admin → Senha)
         const EMAILJS_STORAGE_KEY = 'gberaj_emailjs_v1';
+        const GAS_EMAIL_STORAGE_KEY = 'gberaj_gas_email_v1';
         let emailjsConfig = loadEmailjsConfig();
+        let gasEmailConfig = loadGasEmailConfig();
 
         function loadEmailjsConfig() {
             try {
@@ -1748,6 +1765,30 @@
                 if (raw) return JSON.parse(raw);
             } catch (e) {}
             return { publicKey: '', serviceId: '', templateId: '' };
+        }
+
+        function loadGasEmailConfig() {
+            try {
+                const raw = localStorage.getItem(GAS_EMAIL_STORAGE_KEY);
+                if (raw) return JSON.parse(raw);
+            } catch (e) {}
+            return { webAppUrl: '' };
+        }
+
+        function salvarConfigGasEmail() {
+            const url = ((document.getElementById('gasWebAppUrl') || {}).value || '').trim();
+            gasEmailConfig = { webAppUrl: url };
+            try {
+                localStorage.setItem(GAS_EMAIL_STORAGE_KEY, JSON.stringify(gasEmailConfig));
+            } catch (e) {}
+            atualizarStatusEmailJS();
+            if (url && url.indexOf('script.google.com') >= 0) {
+                toast('URL do Google salva. Envio com PDF ativado.');
+            } else if (url) {
+                toast('URL salva. Confira se termina com /exec.', 'error');
+            } else {
+                toast('Cole a URL do Apps Script.', 'error');
+            }
         }
 
         function salvarConfigEmailJS() {
@@ -1761,24 +1802,34 @@
             } catch (e) {}
             atualizarStatusEmailJS();
             if (emailjsConfig.publicKey && emailjsConfig.serviceId && emailjsConfig.templateId) {
-                toast('Configuração de e-mail salva.');
+                toast('Configuração EmailJS salva.');
             } else {
                 toast('Preencha Public Key, Service ID e Template ID.', 'error');
             }
         }
 
         function atualizarStatusEmailJS() {
-            const st = document.getElementById('emailjsStatus');
-            const ok = !!(emailjsConfig.publicKey && emailjsConfig.serviceId && emailjsConfig.templateId);
+            if (document.getElementById('gasWebAppUrl')) {
+                document.getElementById('gasWebAppUrl').value = (gasEmailConfig && gasEmailConfig.webAppUrl) || '';
+            }
             if (document.getElementById('emailjsPublicKey')) {
                 document.getElementById('emailjsPublicKey').value = emailjsConfig.publicKey || '';
                 document.getElementById('emailjsServiceId').value = emailjsConfig.serviceId || '';
                 document.getElementById('emailjsTemplateId').value = emailjsConfig.templateId || '';
             }
+            const gasSt = document.getElementById('gasEmailStatus');
+            const gasOk = !!(gasEmailConfig && gasEmailConfig.webAppUrl && gasEmailConfig.webAppUrl.indexOf('http') === 0);
+            if (gasSt) {
+                gasSt.innerHTML = gasOk
+                    ? '<span style="color:var(--success);">✅ Gmail/PDF configurado — envio com anexo ativo</span>'
+                    : '<span style="color:#b45309;">⚠️ Cole a URL do Apps Script para enviar PDF</span>';
+            }
+            const st = document.getElementById('emailjsStatus');
+            const ok = !!(emailjsConfig.publicKey && emailjsConfig.serviceId && emailjsConfig.templateId);
             if (st) {
                 st.innerHTML = ok
-                    ? '<span style="color:var(--success);">✅ E-mail configurado — pronto para enviar extratos</span>'
-                    : '<span style="color:#b45309;">⚠️ E-mail ainda não configurado</span>';
+                    ? '<span style="color:var(--success);">✅ EmailJS configurado (somente texto)</span>'
+                    : '<span style="color:var(--text-muted);">Opcional — só texto, sem PDF</span>';
             }
         }
 
@@ -4628,12 +4679,13 @@ function limparMovimentacoes() {
                 toast('Consulte um sócio com consumo antes de enviar.', 'error');
                 return;
             }
-            if (!emailjsConfig.publicKey || !emailjsConfig.serviceId || !emailjsConfig.templateId) {
-                toast('Configure o EmailJS em Admin → Senha antes de enviar.', 'error');
-                return;
-            }
-            if (typeof emailjs === 'undefined') {
-                toast('Biblioteca EmailJS não carregou. Verifique a internet.', 'error');
+
+            const gasUrl = (gasEmailConfig && gasEmailConfig.webAppUrl) ? gasEmailConfig.webAppUrl.trim() : '';
+            const temGas = !!(gasUrl && gasUrl.indexOf('http') === 0);
+            const temEmailjs = !!(emailjsConfig.publicKey && emailjsConfig.serviceId && emailjsConfig.templateId);
+
+            if (!temGas && !temEmailjs) {
+                toast('Configure o envio em Admin → Senha (URL do Google para PDF).', 'error');
                 return;
             }
 
@@ -4658,36 +4710,83 @@ function limparMovimentacoes() {
 
             const mesLabel = dados.periodoLabel || dados.mes || '';
             const msgTexto = montarMensagemConsumoSocio(dados, mesLabel);
+            const subject = 'GRAJ — Extrato de consumo · ' + mesLabel;
+            const filename = 'extrato-' + String(dados.socioNome || 'socio').replace(/[^\w\-]+/g, '_').slice(0, 40) + '.pdf';
 
-            toast('Gerando PDF e enviando e-mail...');
+            toast(temGas ? 'Gerando PDF e enviando pelo Gmail...' : 'Enviando e-mail (texto)...');
+
             try {
-                emailjs.init({ publicKey: emailjsConfig.publicKey });
-
-                let pdfBase64 = '';
+                let pdfDataUrl = '';
                 try {
-                    pdfBase64 = await gerarPdfBase64Consumo(dados, mesLabel);
+                    pdfDataUrl = await gerarPdfBase64Consumo(dados, mesLabel);
                 } catch (pdfErr) {
-                    console.warn('PDF anexo falhou, enviando só texto:', pdfErr);
+                    console.warn('Falha ao gerar PDF:', pdfErr);
+                    if (temGas) {
+                        toast('Não foi possível gerar o PDF. Verifique a internet e tente de novo.', 'error');
+                        return;
+                    }
                 }
 
+                if (temGas) {
+                    // text/plain evita preflight CORS; o Apps Script lê o corpo JSON
+                    const payload = {
+                        to_email: email,
+                        to_name: dados.socioNome,
+                        subject: subject,
+                        message: msgTexto,
+                        periodo: mesLabel,
+                        total: formatMoney(dados.totalValor),
+                        filename: filename,
+                        pdf_base64: pdfDataUrl
+                    };
+                    const resp = await fetch(gasUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify(payload)
+                    });
+                    // Apps Script costuma redirecionar; tenta ler JSON se possível
+                    let ok = resp.ok;
+                    let errMsg = '';
+                    try {
+                        const text = await resp.text();
+                        try {
+                            const j = JSON.parse(text);
+                            if (j.ok === false) {
+                                ok = false;
+                                errMsg = j.error || text;
+                            } else if (j.ok === true) {
+                                ok = true;
+                            }
+                        } catch (e) {
+                            // resposta não-JSON (redirect HTML) — se status ok, assume sucesso
+                            if (!resp.ok) errMsg = text.slice(0, 200);
+                        }
+                    } catch (e) {}
+                    if (!ok) {
+                        throw new Error(errMsg || ('HTTP ' + resp.status));
+                    }
+                    toast('E-mail com PDF enviado para ' + email);
+                    return;
+                }
+
+                // Fallback EmailJS (somente texto / anexo se plano permitir)
+                if (typeof emailjs === 'undefined') {
+                    toast('Biblioteca EmailJS não carregou.', 'error');
+                    return;
+                }
+                emailjs.init({ publicKey: emailjsConfig.publicKey });
                 const templateParams = {
                     to_email: email,
                     to_name: dados.socioNome,
-                    subject: 'GRAJ — Extrato de consumo · ' + mesLabel,
+                    subject: subject,
                     message: msgTexto,
                     periodo: mesLabel,
                     total: formatMoney(dados.totalValor),
                     socio: dados.socioNome
                 };
-
-                // Anexo PDF: o template no EmailJS precisa ter
-                // Attachments → Variable Attachment → Parameter Name = pdf_file
-                if (pdfBase64) {
-                    templateParams.pdf_file = pdfBase64;
-                }
-
+                if (pdfDataUrl) templateParams.pdf_file = pdfDataUrl;
                 await emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, templateParams);
-                toast('E-mail enviado para ' + email + (pdfBase64 ? ' (com PDF anexado)' : ' (somente texto)'));
+                toast('E-mail enviado para ' + email + ' (EmailJS)');
             } catch (err) {
                 console.error(err);
                 const detail = (err && (err.text || err.message)) ? String(err.text || err.message) : 'erro desconhecido';
