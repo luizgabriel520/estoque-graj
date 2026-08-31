@@ -1005,7 +1005,7 @@
         <div class="welcome-card">
             <div class="logo-big"><img src="logo-clube.jpg" alt="GRAJ - Grêmio Antônio João"></div>
             <h2>Controle de Estoque</h2>
-            <p>Grêmio Recreativo Antônio João<br>Sistema de conferência diária</p>
+            <p>Grêmio  Recreativo Antônio João<br>Sistema de conferência diária</p>
 
             <div class="form-group" style="text-align:left;">
                 <label for="inputMilitar">Militar do Serviço</label>
@@ -4231,7 +4231,29 @@ function limparMovimentacoes() {
             msg += 'Período: *' + mesLabel + '*\n\n';
             msg += 'Itens: *' + dados.totalQtd + '* un\n';
             msg += 'Valor total: *' + formatMoney(dados.totalValor) + '*\n\n';
-            msg += '*Resumo por produto:*\n';
+
+            // Detalhe dia a dia (data em que pegou cada mercadoria)
+            msg += '*Compras por data:*\n';
+            const vendasOrd = (dados.vendas || []).slice().sort(function(a, b) {
+                return String(a.date || '').localeCompare(String(b.date || ''));
+            });
+            vendasOrd.forEach(function(m) {
+                let dataTxt = '—';
+                try {
+                    if (m.date) dataTxt = formatDate(m.date);
+                    // formatDate pode trazer data+hora; pega só a parte da data se for longo
+                    if (dataTxt && dataTxt.indexOf(',') >= 0) dataTxt = dataTxt.split(',')[0].trim();
+                    if (dataTxt && dataTxt.indexOf(' ') >= 0 && dataTxt.length > 12) {
+                        dataTxt = dataTxt.split(' ')[0];
+                    }
+                } catch (e) {}
+                msg += '• ' + dataTxt + ' — ' + (m.productName || '') +
+                    ' × ' + m.qty + ' — ' + formatMoney(m.qty * (m.price || 0));
+                if (m.pagamento) msg += ' (' + m.pagamento + ')';
+                msg += '\n';
+            });
+
+            msg += '\n*Resumo por produto:*\n';
             Object.keys(dados.porProduto).sort().forEach(function(k) {
                 const p = dados.porProduto[k];
                 msg += '• ' + k + ': ' + p.qty + ' un — ' + formatMoney(p.valor) + '\n';
@@ -4240,8 +4262,7 @@ function limparMovimentacoes() {
             Object.keys(dados.porPag).sort().forEach(function(k) {
                 msg += '• ' + k + ': ' + formatMoney(dados.porPag[k]) + '\n';
             });
-            msg += '\n_Documento gerado pelo sistema de estoque GRAJ._\n';
-            msg += '_O PDF detalhado pode ser anexado em seguida, se necessário._';
+            msg += '\n_Documento gerado pelo sistema de estoque GRAJ._';
             return msg;
         }
 
