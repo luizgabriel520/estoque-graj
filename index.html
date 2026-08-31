@@ -1736,7 +1736,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Recreativo Antônio João — GRAJ<br>
+        Grêmio Beneficente, Esportivo e Recreativo Antônio João — GBERAJ<br>
         Sistema de Controle de Estoque • Uso interno
     </footer>
 
@@ -1751,6 +1751,7 @@
        storageBucket: "estoque-graj-b32b2.firebasestorage.app",
        messagingSenderId: "924249670911",
        appId: "1:924249670911:web:283128ab7ceba163c478ca"
+
         };
 
         // Configuração de e-mail (também pode ser salva pelo Admin → Senha)
@@ -4717,18 +4718,45 @@ function limparMovimentacoes() {
 
             try {
                 let pdfDataUrl = '';
-                try {
-                    pdfDataUrl = await gerarPdfBase64Consumo(dados, mesLabel);
-                } catch (pdfErr) {
-                    console.warn('Falha ao gerar PDF:', pdfErr);
-                    if (temGas) {
-                        toast('Não foi possível gerar o PDF. Verifique a internet e tente de novo.', 'error');
-                        return;
+                // Só gera PDF no navegador se for fallback EmailJS
+                if (!temGas) {
+                    try {
+                        pdfDataUrl = await gerarPdfBase64Consumo(dados, mesLabel);
+                    } catch (pdfErr) {
+                        console.warn('Falha ao gerar PDF no navegador:', pdfErr);
                     }
                 }
 
                 if (temGas) {
-                    // text/plain evita preflight CORS; o Apps Script lê o corpo JSON
+                    // PDF é montado no Google (não no navegador) — evita PDF em branco
+                    const itens = (dados.vendas || []).slice().sort(function(a, b) {
+                        return String(a.date || '').localeCompare(String(b.date || ''));
+                    }).map(function(m) {
+                        let dataTxt = '—';
+                        try {
+                            if (m.date) {
+                                dataTxt = formatDate(m.date);
+                                if (dataTxt.indexOf(',') >= 0) dataTxt = dataTxt.split(',')[0].trim();
+                            }
+                        } catch (e) {}
+                        return {
+                            data: dataTxt,
+                            produto: m.productName || '',
+                            qtd: m.qty,
+                            valor: formatMoney(m.qty * (m.price || 0)),
+                            pagamento: m.pagamento || ''
+                        };
+                    });
+                    const produtos = Object.keys(dados.porProduto || {}).sort().map(function(k) {
+                        return {
+                            nome: k,
+                            qtd: dados.porProduto[k].qty,
+                            valor: formatMoney(dados.porProduto[k].valor)
+                        };
+                    });
+                    const pagamentos = Object.keys(dados.porPag || {}).sort().map(function(k) {
+                        return { nome: k, valor: formatMoney(dados.porPag[k]) };
+                    });
                     const payload = {
                         to_email: email,
                         to_name: dados.socioNome,
@@ -4737,7 +4765,9 @@ function limparMovimentacoes() {
                         periodo: mesLabel,
                         total: formatMoney(dados.totalValor),
                         filename: filename,
-                        pdf_base64: pdfDataUrl
+                        itens: itens,
+                        produtos: produtos,
+                        pagamentos: pagamentos
                     };
                     const resp = await fetch(gasUrl, {
                         method: 'POST',
