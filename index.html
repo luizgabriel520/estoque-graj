@@ -1735,6 +1735,7 @@
        storageBucket: "estoque-graj-b32b2.firebasestorage.app",
        messagingSenderId: "924249670911",
        appId: "1:924249670911:web:283128ab7ceba163c478ca"
+
         };
 
         // Configuração de e-mail (também pode ser salva pelo Admin → Senha)
@@ -4606,17 +4607,16 @@ function limparMovimentacoes() {
                     jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
                 };
                 const pdfBlob = await html2pdf().set(opt).from(wrap).outputPdf('blob');
-                const base64 = await new Promise(function(resolve, reject) {
+                // EmailJS Variable Attachment aceita data URL completa
+                const dataUrl = await new Promise(function(resolve, reject) {
                     const reader = new FileReader();
                     reader.onloadend = function() {
-                        const r = String(reader.result || '');
-                        const idx = r.indexOf('base64,');
-                        resolve(idx >= 0 ? r.slice(idx + 7) : r);
+                        resolve(String(reader.result || ''));
                     };
                     reader.onerror = reject;
                     reader.readAsDataURL(pdfBlob);
                 });
-                return base64;
+                return dataUrl;
             } finally {
                 document.body.removeChild(wrap);
             }
@@ -4680,16 +4680,14 @@ function limparMovimentacoes() {
                     socio: dados.socioNome
                 };
 
-                // Anexo PDF (se o template/plano do EmailJS permitir)
+                // Anexo PDF: o template no EmailJS precisa ter
+                // Attachments → Variable Attachment → Parameter Name = pdf_file
                 if (pdfBase64) {
-                    templateParams.attachments = [{
-                        name: 'extrato-' + String(dados.socioNome || 'socio').replace(/\s+/g, '-') + '.pdf',
-                        data: pdfBase64
-                    }];
+                    templateParams.pdf_file = pdfBase64;
                 }
 
                 await emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, templateParams);
-                toast('E-mail enviado para ' + email + (pdfBase64 ? ' (com PDF)' : ' (texto)'));
+                toast('E-mail enviado para ' + email + (pdfBase64 ? ' (com PDF anexado)' : ' (somente texto)'));
             } catch (err) {
                 console.error(err);
                 const detail = (err && (err.text || err.message)) ? String(err.text || err.message) : 'erro desconhecido';
