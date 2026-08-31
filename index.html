@@ -1005,7 +1005,7 @@
         <div class="welcome-card">
             <div class="logo-big"><img src="logo-clube.jpg" alt="GRAJ - Grêmio Antônio João"></div>
             <h2>Controle de Estoque</h2>
-            <p>Grêmio  Recreativo Antônio João<br>Sistema de conferência diária</p>
+            <p>Grêmio Recreativo Antônio João<br>Sistema de conferência diária</p>
 
             <div class="form-group" style="text-align:left;">
                 <label for="inputMilitar">Militar do Serviço</label>
@@ -1385,8 +1385,12 @@
         <!-- Tab Consulta Sócio -->
         <div id="tab-consulta" class="admin-tab" style="display:none;">
             <div class="card">
-                <div class="card-header"><h2>🔍 Consulta por Sócio no Mês</h2></div>
+                <div class="card-header"><h2>🔍 Consulta por Sócio (ciclo 30 → 29)</h2></div>
                 <div class="card-body">
+                    <div class="alert alert-info" style="font-size:0.85rem;margin-bottom:0.85rem;">
+                        Cobrança do clube: do <strong>dia 30</strong> até o <strong>dia 29</strong> do mês seguinte.<br>
+                        Escolha o <strong>mês de fechamento</strong> (ex.: setembro = consumo de 30/08 a 29/09).
+                    </div>
                     <div class="form-row">
                         <div class="form-group">
                             <label>Sócio</label>
@@ -1394,12 +1398,12 @@
                             <datalist id="listaSociosDatalist"></datalist>
                         </div>
                         <div class="form-group">
-                            <label>Mês</label>
+                            <label>Mês de fechamento (dia 29)</label>
                             <input type="month" id="consultaSocioMes" class="form-control" onchange="consultarSocioMes()">
                         </div>
                     </div>
                     <div id="consultaSocioResultado">
-                        <p style="color:var(--text-muted);font-size:0.9rem;">Digite o sócio e escolha o mês.</p>
+                        <p style="color:var(--text-muted);font-size:0.9rem;">Digite o sócio e escolha o mês de fechamento.</p>
                     </div>
                 </div>
             </div>
@@ -1682,7 +1686,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Recreativo Antônio João — GRAJ<br>
+        Grêmio Beneficente, Esportivo e Recreativo Antônio João — GBERAJ<br>
         Sistema de Controle de Estoque • Uso interno
     </footer>
 
@@ -4104,17 +4108,86 @@ function limparMovimentacoes() {
             return list;
         }
 
+        /**
+         * Ciclo de cobrança do clube: dia 30 do mês anterior → dia 29 do mês de fechamento.
+         * mesFechamento: "YYYY-MM" (mês cujo dia 29 encerra o ciclo)
+         * Ex.: "2026-09" → 30/08/2026 00:00 até 29/09/2026 23:59
+         * Se o mês anterior não tem dia 30 (fevereiro), começa no dia 1 do mês de fechamento.
+         */
+        function periodoCicloCobrança(mesFechamento) {
+            if (!mesFechamento || !/^\d{4}-\d{2}$/.test(mesFechamento)) return null;
+            const parts = mesFechamento.split('-');
+            const ano = parseInt(parts[0], 10);
+            const mes = parseInt(parts[1], 10); // 1-12
+            if (!ano || !mes || mes < 1 || mes > 12) return null;
+
+            // Fim: dia 29 do mês de fechamento (ou último dia, se o mês for menor — ex.: fev)
+            const ultimoDiaMes = new Date(ano, mes, 0).getDate();
+            const diaFim = Math.min(29, ultimoDiaMes);
+            const fim = new Date(ano, mes - 1, diaFim, 23, 59, 59, 999);
+
+            // Início: dia 30 do mês anterior
+            let prevAno = ano;
+            let prevMes = mes - 1; // 1-12
+            if (prevMes < 1) {
+                prevMes = 12;
+                prevAno = ano - 1;
+            }
+            const ultimoDiaPrev = new Date(prevAno, prevMes, 0).getDate();
+            let inicio;
+            if (ultimoDiaPrev >= 30) {
+                inicio = new Date(prevAno, prevMes - 1, 30, 0, 0, 0, 0);
+            } else {
+                // Após fevereiro (sem dia 30): próximo ciclo começa no dia 1 do mês de fechamento
+                inicio = new Date(ano, mes - 1, 1, 0, 0, 0, 0);
+            }
+
+            const pad = function(n) { return String(n).padStart(2, '0'); };
+            const fmtBR = function(d) {
+                return pad(d.getDate()) + '/' + pad(d.getMonth() + 1) + '/' + d.getFullYear();
+            };
+
+            return {
+                inicio: inicio,
+                fim: fim,
+                inicioISO: inicio.getFullYear() + '-' + pad(inicio.getMonth() + 1) + '-' + pad(inicio.getDate()),
+                fimISO: fim.getFullYear() + '-' + pad(fim.getMonth() + 1) + '-' + pad(fim.getDate()),
+                label: fmtBR(inicio) + ' a ' + fmtBR(fim),
+                mesFechamento: mesFechamento
+            };
+        }
+
+        function dataVendaNoPeriodo(dateStr, periodo) {
+            if (!dateStr || !periodo) return false;
+            let d;
+            try {
+                // Aceita ISO ou YYYY-MM-DD
+                if (/^\d{4}-\d{2}-\d{2}/.test(String(dateStr))) {
+                    const iso = dataISOLocal(dateStr);
+                    const p = iso.split('-');
+                    d = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10), 12, 0, 0);
+                } else {
+                    d = new Date(dateStr);
+                }
+            } catch (e) {
+                return false;
+            }
+            if (isNaN(d.getTime())) return false;
+            return d >= periodo.inicio && d <= periodo.fim;
+        }
+
         function filtrarVendasSocioMes(busca, mes) {
             const buscaLow = (busca || '').trim().toLowerCase();
             if (!buscaLow || !mes) return [];
+            const periodo = periodoCicloCobrança(mes);
+            if (!periodo) return [];
             return todasVendasHistorico().filter(m => {
                 const socioTxt = (m.socio || '').toLowerCase();
                 if (!socioTxt.includes(buscaLow) && !buscaLow.split(/\s+/).every(t => socioTxt.includes(t))) {
                     if (!(m.socio && String(m.socio).toLowerCase().indexOf(buscaLow) >= 0)) return false;
                 }
                 if (!m.date) return false;
-                const d = dataISOLocal(m.date);
-                return d.startsWith(mes);
+                return dataVendaNoPeriodo(m.date, periodo);
             });
         }
 
@@ -4125,20 +4198,22 @@ function limparMovimentacoes() {
             const busca = buscaRaw.toLowerCase();
             const mes = ((document.getElementById('consultaSocioMes') || {}).value || '');
             if (!busca) {
-                box.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">Digite o sócio e escolha o mês.</p>';
+                box.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;">Digite o sócio e escolha o mês de fechamento.</p>';
                 window._ultimoConsumoSocio = null;
                 return;
             }
             if (!mes) {
-                box.innerHTML = '<p style="color:var(--text-muted);">Escolha o mês.</p>';
+                box.innerHTML = '<p style="color:var(--text-muted);">Escolha o mês de fechamento (dia 29).</p>';
                 window._ultimoConsumoSocio = null;
                 return;
             }
 
+            const periodo = periodoCicloCobrança(mes);
             const vendas = filtrarVendasSocioMes(busca, mes);
 
             if (vendas.length === 0) {
-                box.innerHTML = '<div class="alert alert-info">Nenhuma compra deste sócio neste mês.</div>';
+                box.innerHTML = '<div class="alert alert-info">Nenhuma compra deste sócio no período ' +
+                    (periodo ? escapeHtml(periodo.label) : '') + '.</div>';
                 window._ultimoConsumoSocio = null;
                 return;
             }
@@ -4173,10 +4248,23 @@ function limparMovimentacoes() {
 
             const whatsappSocio = buscarWhatsappSocio(socioNome) || buscarWhatsappSocio(buscaRaw);
 
+            // Rótulo do período (ciclo 30→29)
+            let mesNome = mes;
+            try {
+                const [y, mo] = mes.split('-');
+                const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                mesNome = (nomes[parseInt(mo, 10) - 1] || mo) + '/' + y;
+            } catch (e) {}
+            const periodoLabel = periodo
+                ? ('Fechamento ' + mesNome + ' · ' + periodo.label)
+                : mesNome;
+
             window._ultimoConsumoSocio = {
                 socioNome: socioNome,
                 busca: buscaRaw,
                 mes: mes,
+                periodoLabel: periodoLabel,
+                periodo: periodo,
                 vendas: vendas.slice(),
                 porProduto: porProduto,
                 porPag: porPag,
@@ -4185,18 +4273,13 @@ function limparMovimentacoes() {
                 whatsapp: whatsappSocio
             };
 
-            // Mês legível
-            let mesLabel = mes;
-            try {
-                const [y, mo] = mes.split('-');
-                const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-                mesLabel = (nomes[parseInt(mo, 10) - 1] || mo) + '/' + y;
-            } catch (e) {}
+            const mesLabel = periodoLabel;
 
             let html = '<div class="alert alert-info" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">' +
-                '<span><strong>' + escapeHtml(socioNome) + '</strong> · ' + escapeHtml(mesLabel) +
+                '<span><strong>' + escapeHtml(socioNome) + '</strong><br>' +
+                '<span style="font-size:0.9rem;">📅 Período: <strong>' + escapeHtml(mesLabel) + '</strong></span>' +
                 (whatsappSocio ? '<br><span style="font-size:0.85rem;">📱 WhatsApp: ' + escapeHtml(whatsappSocio) + '</span>' : '<br><span style="font-size:0.85rem;color:#b45309;">📱 WhatsApp não cadastrado — pode informar na hora do envio</span>') +
-                '<br>' + totalQtd + ' un • Total: <strong>' + formatMoney(totalValor) + '</strong> • ' + vendas.length + ' registro(s)</span>' +
+                '<br>' + totalQtd + ' un • Total a cobrar: <strong>' + formatMoney(totalValor) + '</strong> • ' + vendas.length + ' registro(s)</span>' +
                 '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;">' +
                 '<button type="button" class="btn btn-primary btn-sm" onclick="baixarConsumoSocioPDF()">📄 PDF do consumo</button>' +
                 '<button type="button" class="btn btn-sm" style="background:#25D366;color:#fff;border:none;" onclick="enviarConsumoSocioWhatsApp()">📲 Enviar no WhatsApp</button>' +
@@ -4273,12 +4356,7 @@ function limparMovimentacoes() {
                 return;
             }
 
-            let mesLabel = dados.mes;
-            try {
-                const [y, mo] = String(dados.mes).split('-');
-                const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-                mesLabel = (nomes[parseInt(mo, 10) - 1] || mo) + '/' + y;
-            } catch (e) {}
+            const mesLabel = dados.periodoLabel || dados.mes || '';
 
             // Usa o número já salvo no cadastro do sócio
             let phone = normalizarWhatsapp(dados.whatsapp || buscarWhatsappSocio(dados.socioNome) || buscarWhatsappSocio(dados.busca));
@@ -4349,12 +4427,7 @@ function limparMovimentacoes() {
             const dataStr = agora.toLocaleDateString('pt-BR');
             const horaStr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
-            let mesLabel = dados.mes;
-            try {
-                const [y, mo] = String(dados.mes).split('-');
-                const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
-                mesLabel = (nomes[parseInt(mo, 10) - 1] || mo) + ' de ' + y;
-            } catch (e) {}
+            const mesLabel = dados.periodoLabel || dados.mes || '';
 
             // Resumo por produto
             let rowsProd = '';
