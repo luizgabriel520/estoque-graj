@@ -953,6 +953,9 @@
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <!-- EmailJS + PDF (envio de extrato por e-mail) -->
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 </head>
 <body>
 
@@ -1365,11 +1368,15 @@
                             <label>WhatsApp (com DDD)</label>
                             <input type="tel" id="socioWhatsapp" class="form-control" placeholder="Ex: 11999998888">
                         </div>
+                        <div class="form-group">
+                            <label>E-mail</label>
+                            <input type="email" id="socioEmail" class="form-control" placeholder="Ex: socio@email.com">
+                        </div>
                     </div>
                     <button class="btn btn-primary" onclick="adminAdicionarSocio()">Adicionar Sócio</button>
                     <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">Ou cole a lista completa (um por linha). Formatos:<br>
-                    <code>123 - João Silva</code> · <code>123 - João Silva - 11999998888</code></p>
-                    <textarea id="socioListaLote" class="form-control" rows="4" placeholder="123 - João Silva - 11999998888&#10;124 - Maria Souza - 21988887777"></textarea>
+                    <code>123 - João Silva</code> · <code>123 - João Silva - 11999998888</code> · <code>123 - João - 1199… - email@x.com</code></p>
+                    <textarea id="socioListaLote" class="form-control" rows="4" placeholder="123 - João Silva - 11999998888 - joao@email.com&#10;124 - Maria Souza - 21988887777 - maria@email.com"></textarea>
                     <button class="btn btn-outline" style="margin-top:0.5rem;" onclick="adminImportarSociosLote()">Importar lista</button>
                 </div>
             </div>
@@ -1474,6 +1481,33 @@
                         <input type="password" id="senhaConfirma" class="form-control">
                     </div>
                     <button class="btn btn-primary" onclick="adminAlterarSenha()">Alterar Senha</button>
+                </div>
+            </div>
+
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="card-header">
+                    <h2>📧 Envio de extrato por e-mail (EmailJS)</h2>
+                </div>
+                <div class="card-body">
+                    <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">
+                        Crie uma conta grátis em <strong>emailjs.com</strong>, um Service (Gmail/Outlook) e um Template com as variáveis:
+                        <code>to_email</code>, <code>to_name</code>, <code>subject</code>, <code>message</code>, <code>periodo</code>, <code>total</code>.
+                        Depois cole as chaves abaixo.
+                    </p>
+                    <div class="form-group">
+                        <label>Public Key</label>
+                        <input type="text" id="emailjsPublicKey" class="form-control" placeholder="Ex: xxxxxxxxxxxxxxxx">
+                    </div>
+                    <div class="form-group">
+                        <label>Service ID</label>
+                        <input type="text" id="emailjsServiceId" class="form-control" placeholder="Ex: service_xxxxxxx">
+                    </div>
+                    <div class="form-group">
+                        <label>Template ID</label>
+                        <input type="text" id="emailjsTemplateId" class="form-control" placeholder="Ex: template_xxxxxxx">
+                    </div>
+                    <button class="btn btn-primary" onclick="salvarConfigEmailJS()">💾 Salvar configuração de e-mail</button>
+                    <p id="emailjsStatus" style="font-size:0.8rem;margin-top:0.5rem;color:var(--text-muted);"></p>
                 </div>
             </div>
 
@@ -1702,6 +1736,50 @@
        messagingSenderId: "924249670911",
        appId: "1:924249670911:web:283128ab7ceba163c478ca"
         };
+
+        // Configuração de e-mail (também pode ser salva pelo Admin → Senha)
+        const EMAILJS_STORAGE_KEY = 'gberaj_emailjs_v1';
+        let emailjsConfig = loadEmailjsConfig();
+
+        function loadEmailjsConfig() {
+            try {
+                const raw = localStorage.getItem(EMAILJS_STORAGE_KEY);
+                if (raw) return JSON.parse(raw);
+            } catch (e) {}
+            return { publicKey: '', serviceId: '', templateId: '' };
+        }
+
+        function salvarConfigEmailJS() {
+            emailjsConfig = {
+                publicKey: ((document.getElementById('emailjsPublicKey') || {}).value || '').trim(),
+                serviceId: ((document.getElementById('emailjsServiceId') || {}).value || '').trim(),
+                templateId: ((document.getElementById('emailjsTemplateId') || {}).value || '').trim()
+            };
+            try {
+                localStorage.setItem(EMAILJS_STORAGE_KEY, JSON.stringify(emailjsConfig));
+            } catch (e) {}
+            atualizarStatusEmailJS();
+            if (emailjsConfig.publicKey && emailjsConfig.serviceId && emailjsConfig.templateId) {
+                toast('Configuração de e-mail salva.');
+            } else {
+                toast('Preencha Public Key, Service ID e Template ID.', 'error');
+            }
+        }
+
+        function atualizarStatusEmailJS() {
+            const st = document.getElementById('emailjsStatus');
+            const ok = !!(emailjsConfig.publicKey && emailjsConfig.serviceId && emailjsConfig.templateId);
+            if (document.getElementById('emailjsPublicKey')) {
+                document.getElementById('emailjsPublicKey').value = emailjsConfig.publicKey || '';
+                document.getElementById('emailjsServiceId').value = emailjsConfig.serviceId || '';
+                document.getElementById('emailjsTemplateId').value = emailjsConfig.templateId || '';
+            }
+            if (st) {
+                st.innerHTML = ok
+                    ? '<span style="color:var(--success);">✅ E-mail configurado — pronto para enviar extratos</span>'
+                    : '<span style="color:#b45309;">⚠️ E-mail ainda não configurado</span>';
+            }
+        }
 
         const STORAGE_KEY = 'gberaj_estoque_v1';
         const DB_PATH = 'estoque';
@@ -2284,6 +2362,7 @@
             if (tab === 'ajustes') preencherSelectAjuste();
             if (tab === 'vendas') renderAdminVendas();
             if (tab === 'socios') renderAdminSocios();
+            if (tab === 'senha') atualizarStatusEmailJS();
             if (tab === 'consulta') {
                 const mes = document.getElementById('consultaSocioMes');
                 if (mes && !mes.value) {
@@ -3938,6 +4017,7 @@ function limparMovimentacoes() {
             const numero = (document.getElementById('socioNumero').value || '').trim();
             const nome = (document.getElementById('socioNome').value || '').trim();
             const whatsapp = normalizarWhatsapp((document.getElementById('socioWhatsapp') || {}).value);
+            const email = ((document.getElementById('socioEmail') || {}).value || '').trim().toLowerCase();
             if (!nome && !numero) {
                 toast('Informe número ou nome do sócio.', 'error');
                 return;
@@ -3955,11 +4035,13 @@ function limparMovimentacoes() {
                 id: generateId(),
                 numero: numero,
                 nome: nome || numero,
-                whatsapp: whatsapp || ''
+                whatsapp: whatsapp || '',
+                email: email || ''
             });
             document.getElementById('socioNumero').value = '';
             document.getElementById('socioNome').value = '';
             if (document.getElementById('socioWhatsapp')) document.getElementById('socioWhatsapp').value = '';
+            if (document.getElementById('socioEmail')) document.getElementById('socioEmail').value = '';
             saveState();
             renderAdminSocios();
             preencherDatalistSocios();
@@ -3978,9 +4060,16 @@ function limparMovimentacoes() {
             raw.split(/\n+/).forEach(line => {
                 line = line.trim();
                 if (!line) return;
-                let numero = '', nome = '', whatsapp = '';
+                let numero = '', nome = '', whatsapp = '', email = '';
 
-                // Formato com WhatsApp no final: "123 - Nome - 11999998888" ou "123 - Nome 11999998888"
+                // E-mail no final: ... email@dominio.com
+                const mEmail = line.match(/^(.*?)[\s\-–—]+([a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,})\s*$/);
+                if (mEmail) {
+                    line = mEmail[1].trim();
+                    email = mEmail[2].trim().toLowerCase();
+                }
+
+                // WhatsApp: ... 11999998888
                 const mPhone = line.match(/^(.*?)[\s\-–—]+(\d{10,13})\s*$/);
                 if (mPhone) {
                     line = mPhone[1].trim();
@@ -4001,17 +4090,17 @@ function limparMovimentacoes() {
                     (nome && s.nome && s.nome.toLowerCase() === nome.toLowerCase())
                 );
                 if (idx >= 0) {
-                    // Já existe: atualiza WhatsApp se veio na lista
-                    if (whatsapp) {
-                        state.socios[idx].whatsapp = whatsapp;
-                        atualizados++;
-                    }
+                    let mudou = false;
+                    if (whatsapp) { state.socios[idx].whatsapp = whatsapp; mudou = true; }
+                    if (email) { state.socios[idx].email = email; mudou = true; }
+                    if (mudou) atualizados++;
                 } else {
                     state.socios.push({
                         id: generateId(),
                         numero: numero,
                         nome: nome,
-                        whatsapp: whatsapp || ''
+                        whatsapp: whatsapp || '',
+                        email: email || ''
                     });
                     add++;
                 }
@@ -4021,7 +4110,7 @@ function limparMovimentacoes() {
             renderAdminSocios();
             preencherDatalistSocios();
             let msg = add + ' sócio(s) importado(s)';
-            if (atualizados) msg += ', ' + atualizados + ' WhatsApp atualizado(s)';
+            if (atualizados) msg += ', ' + atualizados + ' contato(s) atualizado(s)';
             toast(msg + '.');
         }
 
@@ -4055,9 +4144,11 @@ function limparMovimentacoes() {
                 '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0;border-bottom:1px solid var(--border);gap:0.5rem;flex-wrap:wrap;">' +
                 '<span><strong>' + escapeHtml(s.numero || '—') + '</strong> — ' + escapeHtml(s.nome || '') +
                 (s.whatsapp ? '<br><span style="font-size:0.78rem;color:var(--text-muted);">📱 ' + escapeHtml(s.whatsapp) + '</span>' : '') +
+                (s.email ? '<br><span style="font-size:0.78rem;color:var(--text-muted);">📧 ' + escapeHtml(s.email) + '</span>' : '') +
                 '</span>' +
                 '<div style="display:flex;gap:0.3rem;">' +
                 '<button class="btn btn-sm btn-outline" data-id="' + s.id + '" onclick="adminEditarWhatsappSocio(this.getAttribute(\'data-id\'))" title="WhatsApp">📱</button>' +
+                '<button class="btn btn-sm btn-outline" data-id="' + s.id + '" onclick="adminEditarEmailSocio(this.getAttribute(\'data-id\'))" title="E-mail">📧</button>' +
                 '<button class="btn btn-sm btn-danger" data-id="' + s.id + '" onclick="adminRemoverSocio(this.getAttribute(\'data-id\'))">✕</button>' +
                 '</div></div>'
             ).join('');
@@ -4075,11 +4166,21 @@ function limparMovimentacoes() {
             toast(s.whatsapp ? 'WhatsApp atualizado.' : 'WhatsApp removido.');
         }
 
-        function buscarWhatsappSocio(nomeOuBusca) {
+        function adminEditarEmailSocio(id) {
+            const s = (state.socios || []).find(x => x.id === id);
+            if (!s) return;
+            const raw = prompt('E-mail do sócio ' + (s.nome || s.numero) + ':', s.email || '');
+            if (raw === null) return;
+            s.email = String(raw || '').trim().toLowerCase();
+            saveState();
+            renderAdminSocios();
+            toast(s.email ? 'E-mail atualizado.' : 'E-mail removido.');
+        }
+
+        function buscarSocioCadastro(nomeOuBusca) {
             const q = String(nomeOuBusca || '').toLowerCase().trim();
-            if (!q) return '';
+            if (!q) return null;
             const socios = state.socios || [];
-            // Match exato por label "numero - nome" ou nome
             let hit = socios.find(s => {
                 const label = ((s.numero ? s.numero + ' - ' : '') + (s.nome || '')).toLowerCase();
                 return label === q || (s.nome && s.nome.toLowerCase() === q) ||
@@ -4089,10 +4190,20 @@ function limparMovimentacoes() {
                 hit = socios.find(s =>
                     (s.nome && s.nome.toLowerCase().includes(q)) ||
                     (s.numero && String(s.numero).includes(q)) ||
-                    q.includes((s.nome || '').toLowerCase())
+                    (s.nome && q.includes((s.nome || '').toLowerCase()))
                 );
             }
+            return hit || null;
+        }
+
+        function buscarWhatsappSocio(nomeOuBusca) {
+            const hit = buscarSocioCadastro(nomeOuBusca);
             return hit && hit.whatsapp ? hit.whatsapp : '';
+        }
+
+        function buscarEmailSocio(nomeOuBusca) {
+            const hit = buscarSocioCadastro(nomeOuBusca);
+            return hit && hit.email ? hit.email : '';
         }
 
         function todasVendasHistorico() {
@@ -4247,6 +4358,7 @@ function limparMovimentacoes() {
             });
 
             const whatsappSocio = buscarWhatsappSocio(socioNome) || buscarWhatsappSocio(buscaRaw);
+            const emailSocio = buscarEmailSocio(socioNome) || buscarEmailSocio(buscaRaw);
 
             // Rótulo do período (ciclo 30→29)
             let mesNome = mes;
@@ -4270,7 +4382,8 @@ function limparMovimentacoes() {
                 porPag: porPag,
                 totalQtd: totalQtd,
                 totalValor: totalValor,
-                whatsapp: whatsappSocio
+                whatsapp: whatsappSocio,
+                email: emailSocio
             };
 
             const mesLabel = periodoLabel;
@@ -4278,11 +4391,13 @@ function limparMovimentacoes() {
             let html = '<div class="alert alert-info" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">' +
                 '<span><strong>' + escapeHtml(socioNome) + '</strong><br>' +
                 '<span style="font-size:0.9rem;">📅 Período: <strong>' + escapeHtml(mesLabel) + '</strong></span>' +
-                (whatsappSocio ? '<br><span style="font-size:0.85rem;">📱 WhatsApp: ' + escapeHtml(whatsappSocio) + '</span>' : '<br><span style="font-size:0.85rem;color:#b45309;">📱 WhatsApp não cadastrado — pode informar na hora do envio</span>') +
+                (whatsappSocio ? '<br><span style="font-size:0.85rem;">📱 WhatsApp: ' + escapeHtml(whatsappSocio) + '</span>' : '<br><span style="font-size:0.85rem;color:#b45309;">📱 WhatsApp não cadastrado</span>') +
+                (emailSocio ? '<br><span style="font-size:0.85rem;">📧 E-mail: ' + escapeHtml(emailSocio) + '</span>' : '<br><span style="font-size:0.85rem;color:#b45309;">📧 E-mail não cadastrado</span>') +
                 '<br>' + totalQtd + ' un • Total a cobrar: <strong>' + formatMoney(totalValor) + '</strong> • ' + vendas.length + ' registro(s)</span>' +
                 '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;">' +
                 '<button type="button" class="btn btn-primary btn-sm" onclick="baixarConsumoSocioPDF()">📄 PDF do consumo</button>' +
-                '<button type="button" class="btn btn-sm" style="background:#25D366;color:#fff;border:none;" onclick="enviarConsumoSocioWhatsApp()">📲 Enviar no WhatsApp</button>' +
+                '<button type="button" class="btn btn-sm" style="background:#25D366;color:#fff;border:none;" onclick="enviarConsumoSocioWhatsApp()">📲 WhatsApp</button>' +
+                '<button type="button" class="btn btn-sm" style="background:#2563eb;color:#fff;border:none;" onclick="enviarConsumoSocioEmail()">📧 Enviar e-mail</button>' +
                 '</div></div>';
             html += '<p style="font-weight:600;font-size:0.9rem;margin:0.5rem 0;">Resumo por produto</p>';
             html += '<div style="max-height:160px;overflow-y:auto;margin-bottom:0.75rem;"><table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
@@ -4414,6 +4529,172 @@ function limparMovimentacoes() {
                 return;
             }
             toast('WhatsApp aberto com o extrato. Confirme o envio e, se quiser, anexe o PDF.');
+        }
+
+        function montarHtmlConsumoParaPdf(dados, mesLabel) {
+            const agora = new Date();
+            const dataStr = agora.toLocaleDateString('pt-BR');
+            let rowsProd = '';
+            Object.keys(dados.porProduto).sort().forEach(function(k) {
+                const p = dados.porProduto[k];
+                rowsProd += '<tr><td>' + escapeHtml(k) + '</td><td style="text-align:center;">' + p.qty +
+                    '</td><td style="text-align:right;">' + formatMoney(p.valor) + '</td></tr>';
+            });
+            let rowsPag = '';
+            Object.keys(dados.porPag).sort().forEach(function(k) {
+                rowsPag += '<tr><td>' + escapeHtml(k) + '</td><td style="text-align:right;">' +
+                    formatMoney(dados.porPag[k]) + '</td></tr>';
+            });
+            const vendasOrd = dados.vendas.slice().sort(function(a, b) {
+                return String(a.date || '').localeCompare(String(b.date || ''));
+            });
+            let rowsDet = '';
+            vendasOrd.forEach(function(m, idx) {
+                rowsDet += '<tr><td style="text-align:center;">' + (idx + 1) + '</td><td>' +
+                    escapeHtml(formatDate(m.date)) + '</td><td>' + escapeHtml(m.productName || '') +
+                    '</td><td style="text-align:center;">' + m.qty + '</td><td style="text-align:center;">' +
+                    escapeHtml(m.pagamento || '—') + '</td><td style="text-align:right;">' +
+                    formatMoney(m.qty * (m.price || 0)) + '</td></tr>';
+            });
+            return '<div style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:16px;font-size:12px;">' +
+                '<h1 style="font-size:18px;color:#0d5c2e;margin:0 0 4px;">Grêmio Recreativo Antônio João — GRAJ</h1>' +
+                '<div style="color:#555;margin-bottom:12px;"><strong>EXTRATO DE CONSUMO DO SÓCIO</strong><br>' +
+                'Sócio: <strong>' + escapeHtml(dados.socioNome) + '</strong><br>' +
+                'Período: <strong>' + escapeHtml(mesLabel) + '</strong><br>' +
+                'Gerado em ' + dataStr + '</div>' +
+                '<p><strong>Itens:</strong> ' + dados.totalQtd + ' un · <strong>Total:</strong> ' +
+                formatMoney(dados.totalValor) + '</p>' +
+                '<h2 style="font-size:14px;color:#0d5c2e;">Resumo por produto</h2>' +
+                '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#e8f5ec;">' +
+                '<th style="border:1px solid #ccc;padding:5px;">Produto</th><th style="border:1px solid #ccc;padding:5px;">Qtd</th>' +
+                '<th style="border:1px solid #ccc;padding:5px;">Valor</th></tr></thead><tbody>' + rowsProd +
+                '<tr style="background:#e8f5ec;font-weight:700;"><td style="border:1px solid #ccc;padding:5px;">TOTAL</td>' +
+                '<td style="border:1px solid #ccc;padding:5px;text-align:center;">' + dados.totalQtd +
+                '</td><td style="border:1px solid #ccc;padding:5px;text-align:right;">' + formatMoney(dados.totalValor) +
+                '</td></tr></tbody></table>' +
+                '<h2 style="font-size:14px;color:#0d5c2e;">Por forma de pagamento</h2>' +
+                '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#e8f5ec;">' +
+                '<th style="border:1px solid #ccc;padding:5px;">Pagamento</th><th style="border:1px solid #ccc;padding:5px;">Valor</th></tr></thead><tbody>' +
+                rowsPag + '</tbody></table>' +
+                '<h2 style="font-size:14px;color:#0d5c2e;">Detalhamento das compras</h2>' +
+                '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#e8f5ec;">' +
+                '<th style="border:1px solid #ccc;padding:5px;">#</th><th style="border:1px solid #ccc;padding:5px;">Data</th>' +
+                '<th style="border:1px solid #ccc;padding:5px;">Produto</th><th style="border:1px solid #ccc;padding:5px;">Qtd</th>' +
+                '<th style="border:1px solid #ccc;padding:5px;">Pag.</th><th style="border:1px solid #ccc;padding:5px;">Valor</th></tr></thead><tbody>' +
+                rowsDet + '</tbody></table>' +
+                '<p style="margin-top:16px;font-size:10px;color:#666;text-align:center;">Sistema de estoque GRAJ · Uso interno</p></div>';
+        }
+
+        async function gerarPdfBase64Consumo(dados, mesLabel) {
+            if (typeof html2pdf === 'undefined') {
+                throw new Error('Biblioteca PDF não carregou. Verifique a internet.');
+            }
+            const wrap = document.createElement('div');
+            wrap.style.position = 'fixed';
+            wrap.style.left = '-9999px';
+            wrap.style.top = '0';
+            wrap.style.width = '800px';
+            wrap.style.background = '#fff';
+            wrap.innerHTML = montarHtmlConsumoParaPdf(dados, mesLabel);
+            document.body.appendChild(wrap);
+            try {
+                const opt = {
+                    margin: 10,
+                    filename: 'extrato.pdf',
+                    image: { type: 'jpeg', quality: 0.95 },
+                    html2canvas: { scale: 2, useCORS: true },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                };
+                const pdfBlob = await html2pdf().set(opt).from(wrap).outputPdf('blob');
+                const base64 = await new Promise(function(resolve, reject) {
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        const r = String(reader.result || '');
+                        const idx = r.indexOf('base64,');
+                        resolve(idx >= 0 ? r.slice(idx + 7) : r);
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(pdfBlob);
+                });
+                return base64;
+            } finally {
+                document.body.removeChild(wrap);
+            }
+        }
+
+        async function enviarConsumoSocioEmail() {
+            const dados = window._ultimoConsumoSocio;
+            if (!dados || !dados.vendas || dados.vendas.length === 0) {
+                toast('Consulte um sócio com consumo antes de enviar.', 'error');
+                return;
+            }
+            if (!emailjsConfig.publicKey || !emailjsConfig.serviceId || !emailjsConfig.templateId) {
+                toast('Configure o EmailJS em Admin → Senha antes de enviar.', 'error');
+                return;
+            }
+            if (typeof emailjs === 'undefined') {
+                toast('Biblioteca EmailJS não carregou. Verifique a internet.', 'error');
+                return;
+            }
+
+            let email = (dados.email || buscarEmailSocio(dados.socioNome) || buscarEmailSocio(dados.busca) || '').trim().toLowerCase();
+            if (!email) {
+                const raw = prompt('E-mail do sócio ' + dados.socioNome + ':', '');
+                if (raw === null) return;
+                email = String(raw || '').trim().toLowerCase();
+                if (!email || email.indexOf('@') < 0) {
+                    toast('E-mail inválido.', 'error');
+                    return;
+                }
+                const socio = buscarSocioCadastro(dados.socioNome) || buscarSocioCadastro(dados.busca);
+                if (socio) {
+                    socio.email = email;
+                    saveState();
+                    renderAdminSocios();
+                    dados.email = email;
+                    toast('E-mail salvo no cadastro.');
+                }
+            }
+
+            const mesLabel = dados.periodoLabel || dados.mes || '';
+            const msgTexto = montarMensagemConsumoSocio(dados, mesLabel);
+
+            toast('Gerando PDF e enviando e-mail...');
+            try {
+                emailjs.init({ publicKey: emailjsConfig.publicKey });
+
+                let pdfBase64 = '';
+                try {
+                    pdfBase64 = await gerarPdfBase64Consumo(dados, mesLabel);
+                } catch (pdfErr) {
+                    console.warn('PDF anexo falhou, enviando só texto:', pdfErr);
+                }
+
+                const templateParams = {
+                    to_email: email,
+                    to_name: dados.socioNome,
+                    subject: 'GRAJ — Extrato de consumo · ' + mesLabel,
+                    message: msgTexto,
+                    periodo: mesLabel,
+                    total: formatMoney(dados.totalValor),
+                    socio: dados.socioNome
+                };
+
+                // Anexo PDF (se o template/plano do EmailJS permitir)
+                if (pdfBase64) {
+                    templateParams.attachments = [{
+                        name: 'extrato-' + String(dados.socioNome || 'socio').replace(/\s+/g, '-') + '.pdf',
+                        data: pdfBase64
+                    }];
+                }
+
+                await emailjs.send(emailjsConfig.serviceId, emailjsConfig.templateId, templateParams);
+                toast('E-mail enviado para ' + email + (pdfBase64 ? ' (com PDF)' : ' (texto)'));
+            } catch (err) {
+                console.error(err);
+                const detail = (err && (err.text || err.message)) ? String(err.text || err.message) : 'erro desconhecido';
+                toast('Falha ao enviar e-mail: ' + detail, 'error');
+            }
         }
 
         function baixarConsumoSocioPDF() {
