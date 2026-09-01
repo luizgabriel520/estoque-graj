@@ -1219,6 +1219,7 @@
             <button class="tab-btn" onclick="mostrarTabAdmin('consulta')">Consulta</button>
             <button class="tab-btn" onclick="mostrarTabAdmin('ajustes')">Ajustes</button>
             <button class="tab-btn" onclick="mostrarTabAdmin('historico')">Histórico</button>
+            <button class="tab-btn" onclick="mostrarTabAdmin('resumo')">Resumo</button>
             <button class="tab-btn" onclick="mostrarTabAdmin('senha')">Senha</button>
         </div>
 
@@ -1456,6 +1457,31 @@
                     <div id="historicoVazio" class="empty-state">
                         <div class="icon">📭</div>
                         <p>Nenhum fechamento registrado ainda.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Resumo Mensal -->
+        <div id="tab-resumo" class="admin-tab" style="display:none;">
+            <div class="card">
+                <div class="card-header">
+                    <h2>📊 Resumo mensal completo</h2>
+                    <button type="button" class="btn btn-primary btn-sm" onclick="baixarResumoMensalPDF()">📄 PDF do resumo</button>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info" style="font-size:0.85rem;margin-bottom:0.85rem;">
+                        Usa o ciclo de cobrança do clube: <strong>dia 30 → dia 29</strong>.
+                        Escolha o <strong>mês de fechamento</strong> (ex.: setembro = 30/08 a 29/09).
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Mês de fechamento (dia 29)</label>
+                            <input type="month" id="resumoMes" class="form-control" onchange="renderResumoMensal()">
+                        </div>
+                    </div>
+                    <div id="resumoMensalResultado">
+                        <p style="color:var(--text-muted);font-size:0.9rem;">Escolha o mês para ver o resumo.</p>
                     </div>
                 </div>
             </div>
@@ -1736,7 +1762,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Recreativo Antônio João — GRAJ<br>
+        Grêmio Beneficente, Esportivo e Recreativo Antônio João — GBERAJ<br>
         Sistema de Controle de Estoque • Uso interno
     </footer>
 
@@ -1751,7 +1777,6 @@
        storageBucket: "estoque-graj-b32b2.firebasestorage.app",
        messagingSenderId: "924249670911",
        appId: "1:924249670911:web:283128ab7ceba163c478ca"
-
         };
 
         // Configuração de e-mail (também pode ser salva pelo Admin → Senha)
@@ -2416,6 +2441,14 @@
             if (tab === 'vendas') renderAdminVendas();
             if (tab === 'socios') renderAdminSocios();
             if (tab === 'senha') atualizarStatusEmailJS();
+            if (tab === 'resumo') {
+                const mes = document.getElementById('resumoMes');
+                if (mes && !mes.value) {
+                    const n = new Date();
+                    mes.value = n.getFullYear() + '-' + String(n.getMonth() + 1).padStart(2, '0');
+                }
+                renderResumoMensal();
+            }
             if (tab === 'consulta') {
                 const mes = document.getElementById('consultaSocioMes');
                 if (mes && !mes.value) {
@@ -3905,17 +3938,28 @@ function limparMovimentacoes() {
                 if (vendas.length === 0) {
                     vendasHtml = '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhuma venda neste serviço.</p>';
                 } else {
-                    vendasHtml = '<table style="width:100%;font-size:0.8rem;margin-top:0.5rem;"><thead><tr>' +
+                    vendasHtml = '<p style="font-size:0.75rem;color:var(--text-muted);margin:0.35rem 0;">Admin pode excluir uma venda: a mercadoria volta ao estoque.</p>' +
+                        '<table style="width:100%;font-size:0.8rem;margin-top:0.25rem;"><thead><tr>' +
                         '<th style="text-align:left;">Produto</th>' +
                         '<th style="text-align:left;">Comprador</th>' +
                         '<th style="text-align:center;">Qtd</th>' +
                         '<th style="text-align:center;">Pag.</th>' +
-                        '<th style="text-align:right;">Valor</th></tr></thead><tbody>' +
-                        vendas.map(m => '<tr><td style="padding:0.35rem 0.25rem;">' + escapeHtml(m.productName) + '</td>' +
-                        '<td style="padding:0.35rem 0.25rem;">' + escapeHtml(m.socio || '—') + '</td>' +
-                        '<td style="text-align:center;">' + m.qty + '</td>' +
-                        '<td style="text-align:center;">' + escapeHtml(m.pagamento || '—') + '</td>' +
-                        '<td style="text-align:right;">' + formatMoney(m.qty * (m.price || 0)) + '</td></tr>').join('') +
+                        '<th style="text-align:right;">Valor</th>' +
+                        '<th style="text-align:center;">Ação</th></tr></thead><tbody>' +
+                        vendas.map(function(m) {
+                            const mid = m.id || '';
+                            return '<tr><td style="padding:0.35rem 0.25rem;">' + escapeHtml(m.productName) + '</td>' +
+                            '<td style="padding:0.35rem 0.25rem;">' + escapeHtml(m.socio || '—') + '</td>' +
+                            '<td style="text-align:center;">' + m.qty + '</td>' +
+                            '<td style="text-align:center;">' + escapeHtml(m.pagamento || '—') + '</td>' +
+                            '<td style="text-align:right;">' + formatMoney(m.qty * (m.price || 0)) + '</td>' +
+                            '<td style="text-align:center;">' +
+                            (mid
+                                ? ('<button type="button" class="btn btn-sm btn-danger" style="font-size:0.7rem;padding:0.2rem 0.45rem;" ' +
+                                   'onclick="adminExcluirVendaHistorico(' + idx + ',\'' + mid + '\')" title="Excluir venda e devolver ao estoque">Excluir</button>')
+                                : '—') +
+                            '</td></tr>';
+                        }).join('') +
                         '</tbody></table>';
                 }
 
@@ -4001,6 +4045,75 @@ function limparMovimentacoes() {
             const el = document.getElementById('hist-detalhe-' + idx);
             if (!el) return;
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        /**
+         * Exclui uma venda de um serviço já fechado (histórico).
+         * Devolve a quantidade ao estoque atual e recalcula o resumo do serviço.
+         */
+        function adminExcluirVendaHistorico(histIdx, movId) {
+            if (!isAdmin) {
+                toast('Apenas o administrador pode excluir vendas antigas.', 'error');
+                return;
+            }
+            if (!state.history || !state.history[histIdx]) {
+                toast('Serviço do histórico não encontrado.', 'error');
+                return;
+            }
+            const h = state.history[histIdx];
+            const movs = h.movements || [];
+            const m = movs.find(function(x) { return x.id === movId; });
+            if (!m || m.type !== 'venda') {
+                toast('Venda não encontrada neste serviço.', 'error');
+                return;
+            }
+
+            const valorLinha = formatMoney(m.qty * (m.price || 0));
+            if (!confirm(
+                'Excluir esta venda do serviço anterior?\n\n' +
+                'Produto: ' + (m.productName || '') + '\n' +
+                'Qtd: ' + m.qty + '\n' +
+                'Comprador: ' + (m.socio || '—') + '\n' +
+                'Valor: ' + valorLinha + '\n' +
+                'Data do serviço: ' + formatDate(h.date) + '\n\n' +
+                'A mercadoria volta para o estoque atual.'
+            )) {
+                return;
+            }
+
+            // Devolve ao estoque
+            let product = null;
+            if (m.productId) {
+                product = state.products.find(function(p) { return p.id === m.productId; });
+            }
+            if (!product && m.productName) {
+                product = state.products.find(function(p) {
+                    return (p.name || '').toLowerCase() === String(m.productName || '').toLowerCase();
+                });
+            }
+            if (product) {
+                product.qty = (product.qty || 0) + (m.qty || 0);
+            } else {
+                toast('Produto não está mais no cadastro — venda removida do histórico, estoque não alterado.', 'error');
+            }
+
+            // Remove a venda do histórico
+            h.movements = movs.filter(function(x) { return x.id !== movId; });
+
+            // Recalcula summary
+            const vendasRest = (h.movements || []).filter(function(x) { return x.type === 'venda'; });
+            const entradasRest = (h.movements || []).filter(function(x) { return x.type === 'entrada'; });
+            h.summary = {
+                entradas: entradasRest.reduce(function(s, x) { return s + x.qty; }, 0),
+                vendas: vendasRest.reduce(function(s, x) { return s + x.qty; }, 0),
+                valor: vendasRest.reduce(function(s, x) { return s + x.qty * (x.price || 0); }, 0)
+            };
+
+            saveState();
+            renderHistorico();
+            renderAll();
+            if (typeof renderUltimoServico === 'function') renderUltimoServico();
+            toast('Venda excluída. ' + (product ? (m.qty + ' un de ' + product.name + ' devolvidas ao estoque.') : ''));
         }
 
         function renderUltimoServico() {
@@ -4338,6 +4451,350 @@ function limparMovimentacoes() {
             }
             if (isNaN(d.getTime())) return false;
             return d >= periodo.inicio && d <= periodo.fim;
+        }
+
+        function todasEntradasHistorico() {
+            const list = [];
+            (state.history || []).forEach(function(h) {
+                (h.movements || []).filter(function(m) { return m.type === 'entrada'; }).forEach(function(m) {
+                    list.push(Object.assign({}, m, { _militarServico: h.militar }));
+                });
+            });
+            (state.movements || []).filter(function(m) { return m.type === 'entrada'; }).forEach(function(m) {
+                list.push(Object.assign({}, m, { _militarServico: state.serviceMilitar || currentMilitar || '' }));
+            });
+            return list;
+        }
+
+        function classificarPagamentoResumo(pag) {
+            const p = String(pag || '').toLowerCase();
+            if (/s[oó]cio|conta/.test(p)) return 'Conta (Sócio)';
+            if (/pix/.test(p)) return 'Pix';
+            if (/dinheiro|cash/.test(p) || !p) return 'Dinheiro';
+            return pag || 'Dinheiro';
+        }
+
+        function calcularResumoMensal(mesFechamento) {
+            const periodo = periodoCicloCobrança(mesFechamento);
+            if (!periodo) return null;
+            const vendas = todasVendasHistorico().filter(function(m) {
+                return m.date && dataVendaNoPeriodo(m.date, periodo);
+            });
+            const entradas = todasEntradasHistorico().filter(function(m) {
+                return m.date && dataVendaNoPeriodo(m.date, periodo);
+            });
+
+            const totalQtd = vendas.reduce(function(s, m) { return s + m.qty; }, 0);
+            const totalValor = vendas.reduce(function(s, m) { return s + m.qty * (m.price || 0); }, 0);
+            const totalEntradas = entradas.reduce(function(s, m) { return s + m.qty; }, 0);
+
+            const porPag = {};
+            vendas.forEach(function(m) {
+                const k = classificarPagamentoResumo(m.pagamento);
+                if (!porPag[k]) porPag[k] = { qtd: 0, valor: 0, itens: 0 };
+                porPag[k].qtd += m.qty;
+                porPag[k].valor += m.qty * (m.price || 0);
+                porPag[k].itens += 1;
+            });
+
+            const porProduto = {};
+            vendas.forEach(function(m) {
+                const k = m.productName || '—';
+                if (!porProduto[k]) porProduto[k] = { qtd: 0, valor: 0 };
+                porProduto[k].qtd += m.qty;
+                porProduto[k].valor += m.qty * (m.price || 0);
+            });
+
+            const porSocio = {};
+            vendas.forEach(function(m) {
+                const k = (m.socio || 'Não informado').trim() || 'Não informado';
+                if (!porSocio[k]) porSocio[k] = { qtd: 0, valor: 0, itens: 0 };
+                porSocio[k].qtd += m.qty;
+                porSocio[k].valor += m.qty * (m.price || 0);
+                porSocio[k].itens += 1;
+            });
+
+            const porEntrada = {};
+            entradas.forEach(function(m) {
+                const k = m.productName || '—';
+                if (!porEntrada[k]) porEntrada[k] = 0;
+                porEntrada[k] += m.qty;
+            });
+
+            // Serviços fechados no período (pelo date do histórico)
+            const servicos = (state.history || []).filter(function(h) {
+                return h.date && dataVendaNoPeriodo(h.date, periodo);
+            });
+
+            return {
+                periodo: periodo,
+                mesFechamento: mesFechamento,
+                vendas: vendas,
+                entradas: entradas,
+                totalQtd: totalQtd,
+                totalValor: totalValor,
+                totalEntradas: totalEntradas,
+                porPag: porPag,
+                porProduto: porProduto,
+                porSocio: porSocio,
+                porEntrada: porEntrada,
+                servicos: servicos,
+                nVendas: vendas.length,
+                nServicos: servicos.length
+            };
+        }
+
+        function renderResumoMensal() {
+            const box = document.getElementById('resumoMensalResultado');
+            if (!box) return;
+            const mes = ((document.getElementById('resumoMes') || {}).value || '');
+            if (!mes) {
+                box.innerHTML = '<p style="color:var(--text-muted);">Escolha o mês de fechamento.</p>';
+                window._ultimoResumoMensal = null;
+                return;
+            }
+            const r = calcularResumoMensal(mes);
+            if (!r) {
+                box.innerHTML = '<div class="alert alert-danger">Período inválido.</div>';
+                window._ultimoResumoMensal = null;
+                return;
+            }
+            window._ultimoResumoMensal = r;
+
+            let mesNome = mes;
+            try {
+                const parts = mes.split('-');
+                const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                mesNome = (nomes[parseInt(parts[1], 10) - 1] || parts[1]) + '/' + parts[0];
+            } catch (e) {}
+
+            const totalDinheiro = (r.porPag['Dinheiro'] && r.porPag['Dinheiro'].valor) || 0;
+            const totalPix = (r.porPag['Pix'] && r.porPag['Pix'].valor) || 0;
+            const totalConta = (r.porPag['Conta (Sócio)'] && r.porPag['Conta (Sócio)'].valor) || 0;
+
+            let html = '<div class="alert alert-info" style="margin-bottom:1rem;">' +
+                '<strong>Fechamento ' + escapeHtml(mesNome) + '</strong><br>' +
+                '📅 Período: <strong>' + escapeHtml(r.periodo.label) + '</strong><br>' +
+                r.nServicos + ' serviço(s) · ' + r.nVendas + ' venda(s) · ' +
+                r.totalQtd + ' itens · Total: <strong>' + formatMoney(r.totalValor) + '</strong></div>';
+
+            html += '<div class="stats-grid" style="margin-bottom:1rem;">' +
+                '<div class="stat-card venda"><div class="label">Valor total</div><div class="value" style="font-size:1.1rem;">' + formatMoney(r.totalValor) + '</div></div>' +
+                '<div class="stat-card"><div class="label">Itens vendidos</div><div class="value">' + r.totalQtd + '</div></div>' +
+                '<div class="stat-card entrada"><div class="label">Entradas estoque</div><div class="value">' + r.totalEntradas + '</div></div>' +
+                '<div class="stat-card"><div class="label">Serviços</div><div class="value">' + r.nServicos + '</div></div>' +
+                '</div>';
+
+            html += '<div class="stats-grid" style="margin-bottom:1.25rem;">' +
+                '<div class="stat-card"><div class="label">Dinheiro</div><div class="value" style="font-size:1rem;">' + formatMoney(totalDinheiro) + '</div></div>' +
+                '<div class="stat-card"><div class="label">Pix</div><div class="value" style="font-size:1rem;">' + formatMoney(totalPix) + '</div></div>' +
+                '<div class="stat-card venda"><div class="label">Conta sócio</div><div class="value" style="font-size:1rem;">' + formatMoney(totalConta) + '</div></div>' +
+                '<div class="stat-card entrada"><div class="label">Recebido (Din+Pix)</div><div class="value" style="font-size:1rem;">' + formatMoney(totalDinheiro + totalPix) + '</div></div>' +
+                '</div>';
+
+            // Por pagamento
+            html += '<p style="font-weight:700;margin:0.5rem 0;">Por forma de pagamento</p>';
+            html += '<div style="overflow-x:auto;margin-bottom:1rem;"><table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
+                '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.4rem;">Pagamento</th><th style="text-align:center;">Vendas</th><th style="text-align:center;">Qtd</th><th style="text-align:right;">Valor</th></tr></thead><tbody>';
+            Object.keys(r.porPag).sort().forEach(function(k) {
+                const g = r.porPag[k];
+                html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:0.4rem;">' + escapeHtml(k) +
+                    '</td><td style="text-align:center;">' + g.itens +
+                    '</td><td style="text-align:center;">' + g.qtd +
+                    '</td><td style="text-align:right;padding:0.4rem;">' + formatMoney(g.valor) + '</td></tr>';
+            });
+            html += '<tr style="background:#e8f5ec;font-weight:700;"><td style="padding:0.4rem;">TOTAL</td><td style="text-align:center;">' +
+                r.nVendas + '</td><td style="text-align:center;">' + r.totalQtd +
+                '</td><td style="text-align:right;padding:0.4rem;">' + formatMoney(r.totalValor) + '</td></tr>';
+            html += '</tbody></table></div>';
+
+            // Top produtos
+            const prods = Object.keys(r.porProduto).map(function(k) {
+                return { nome: k, qtd: r.porProduto[k].qtd, valor: r.porProduto[k].valor };
+            }).sort(function(a, b) { return b.valor - a.valor; });
+            html += '<p style="font-weight:700;margin:0.5rem 0;">Produtos vendidos</p>';
+            if (!prods.length) {
+                html += '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhuma venda no período.</p>';
+            } else {
+                html += '<div style="max-height:220px;overflow-y:auto;margin-bottom:1rem;"><table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
+                    '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.4rem;">Produto</th><th style="text-align:center;">Qtd</th><th style="text-align:right;">Valor</th></tr></thead><tbody>';
+                prods.forEach(function(p) {
+                    html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:0.35rem;">' + escapeHtml(p.nome) +
+                        '</td><td style="text-align:center;">' + p.qtd +
+                        '</td><td style="text-align:right;padding:0.35rem;">' + formatMoney(p.valor) + '</td></tr>';
+                });
+                html += '</tbody></table></div>';
+            }
+
+            // Sócios
+            const socios = Object.keys(r.porSocio).map(function(k) {
+                return { nome: k, qtd: r.porSocio[k].qtd, valor: r.porSocio[k].valor, itens: r.porSocio[k].itens };
+            }).sort(function(a, b) { return b.valor - a.valor; });
+            html += '<p style="font-weight:700;margin:0.5rem 0;">Consumo por sócio / comprador</p>';
+            if (!socios.length) {
+                html += '<p style="color:var(--text-muted);font-size:0.85rem;">Sem compradores no período.</p>';
+            } else {
+                html += '<div style="max-height:260px;overflow-y:auto;margin-bottom:1rem;"><table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
+                    '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.4rem;">Sócio</th><th style="text-align:center;">Vendas</th><th style="text-align:center;">Qtd</th><th style="text-align:right;">Valor</th></tr></thead><tbody>';
+                socios.forEach(function(s) {
+                    html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:0.35rem;">' + escapeHtml(s.nome) +
+                        '</td><td style="text-align:center;">' + s.itens +
+                        '</td><td style="text-align:center;">' + s.qtd +
+                        '</td><td style="text-align:right;padding:0.35rem;">' + formatMoney(s.valor) + '</td></tr>';
+                });
+                html += '</tbody></table></div>';
+            }
+
+            // Entradas
+            const ents = Object.keys(r.porEntrada).sort();
+            html += '<p style="font-weight:700;margin:0.5rem 0;">Entradas de mercadoria no período</p>';
+            if (!ents.length) {
+                html += '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhuma entrada no período.</p>';
+            } else {
+                html += '<div style="max-height:180px;overflow-y:auto;margin-bottom:1rem;"><table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
+                    '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.4rem;">Mercadoria</th><th style="text-align:center;">Qtd entrada</th></tr></thead><tbody>';
+                ents.forEach(function(k) {
+                    html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:0.35rem;">' + escapeHtml(k) +
+                        '</td><td style="text-align:center;color:var(--success);font-weight:600;">+' + r.porEntrada[k] + '</td></tr>';
+                });
+                html += '<tr style="background:#e8f5ec;font-weight:700;"><td style="padding:0.35rem;">TOTAL</td><td style="text-align:center;">+' +
+                    r.totalEntradas + '</td></tr></tbody></table></div>';
+            }
+
+            html += '<button type="button" class="btn btn-primary" onclick="baixarResumoMensalPDF()">📄 Baixar resumo em PDF</button>';
+            box.innerHTML = html;
+        }
+
+        function baixarResumoMensalPDF() {
+            let r = window._ultimoResumoMensal;
+            if (!r) {
+                const mes = ((document.getElementById('resumoMes') || {}).value || '');
+                if (mes) r = calcularResumoMensal(mes);
+            }
+            if (!r) {
+                toast('Escolha o mês e gere o resumo antes.', 'error');
+                return;
+            }
+
+            let mesNome = r.mesFechamento;
+            try {
+                const parts = String(r.mesFechamento).split('-');
+                const nomes = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+                mesNome = (nomes[parseInt(parts[1], 10) - 1] || parts[1]) + '/' + parts[0];
+            } catch (e) {}
+
+            const totalDinheiro = (r.porPag['Dinheiro'] && r.porPag['Dinheiro'].valor) || 0;
+            const totalPix = (r.porPag['Pix'] && r.porPag['Pix'].valor) || 0;
+            const totalConta = (r.porPag['Conta (Sócio)'] && r.porPag['Conta (Sócio)'].valor) || 0;
+            const agora = new Date();
+            const dataStr = agora.toLocaleDateString('pt-BR');
+            const horaStr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+            let rowsPag = '';
+            Object.keys(r.porPag).sort().forEach(function(k) {
+                const g = r.porPag[k];
+                rowsPag += '<tr><td>' + escapeHtml(k) + '</td><td style="text-align:center;">' + g.itens +
+                    '</td><td style="text-align:center;">' + g.qtd +
+                    '</td><td style="text-align:right;">' + formatMoney(g.valor) + '</td></tr>';
+            });
+
+            let rowsProd = '';
+            Object.keys(r.porProduto).map(function(k) {
+                return { nome: k, qtd: r.porProduto[k].qtd, valor: r.porProduto[k].valor };
+            }).sort(function(a, b) { return b.valor - a.valor; }).forEach(function(p) {
+                rowsProd += '<tr><td>' + escapeHtml(p.nome) + '</td><td style="text-align:center;">' + p.qtd +
+                    '</td><td style="text-align:right;">' + formatMoney(p.valor) + '</td></tr>';
+            });
+
+            let rowsSoc = '';
+            Object.keys(r.porSocio).map(function(k) {
+                return { nome: k, qtd: r.porSocio[k].qtd, valor: r.porSocio[k].valor, itens: r.porSocio[k].itens };
+            }).sort(function(a, b) { return b.valor - a.valor; }).forEach(function(s) {
+                rowsSoc += '<tr><td>' + escapeHtml(s.nome) + '</td><td style="text-align:center;">' + s.itens +
+                    '</td><td style="text-align:center;">' + s.qtd +
+                    '</td><td style="text-align:right;">' + formatMoney(s.valor) + '</td></tr>';
+            });
+
+            let rowsEnt = '';
+            Object.keys(r.porEntrada).sort().forEach(function(k) {
+                rowsEnt += '<tr><td>' + escapeHtml(k) + '</td><td style="text-align:center;">+' + r.porEntrada[k] + '</td></tr>';
+            });
+
+            const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+                '<title>Resumo mensal GRAJ - ' + escapeHtml(mesNome) + '</title>' +
+                '<style>' +
+                'body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:22px;font-size:12px;max-width:900px;margin:0 auto;}' +
+                'h1{font-size:18px;margin:0 0 2px;color:#0d5c2e;}' +
+                'h2{font-size:14px;margin:18px 0 8px;color:#0d5c2e;border-bottom:2px solid #0d5c2e;padding-bottom:4px;}' +
+                '.sub{color:#555;margin-bottom:14px;font-size:12px;}' +
+                '.box{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 16px;}' +
+                '.card{flex:1;min-width:130px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;}' +
+                '.card .lbl{font-size:10px;color:#555;text-transform:uppercase;}' +
+                '.card .val{font-size:14px;font-weight:700;color:#0d5c2e;margin-top:2px;}' +
+                'table{width:100%;border-collapse:collapse;margin-top:6px;font-size:11px;}' +
+                'th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;}' +
+                'th{background:#e8f5ec;color:#084020;font-size:10px;}' +
+                'tr:nth-child(even){background:#fafafa;}' +
+                '.foot{margin-top:28px;font-size:10px;color:#666;text-align:center;}' +
+                '@media print{body{padding:8px;} .no-print{display:none!important;}}' +
+                '</style></head><body>' +
+                '<h1>Grêmio Recreativo Antônio João — GRAJ</h1>' +
+                '<div class="sub"><strong>RESUMO MENSAL COMPLETO</strong><br>' +
+                'Fechamento: <strong>' + escapeHtml(mesNome) + '</strong> · Período: <strong>' + escapeHtml(r.periodo.label) + '</strong><br>' +
+                'Gerado em ' + dataStr + ' às ' + horaStr + '</div>' +
+                '<div class="box">' +
+                '<div class="card"><div class="lbl">Valor total</div><div class="val">' + formatMoney(r.totalValor) + '</div></div>' +
+                '<div class="card"><div class="lbl">Itens vendidos</div><div class="val">' + r.totalQtd + '</div></div>' +
+                '<div class="card"><div class="lbl">Serviços</div><div class="val">' + r.nServicos + '</div></div>' +
+                '<div class="card"><div class="lbl">Entradas estoque</div><div class="val">' + r.totalEntradas + '</div></div>' +
+                '</div>' +
+                '<div class="box">' +
+                '<div class="card"><div class="lbl">Dinheiro</div><div class="val">' + formatMoney(totalDinheiro) + '</div></div>' +
+                '<div class="card"><div class="lbl">Pix</div><div class="val">' + formatMoney(totalPix) + '</div></div>' +
+                '<div class="card"><div class="lbl">Conta sócio</div><div class="val">' + formatMoney(totalConta) + '</div></div>' +
+                '<div class="card"><div class="lbl">Recebido (Din+Pix)</div><div class="val">' + formatMoney(totalDinheiro + totalPix) + '</div></div>' +
+                '</div>' +
+                '<h2>Por forma de pagamento</h2>' +
+                (rowsPag
+                    ? ('<table><thead><tr><th>Pagamento</th><th>Vendas</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>' + rowsPag +
+                       '<tr style="background:#e8f5ec;font-weight:700;"><td>TOTAL</td><td style="text-align:center;">' + r.nVendas +
+                       '</td><td style="text-align:center;">' + r.totalQtd + '</td><td style="text-align:right;">' + formatMoney(r.totalValor) +
+                       '</td></tr></tbody></table>')
+                    : '<p>Sem vendas.</p>') +
+                '<h2>Produtos vendidos</h2>' +
+                (rowsProd
+                    ? ('<table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>' + rowsProd + '</tbody></table>')
+                    : '<p>Sem produtos.</p>') +
+                '<h2>Consumo por sócio / comprador</h2>' +
+                (rowsSoc
+                    ? ('<table><thead><tr><th>Sócio</th><th>Vendas</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>' + rowsSoc + '</tbody></table>')
+                    : '<p>Sem compradores.</p>') +
+                '<h2>Entradas de mercadoria</h2>' +
+                (rowsEnt
+                    ? ('<table><thead><tr><th>Mercadoria</th><th>Qtd</th></tr></thead><tbody>' + rowsEnt +
+                       '<tr style="background:#e8f5ec;font-weight:700;"><td>TOTAL</td><td style="text-align:center;">+' + r.totalEntradas + '</td></tr></tbody></table>')
+                    : '<p>Nenhuma entrada.</p>') +
+                '<div class="foot">Documento gerado pelo sistema de controle de estoque GRAJ · Uso interno<br>' +
+                'Na impressão, escolha <em>Salvar como PDF</em>.</div>' +
+                '<div class="no-print" style="margin-top:16px;text-align:center;">' +
+                '<button onclick="window.print()" style="padding:10px 18px;font-size:14px;cursor:pointer;background:#0d5c2e;color:#fff;border:none;border-radius:6px;">Imprimir / Salvar PDF</button></div>' +
+                '<script>window.onload=function(){setTimeout(function(){window.print();},400);}<\\/script>' +
+                '</body></html>';
+
+            try {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const w = window.open(url, '_blank');
+                if (!w) {
+                    toast('Permita pop-ups para gerar o PDF.', 'error');
+                    return;
+                }
+                toast('Resumo mensal gerado! Escolha "Salvar como PDF" na impressão.');
+                setTimeout(function() { URL.revokeObjectURL(url); }, 120000);
+            } catch (e) {
+                toast('Erro ao gerar resumo PDF.', 'error');
+                console.error(e);
+            }
         }
 
         function filtrarVendasSocioMes(busca, mes) {
