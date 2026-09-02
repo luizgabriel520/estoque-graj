@@ -1762,7 +1762,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Recreativo Antônio João — GRAJ<br>
+        Grêmio Beneficente, Esportivo e Recreativo Antônio João — GBERAJ<br>
         Sistema de Controle de Estoque • Uso interno
     </footer>
 
@@ -1770,13 +1770,13 @@
         // ==================== STATE & STORAGE ====================
         // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
         const FIREBASE_CONFIG = {
-       apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
-       authDomain: "estoque-graj-b32b2.firebaseapp.com",
-       databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
-       projectId: "estoque-graj-b32b2",
-       storageBucket: "estoque-graj-b32b2.firebasestorage.app",
-       messagingSenderId: "924249670911",
-       appId: "1:924249670911:web:283128ab7ceba163c478ca"
+            apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
+  authDomain: "estoque-graj-b32b2.firebaseapp.com",
+  databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
+  projectId: "estoque-graj-b32b2",
+  storageBucket: "estoque-graj-b32b2.firebasestorage.app",
+  messagingSenderId: "924249670911",
+  appId: "1:924249670911:web:283128ab7ceba163c478ca"
         };
 
         // Configuração de e-mail (também pode ser salva pelo Admin → Senha)
@@ -4526,6 +4526,85 @@ function limparMovimentacoes() {
                 return h.date && dataVendaNoPeriodo(h.date, periodo);
             });
 
+            // Resumo por dia
+            function chaveDia(dateStr) {
+                try {
+                    if (!dateStr) return '';
+                    if (/^\d{4}-\d{2}-\d{2}/.test(String(dateStr))) {
+                        return dataISOLocal(dateStr).slice(0, 10);
+                    }
+                    const d = new Date(dateStr);
+                    if (isNaN(d.getTime())) return '';
+                    const pad = function(n) { return String(n).padStart(2, '0'); };
+                    return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate());
+                } catch (e) {
+                    return '';
+                }
+            }
+            function labelDia(iso) {
+                if (!iso || iso.length < 10) return iso || '—';
+                const p = iso.split('-');
+                return p[2] + '/' + p[1] + '/' + p[0];
+            }
+
+            const porDiaMap = {};
+            function ensureDia(iso) {
+                if (!iso) return null;
+                if (!porDiaMap[iso]) {
+                    porDiaMap[iso] = {
+                        iso: iso,
+                        label: labelDia(iso),
+                        qtd: 0,
+                        valor: 0,
+                        nVendas: 0,
+                        entradasQtd: 0,
+                        porPag: {},
+                        porProduto: {},
+                        porSocio: {},
+                        militares: {},
+                        vendas: [],
+                        entradas: []
+                    };
+                }
+                return porDiaMap[iso];
+            }
+
+            vendas.forEach(function(m) {
+                const iso = chaveDia(m.date);
+                const d = ensureDia(iso);
+                if (!d) return;
+                d.qtd += m.qty;
+                d.valor += m.qty * (m.price || 0);
+                d.nVendas += 1;
+                d.vendas.push(m);
+                const pag = classificarPagamentoResumo(m.pagamento);
+                if (!d.porPag[pag]) d.porPag[pag] = { qtd: 0, valor: 0 };
+                d.porPag[pag].qtd += m.qty;
+                d.porPag[pag].valor += m.qty * (m.price || 0);
+                const prod = m.productName || '—';
+                if (!d.porProduto[prod]) d.porProduto[prod] = { qtd: 0, valor: 0 };
+                d.porProduto[prod].qtd += m.qty;
+                d.porProduto[prod].valor += m.qty * (m.price || 0);
+                const soc = (m.socio || 'Não informado').trim() || 'Não informado';
+                if (!d.porSocio[soc]) d.porSocio[soc] = { qtd: 0, valor: 0 };
+                d.porSocio[soc].qtd += m.qty;
+                d.porSocio[soc].valor += m.qty * (m.price || 0);
+                const mil = m.militar || m._militarServico || '—';
+                d.militares[mil] = true;
+            });
+
+            entradas.forEach(function(m) {
+                const iso = chaveDia(m.date);
+                const d = ensureDia(iso);
+                if (!d) return;
+                d.entradasQtd += m.qty;
+                d.entradas.push(m);
+            });
+
+            const porDia = Object.keys(porDiaMap).sort().map(function(k) {
+                return porDiaMap[k];
+            });
+
             return {
                 periodo: periodo,
                 mesFechamento: mesFechamento,
@@ -4538,6 +4617,7 @@ function limparMovimentacoes() {
                 porProduto: porProduto,
                 porSocio: porSocio,
                 porEntrada: porEntrada,
+                porDia: porDia,
                 servicos: servicos,
                 nVendas: vendas.length,
                 nServicos: servicos.length
@@ -4661,8 +4741,120 @@ function limparMovimentacoes() {
                     r.totalEntradas + '</td></tr></tbody></table></div>';
             }
 
+            // ========== RESUMO POR DIA ==========
+            html += '<p style="font-weight:700;margin:1rem 0 0.5rem;font-size:1.05rem;color:var(--primary-dark);">📅 Resumo por dia</p>';
+            if (!r.porDia || !r.porDia.length) {
+                html += '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhum movimento no período.</p>';
+            } else {
+                html += '<div style="overflow-x:auto;margin-bottom:0.75rem;"><table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
+                    '<thead><tr style="background:#f0f7f2;">' +
+                    '<th style="text-align:left;padding:0.4rem;">Data</th>' +
+                    '<th style="text-align:center;">Vendas</th>' +
+                    '<th style="text-align:center;">Qtd</th>' +
+                    '<th style="text-align:right;">Valor</th>' +
+                    '<th style="text-align:center;">Entradas</th>' +
+                    '<th style="text-align:center;">Detalhe</th>' +
+                    '</tr></thead><tbody>';
+                r.porDia.forEach(function(d, i) {
+                    const safeId = 'dia-detalhe-' + String(d.iso || i).replace(/[^0-9]/g, '');
+                    html += '<tr style="border-bottom:1px solid var(--border);">' +
+                        '<td style="padding:0.4rem;"><strong>' + escapeHtml(d.label) + '</strong></td>' +
+                        '<td style="text-align:center;">' + d.nVendas + '</td>' +
+                        '<td style="text-align:center;">' + d.qtd + '</td>' +
+                        '<td style="text-align:right;padding:0.4rem;font-weight:600;">' + formatMoney(d.valor) + '</td>' +
+                        '<td style="text-align:center;color:var(--success);">' + (d.entradasQtd ? ('+' + d.entradasQtd) : '—') + '</td>' +
+                        '<td style="text-align:center;"><button type="button" class="btn btn-sm btn-outline" style="font-size:0.72rem;padding:0.2rem 0.5rem;" ' +
+                        'onclick="toggleDiaDetalhe(\'' + safeId + '\')">Ver</button></td></tr>';
+                    html += '<tr id="' + safeId + '" style="display:none;"><td colspan="6" style="background:#fafefa;padding:0.75rem;">';
+
+                    // Pagamentos do dia
+                    const pags = Object.keys(d.porPag || {});
+                    if (pags.length) {
+                        html += '<p style="font-weight:600;font-size:0.8rem;margin:0 0 0.35rem;">Pagamentos</p><table style="width:100%;font-size:0.8rem;margin-bottom:0.6rem;border-collapse:collapse;">';
+                        pags.sort().forEach(function(k) {
+                            html += '<tr><td style="padding:0.2rem;">' + escapeHtml(k) + '</td>' +
+                                '<td style="text-align:right;padding:0.2rem;">' + formatMoney(d.porPag[k].valor) +
+                                ' <span style="color:var(--text-muted);">(' + d.porPag[k].qtd + ' un)</span></td></tr>';
+                        });
+                        html += '</table>';
+                    }
+
+                    // Produtos do dia
+                    const prodsD = Object.keys(d.porProduto || {}).map(function(k) {
+                        return { nome: k, qtd: d.porProduto[k].qtd, valor: d.porProduto[k].valor };
+                    }).sort(function(a, b) { return b.valor - a.valor; });
+                    if (prodsD.length) {
+                        html += '<p style="font-weight:600;font-size:0.8rem;margin:0 0 0.35rem;">Produtos</p>' +
+                            '<table style="width:100%;font-size:0.8rem;margin-bottom:0.6rem;border-collapse:collapse;">' +
+                            '<thead><tr style="background:#eef6f1;"><th style="text-align:left;padding:0.25rem;">Produto</th><th style="text-align:center;">Qtd</th><th style="text-align:right;">Valor</th></tr></thead><tbody>';
+                        prodsD.forEach(function(p) {
+                            html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:0.25rem;">' + escapeHtml(p.nome) +
+                                '</td><td style="text-align:center;">' + p.qtd +
+                                '</td><td style="text-align:right;padding:0.25rem;">' + formatMoney(p.valor) + '</td></tr>';
+                        });
+                        html += '</tbody></table>';
+                    }
+
+                    // Sócios do dia
+                    const socsD = Object.keys(d.porSocio || {}).map(function(k) {
+                        return { nome: k, qtd: d.porSocio[k].qtd, valor: d.porSocio[k].valor };
+                    }).sort(function(a, b) { return b.valor - a.valor; });
+                    if (socsD.length) {
+                        html += '<p style="font-weight:600;font-size:0.8rem;margin:0 0 0.35rem;">Compradores</p>' +
+                            '<table style="width:100%;font-size:0.8rem;margin-bottom:0.6rem;border-collapse:collapse;">' +
+                            '<thead><tr style="background:#eef6f1;"><th style="text-align:left;padding:0.25rem;">Sócio</th><th style="text-align:center;">Qtd</th><th style="text-align:right;">Valor</th></tr></thead><tbody>';
+                        socsD.forEach(function(s) {
+                            html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:0.25rem;">' + escapeHtml(s.nome) +
+                                '</td><td style="text-align:center;">' + s.qtd +
+                                '</td><td style="text-align:right;padding:0.25rem;">' + formatMoney(s.valor) + '</td></tr>';
+                        });
+                        html += '</tbody></table>';
+                    }
+
+                    // Detalhe linha a linha
+                    if (d.vendas && d.vendas.length) {
+                        html += '<p style="font-weight:600;font-size:0.8rem;margin:0 0 0.35rem;">Vendas do dia</p>' +
+                            '<div style="max-height:180px;overflow-y:auto;"><table style="width:100%;font-size:0.78rem;border-collapse:collapse;">' +
+                            '<thead><tr style="background:#eef6f1;"><th style="text-align:left;padding:0.25rem;">Produto</th><th style="text-align:left;">Comprador</th>' +
+                            '<th style="text-align:center;">Qtd</th><th style="text-align:center;">Pag.</th><th style="text-align:right;">Valor</th></tr></thead><tbody>';
+                        d.vendas.slice().sort(function(a, b) {
+                            return String(a.date || '').localeCompare(String(b.date || ''));
+                        }).forEach(function(m) {
+                            html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:0.25rem;">' + escapeHtml(m.productName || '') +
+                                '</td><td style="padding:0.25rem;">' + escapeHtml(m.socio || '—') +
+                                '</td><td style="text-align:center;">' + m.qty +
+                                '</td><td style="text-align:center;">' + escapeHtml(m.pagamento || '—') +
+                                '</td><td style="text-align:right;padding:0.25rem;">' + formatMoney(m.qty * (m.price || 0)) + '</td></tr>';
+                        });
+                        html += '</tbody></table></div>';
+                    }
+
+                    const mils = Object.keys(d.militares || {});
+                    if (mils.length) {
+                        html += '<p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.5rem;">Militar(es): ' +
+                            escapeHtml(mils.join(', ')) + '</p>';
+                    }
+
+                    html += '</td></tr>';
+                });
+                html += '<tr style="background:#e8f5ec;font-weight:700;">' +
+                    '<td style="padding:0.4rem;">TOTAL</td>' +
+                    '<td style="text-align:center;">' + r.nVendas + '</td>' +
+                    '<td style="text-align:center;">' + r.totalQtd + '</td>' +
+                    '<td style="text-align:right;padding:0.4rem;">' + formatMoney(r.totalValor) + '</td>' +
+                    '<td style="text-align:center;">' + (r.totalEntradas ? ('+' + r.totalEntradas) : '—') + '</td>' +
+                    '<td></td></tr>';
+                html += '</tbody></table></div>';
+            }
+
             html += '<button type="button" class="btn btn-primary" onclick="baixarResumoMensalPDF()">📄 Baixar resumo em PDF</button>';
             box.innerHTML = html;
+        }
+
+        function toggleDiaDetalhe(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+            el.style.display = el.style.display === 'none' ? 'table-row' : 'none';
         }
 
         function baixarResumoMensalPDF() {
@@ -4720,6 +4912,50 @@ function limparMovimentacoes() {
                 rowsEnt += '<tr><td>' + escapeHtml(k) + '</td><td style="text-align:center;">+' + r.porEntrada[k] + '</td></tr>';
             });
 
+            let rowsDia = '';
+            let blocosDia = '';
+            (r.porDia || []).forEach(function(d) {
+                rowsDia += '<tr><td>' + escapeHtml(d.label) + '</td>' +
+                    '<td style="text-align:center;">' + d.nVendas + '</td>' +
+                    '<td style="text-align:center;">' + d.qtd + '</td>' +
+                    '<td style="text-align:right;">' + formatMoney(d.valor) + '</td>' +
+                    '<td style="text-align:center;">' + (d.entradasQtd ? ('+' + d.entradasQtd) : '—') + '</td></tr>';
+
+                blocosDia += '<h3 style="font-size:12px;margin:14px 0 6px;color:#0d5c2e;">Dia ' + escapeHtml(d.label) +
+                    ' — ' + formatMoney(d.valor) + ' · ' + d.qtd + ' un</h3>';
+
+                const pags = Object.keys(d.porPag || {});
+                if (pags.length) {
+                    blocosDia += '<p style="margin:4px 0;font-size:11px;"><strong>Pagamentos:</strong> ' +
+                        pags.sort().map(function(k) {
+                            return escapeHtml(k) + ' ' + formatMoney(d.porPag[k].valor);
+                        }).join(' · ') + '</p>';
+                }
+
+                const prodsD = Object.keys(d.porProduto || {}).map(function(k) {
+                    return { nome: k, qtd: d.porProduto[k].qtd, valor: d.porProduto[k].valor };
+                }).sort(function(a, b) { return b.valor - a.valor; });
+                if (prodsD.length) {
+                    blocosDia += '<table><thead><tr><th>Produto</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>';
+                    prodsD.forEach(function(p) {
+                        blocosDia += '<tr><td>' + escapeHtml(p.nome) + '</td><td style="text-align:center;">' + p.qtd +
+                            '</td><td style="text-align:right;">' + formatMoney(p.valor) + '</td></tr>';
+                    });
+                    blocosDia += '</tbody></table>';
+                }
+
+                if (d.vendas && d.vendas.length) {
+                    blocosDia += '<table style="margin-top:6px;"><thead><tr><th>Produto</th><th>Comprador</th><th>Qtd</th><th>Pag.</th><th>Valor</th></tr></thead><tbody>';
+                    d.vendas.forEach(function(m) {
+                        blocosDia += '<tr><td>' + escapeHtml(m.productName || '') + '</td><td>' + escapeHtml(m.socio || '—') +
+                            '</td><td style="text-align:center;">' + m.qty +
+                            '</td><td style="text-align:center;">' + escapeHtml(m.pagamento || '—') +
+                            '</td><td style="text-align:right;">' + formatMoney(m.qty * (m.price || 0)) + '</td></tr>';
+                    });
+                    blocosDia += '</tbody></table>';
+                }
+            });
+
             const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
                 '<title>Resumo mensal GRAJ - ' + escapeHtml(mesNome) + '</title>' +
                 '<style>' +
@@ -4774,6 +5010,14 @@ function limparMovimentacoes() {
                     ? ('<table><thead><tr><th>Mercadoria</th><th>Qtd</th></tr></thead><tbody>' + rowsEnt +
                        '<tr style="background:#e8f5ec;font-weight:700;"><td>TOTAL</td><td style="text-align:center;">+' + r.totalEntradas + '</td></tr></tbody></table>')
                     : '<p>Nenhuma entrada.</p>') +
+                '<h2>Resumo por dia</h2>' +
+                (rowsDia
+                    ? ('<table><thead><tr><th>Data</th><th>Vendas</th><th>Qtd</th><th>Valor</th><th>Entradas</th></tr></thead><tbody>' + rowsDia +
+                       '<tr style="background:#e8f5ec;font-weight:700;"><td>TOTAL</td><td style="text-align:center;">' + r.nVendas +
+                       '</td><td style="text-align:center;">' + r.totalQtd + '</td><td style="text-align:right;">' + formatMoney(r.totalValor) +
+                       '</td><td style="text-align:center;">' + (r.totalEntradas ? ('+' + r.totalEntradas) : '—') + '</td></tr></tbody></table>' +
+                       '<h2>Detalhamento dia a dia</h2>' + blocosDia)
+                    : '<p>Sem movimentos por dia.</p>') +
                 '<div class="foot">Documento gerado pelo sistema de controle de estoque GRAJ · Uso interno<br>' +
                 'Na impressão, escolha <em>Salvar como PDF</em>.</div>' +
                 '<div class="no-print" style="margin-top:16px;text-align:center;">' +
