@@ -1770,13 +1770,13 @@
         // ==================== STATE & STORAGE ====================
         // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
         const FIREBASE_CONFIG = {
-            apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
-  authDomain: "estoque-graj-b32b2.firebaseapp.com",
-  databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
-  projectId: "estoque-graj-b32b2",
-  storageBucket: "estoque-graj-b32b2.firebasestorage.app",
-  messagingSenderId: "924249670911",
-  appId: "1:924249670911:web:283128ab7ceba163c478ca"
+       apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
+       authDomain: "estoque-graj-b32b2.firebaseapp.com",
+       databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
+       projectId: "estoque-graj-b32b2",
+       storageBucket: "estoque-graj-b32b2.firebasestorage.app",
+       messagingSenderId: "924249670911",
+       appId: "1:924249670911:web:283128ab7ceba163c478ca"
         };
 
         // Configuração de e-mail (também pode ser salva pelo Admin → Senha)
@@ -5286,57 +5286,98 @@ function limparMovimentacoes() {
         }
 
         function montarHtmlConsumoParaPdf(dados, mesLabel) {
+            // Visual alinhado ao Fluxo de Caixa (cards + tabelas verdes)
             const agora = new Date();
             const dataStr = agora.toLocaleDateString('pt-BR');
+            const horaStr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
             let rowsProd = '';
-            Object.keys(dados.porProduto).sort().forEach(function(k) {
+            Object.keys(dados.porProduto || {}).sort().forEach(function(k) {
                 const p = dados.porProduto[k];
-                rowsProd += '<tr><td>' + escapeHtml(k) + '</td><td style="text-align:center;">' + p.qty +
-                    '</td><td style="text-align:right;">' + formatMoney(p.valor) + '</td></tr>';
+                rowsProd += '<tr><td>' + escapeHtml(k) + '</td>' +
+                    '<td style="text-align:center;">' + p.qty + '</td>' +
+                    '<td style="text-align:right;font-weight:600;">' + formatMoney(p.valor) + '</td></tr>';
             });
+
             let rowsPag = '';
-            Object.keys(dados.porPag).sort().forEach(function(k) {
-                rowsPag += '<tr><td>' + escapeHtml(k) + '</td><td style="text-align:right;">' +
-                    formatMoney(dados.porPag[k]) + '</td></tr>';
+            Object.keys(dados.porPag || {}).sort().forEach(function(k) {
+                rowsPag += '<tr><td>' + escapeHtml(k) + '</td>' +
+                    '<td style="text-align:right;font-weight:600;">' + formatMoney(dados.porPag[k]) + '</td></tr>';
             });
-            const vendasOrd = dados.vendas.slice().sort(function(a, b) {
+
+            const vendasOrd = (dados.vendas || []).slice().sort(function(a, b) {
                 return String(a.date || '').localeCompare(String(b.date || ''));
             });
             let rowsDet = '';
             vendasOrd.forEach(function(m, idx) {
-                rowsDet += '<tr><td style="text-align:center;">' + (idx + 1) + '</td><td>' +
-                    escapeHtml(formatDate(m.date)) + '</td><td>' + escapeHtml(m.productName || '') +
-                    '</td><td style="text-align:center;">' + m.qty + '</td><td style="text-align:center;">' +
-                    escapeHtml(m.pagamento || '—') + '</td><td style="text-align:right;">' +
-                    formatMoney(m.qty * (m.price || 0)) + '</td></tr>';
+                let dataTxt = '—';
+                try {
+                    if (m.date) {
+                        dataTxt = formatDate(m.date);
+                        if (dataTxt.indexOf(',') >= 0) dataTxt = dataTxt.split(',')[0].trim();
+                    }
+                } catch (e) {}
+                rowsDet += '<tr>' +
+                    '<td style="text-align:center;">' + (idx + 1) + '</td>' +
+                    '<td>' + escapeHtml(dataTxt) + '</td>' +
+                    '<td>' + escapeHtml(m.productName || '') + '</td>' +
+                    '<td style="text-align:center;">' + m.qty + '</td>' +
+                    '<td style="text-align:center;">' + escapeHtml(m.pagamento || '—') + '</td>' +
+                    '<td style="text-align:right;font-weight:600;">' + formatMoney(m.qty * (m.price || 0)) + '</td></tr>';
             });
-            return '<div style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:16px;font-size:12px;">' +
-                '<h1 style="font-size:18px;color:#0d5c2e;margin:0 0 4px;">Grêmio Recreativo Antônio João — GRAJ</h1>' +
-                '<div style="color:#555;margin-bottom:12px;"><strong>EXTRATO DE CONSUMO DO SÓCIO</strong><br>' +
-                'Sócio: <strong>' + escapeHtml(dados.socioNome) + '</strong><br>' +
-                'Período: <strong>' + escapeHtml(mesLabel) + '</strong><br>' +
-                'Gerado em ' + dataStr + '</div>' +
-                '<p><strong>Itens:</strong> ' + dados.totalQtd + ' un · <strong>Total:</strong> ' +
-                formatMoney(dados.totalValor) + '</p>' +
-                '<h2 style="font-size:14px;color:#0d5c2e;">Resumo por produto</h2>' +
-                '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#e8f5ec;">' +
-                '<th style="border:1px solid #ccc;padding:5px;">Produto</th><th style="border:1px solid #ccc;padding:5px;">Qtd</th>' +
-                '<th style="border:1px solid #ccc;padding:5px;">Valor</th></tr></thead><tbody>' + rowsProd +
-                '<tr style="background:#e8f5ec;font-weight:700;"><td style="border:1px solid #ccc;padding:5px;">TOTAL</td>' +
-                '<td style="border:1px solid #ccc;padding:5px;text-align:center;">' + dados.totalQtd +
-                '</td><td style="border:1px solid #ccc;padding:5px;text-align:right;">' + formatMoney(dados.totalValor) +
-                '</td></tr></tbody></table>' +
-                '<h2 style="font-size:14px;color:#0d5c2e;">Por forma de pagamento</h2>' +
-                '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#e8f5ec;">' +
-                '<th style="border:1px solid #ccc;padding:5px;">Pagamento</th><th style="border:1px solid #ccc;padding:5px;">Valor</th></tr></thead><tbody>' +
+
+            return '' +
+                '<div style="font-family:Arial,Helvetica,sans-serif;color:#111;padding:22px;font-size:12px;max-width:900px;background:#fff;">' +
+                '<h1 style="font-size:18px;margin:0 0 2px;color:#0d5c2e;">Grêmio Recreativo Antônio João — GRAJ</h1>' +
+                '<div style="color:#555;margin-bottom:14px;font-size:12px;">' +
+                '<strong>EXTRATO DE CONSUMO DO SÓCIO</strong><br>' +
+                'Sócio: <strong>' + escapeHtml(dados.socioNome || '') + '</strong><br>' +
+                'Período: <strong>' + escapeHtml(mesLabel || '') + '</strong><br>' +
+                'Gerado em ' + dataStr + ' às ' + horaStr +
+                '</div>' +
+
+                '<div style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 16px;">' +
+                '<div style="flex:1;min-width:140px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
+                '<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;">Itens</div>' +
+                '<div style="font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;">' + (dados.totalQtd || 0) + '</div></div>' +
+                '<div style="flex:1;min-width:140px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
+                '<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;">Total a cobrar</div>' +
+                '<div style="font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;">' + formatMoney(dados.totalValor) + '</div></div>' +
+                '<div style="flex:1;min-width:140px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
+                '<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;">Registros</div>' +
+                '<div style="font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;">' + (dados.vendas ? dados.vendas.length : 0) + '</div></div>' +
+                '</div>' +
+
+                '<h2 style="font-size:14px;margin:20px 0 8px;color:#0d5c2e;border-bottom:2px solid #0d5c2e;padding-bottom:4px;">Resumo por produto</h2>' +
+                '<table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:11px;">' +
+                '<thead><tr><th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;text-align:left;">Produto</th>' +
+                '<th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;text-align:center;">Qtd</th>' +
+                '<th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;text-align:right;">Valor</th></tr></thead><tbody>' +
+                rowsProd +
+                '<tr style="background:#e8f5ec;font-weight:700;"><td style="border:1px solid #ccc;padding:5px 7px;">TOTAL</td>' +
+                '<td style="border:1px solid #ccc;padding:5px 7px;text-align:center;">' + (dados.totalQtd || 0) + '</td>' +
+                '<td style="border:1px solid #ccc;padding:5px 7px;text-align:right;">' + formatMoney(dados.totalValor) + '</td></tr>' +
+                '</tbody></table>' +
+
+                '<h2 style="font-size:14px;margin:20px 0 8px;color:#0d5c2e;border-bottom:2px solid #0d5c2e;padding-bottom:4px;">Por forma de pagamento</h2>' +
+                '<table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:11px;">' +
+                '<thead><tr><th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;text-align:left;">Pagamento</th>' +
+                '<th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;text-align:right;">Valor</th></tr></thead><tbody>' +
                 rowsPag + '</tbody></table>' +
-                '<h2 style="font-size:14px;color:#0d5c2e;">Detalhamento das compras</h2>' +
-                '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr style="background:#e8f5ec;">' +
-                '<th style="border:1px solid #ccc;padding:5px;">#</th><th style="border:1px solid #ccc;padding:5px;">Data</th>' +
-                '<th style="border:1px solid #ccc;padding:5px;">Produto</th><th style="border:1px solid #ccc;padding:5px;">Qtd</th>' +
-                '<th style="border:1px solid #ccc;padding:5px;">Pag.</th><th style="border:1px solid #ccc;padding:5px;">Valor</th></tr></thead><tbody>' +
-                rowsDet + '</tbody></table>' +
-                '<p style="margin-top:16px;font-size:10px;color:#666;text-align:center;">Sistema de estoque GRAJ · Uso interno</p></div>';
+
+                '<h2 style="font-size:14px;margin:20px 0 8px;color:#0d5c2e;border-bottom:2px solid #0d5c2e;padding-bottom:4px;">Detalhamento das compras</h2>' +
+                '<table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:11px;">' +
+                '<thead><tr>' +
+                '<th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;">#</th>' +
+                '<th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;text-align:left;">Data</th>' +
+                '<th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;text-align:left;">Produto</th>' +
+                '<th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;text-align:center;">Qtd</th>' +
+                '<th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;text-align:center;">Pag.</th>' +
+                '<th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;text-align:right;">Valor</th>' +
+                '</tr></thead><tbody>' + rowsDet + '</tbody></table>' +
+
+                '<div style="margin-top:28px;font-size:10px;color:#666;text-align:center;">Documento gerado pelo sistema de controle de estoque GRAJ · Uso interno</div>' +
+                '</div>';
         }
 
         async function gerarPdfBase64Consumo(dados, mesLabel) {
@@ -5344,34 +5385,38 @@ function limparMovimentacoes() {
                 throw new Error('Biblioteca PDF não carregou. Verifique a internet.');
             }
             const wrap = document.createElement('div');
+            // Visível no layout (opacity 0) — evita PDF em branco do html2canvas off-screen
             wrap.style.position = 'fixed';
-            wrap.style.left = '-9999px';
+            wrap.style.left = '0';
             wrap.style.top = '0';
-            wrap.style.width = '800px';
-            wrap.style.background = '#fff';
+            wrap.style.width = '794px';
+            wrap.style.background = '#ffffff';
+            wrap.style.opacity = '0';
+            wrap.style.pointerEvents = 'none';
+            wrap.style.zIndex = '0';
             wrap.innerHTML = montarHtmlConsumoParaPdf(dados, mesLabel);
             document.body.appendChild(wrap);
+            // Aguarda layout
+            await new Promise(function(r) { setTimeout(r, 80); });
             try {
                 const opt = {
-                    margin: 10,
+                    margin: [10, 10, 10, 10],
                     filename: 'extrato.pdf',
-                    image: { type: 'jpeg', quality: 0.95 },
-                    html2canvas: { scale: 2, useCORS: true },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                    image: { type: 'jpeg', quality: 0.98 },
+                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
                 };
                 const pdfBlob = await html2pdf().set(opt).from(wrap).outputPdf('blob');
-                // EmailJS Variable Attachment aceita data URL completa
                 const dataUrl = await new Promise(function(resolve, reject) {
                     const reader = new FileReader();
-                    reader.onloadend = function() {
-                        resolve(String(reader.result || ''));
-                    };
+                    reader.onloadend = function() { resolve(String(reader.result || '')); };
                     reader.onerror = reject;
                     reader.readAsDataURL(pdfBlob);
                 });
                 return dataUrl;
             } finally {
-                document.body.removeChild(wrap);
+                if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
             }
         }
 
@@ -5415,21 +5460,20 @@ function limparMovimentacoes() {
             const subject = 'GRAJ — Extrato de consumo · ' + mesLabel;
             const filename = 'extrato-' + String(dados.socioNome || 'socio').replace(/[^\w\-]+/g, '_').slice(0, 40) + '.pdf';
 
-            toast(temGas ? 'Gerando PDF e enviando pelo Gmail...' : 'Enviando e-mail (texto)...');
+            toast(temGas ? 'Gerando PDF (mesmo visual do fluxo) e enviando...' : 'Enviando e-mail...');
 
             try {
                 let pdfDataUrl = '';
-                // Só gera PDF no navegador se for fallback EmailJS
-                if (!temGas) {
-                    try {
-                        pdfDataUrl = await gerarPdfBase64Consumo(dados, mesLabel);
-                    } catch (pdfErr) {
-                        console.warn('Falha ao gerar PDF no navegador:', pdfErr);
+                try {
+                    pdfDataUrl = await gerarPdfBase64Consumo(dados, mesLabel);
+                } catch (pdfErr) {
+                    console.warn('Falha ao gerar PDF no navegador:', pdfErr);
+                    if (temGas) {
+                        toast('Não foi possível gerar o PDF visual. Tentando envio com PDF simples...', 'error');
                     }
                 }
 
                 if (temGas) {
-                    // PDF é montado no Google (não no navegador) — evita PDF em branco
                     const itens = (dados.vendas || []).slice().sort(function(a, b) {
                         return String(a.date || '').localeCompare(String(b.date || ''));
                     }).map(function(m) {
@@ -5468,7 +5512,9 @@ function limparMovimentacoes() {
                         filename: filename,
                         itens: itens,
                         produtos: produtos,
-                        pagamentos: pagamentos
+                        pagamentos: pagamentos,
+                        // PDF com o mesmo designer do fluxo de caixa (gerado no navegador)
+                        pdf_base64: pdfDataUrl || ''
                     };
                     const resp = await fetch(gasUrl, {
                         method: 'POST',
