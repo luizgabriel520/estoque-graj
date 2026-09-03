@@ -956,6 +956,7 @@
     <!-- EmailJS + PDF (envio de extrato por e-mail) -->
     <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
 
@@ -5380,12 +5381,200 @@ function limparMovimentacoes() {
                 '</div>';
         }
 
+        /**
+         * Gera PDF no estilo do Fluxo de Caixa (cards + tabelas) via jsPDF.
+         * Mais confiável que html2canvas para envio por e-mail.
+         */
         async function gerarPdfBase64Consumo(dados, mesLabel) {
-            if (typeof html2pdf === 'undefined') {
-                throw new Error('Biblioteca PDF não carregou. Verifique a internet.');
+            const JsPDFCtor = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF
+                : (typeof window.jsPDF === 'function' ? window.jsPDF : null);
+            if (!JsPDFCtor) {
+                // Fallback html2pdf se jsPDF não carregou
+                if (typeof html2pdf === 'undefined') {
+                    throw new Error('Biblioteca PDF não carregou. Verifique a internet.');
+                }
+                return await gerarPdfBase64ConsumoHtml2Pdf_(dados, mesLabel);
             }
+
+            const doc = new JsPDFCtor({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+            const pageW = doc.internal.pageSize.getWidth();
+            const pageH = doc.internal.pageSize.getHeight();
+            const margin = 14;
+            const contentW = pageW - margin * 2;
+            let y = margin;
+
+            const verde = [13, 92, 46];
+            const verdeClaro = [232, 245, 236];
+            const cinza = [85, 85, 85];
+
+            function ensureSpace(need) {
+                if (y + need > pageH - margin) {
+                    doc.addPage();
+                    y = margin;
+                }
+            }
+
+            function tituloSecao(txt) {
+                ensureSpace(12);
+                y += 4;
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.setTextColor(verde[0], verde[1], verde[2]);
+                doc.text(txt, margin, y);
+                y += 2;
+                doc.setDrawColor(verde[0], verde[1], verde[2]);
+                doc.setLineWidth(0.5);
+                doc.line(margin, y, margin + contentW, y);
+                y += 5;
+            }
+
+            // Cabeçalho
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(14);
+            doc.setTextColor(verde[0], verde[1], verde[2]);
+            doc.text('Gremio Recreativo Antonio Joao — GRAJ', margin, y);
+            y += 6;
+            doc.setFontSize(11);
+            doc.text('EXTRATO DE CONSUMO DO SOCIO', margin, y);
+            y += 6;
+
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(cinza[0], cinza[1], cinza[2]);
+            const agora = new Date();
+            const dataStr = agora.toLocaleDateString('pt-BR');
+            const horaStr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            doc.text('Socio: ' + String(dados.socioNome || ''), margin, y); y += 4.5;
+            doc.text('Periodo: ' + String(mesLabel || ''), margin, y); y += 4.5;
+            doc.text('Gerado em ' + dataStr + ' as ' + horaStr, margin, y); y += 7;
+
+            // Cards de resumo
+            const cardH = 16;
+            const gap = 3;
+            const cardW = (contentW - gap * 2) / 3;
+            const cards = [
+                { lbl: 'ITENS', val: String(dados.totalQtd || 0) },
+                { lbl: 'TOTAL A COBRAR', val: formatMoney(dados.totalValor) },
+                { lbl: 'REGISTROS', val: String((dados.vendas || []).length) }
+            ];
+            ensureSpace(cardH + 4);
+            cards.forEach(function(c, i) {
+                const x = margin + i * (cardW + gap);
+                doc.setFillColor(240, 247, 242);
+                doc.setDrawColor(197, 224, 206);
+                doc.roundedRect(x, y, cardW, cardH, 2, 2, 'FD');
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7);
+                doc.setTextColor(cinza[0], cinza[1], cinza[2]);
+                doc.text(c.lbl, x + 3, y + 5);
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(11);
+                doc.setTextColor(verde[0], verde[1], verde[2]);
+                doc.text(c.val, x + 3, y + 12);
+            });
+            y += cardH + 8;
+
+            // Tabela helper
+            function drawTable(headers, rows, cols) {
+                const rowH = 6;
+                const headH = 7;
+                ensureSpace(headH + rowH * Math.min(rows.length + 1, 8));
+                // header
+                doc.setFillColor(verdeClaro[0], verdeClaro[1], verdeClaro[2]);
+                doc.setDrawColor(200, 200, 200);
+                doc.rect(margin, y, contentW, headH, 'FD');
+                doc.setFont('helvetica', 'bold');
+                doc.setFontSize(8);
+                doc.setTextColor(8, 64, 32);
+                let x = margin;
+                headers.forEach(function(h, i) {
+                    const w = contentW * cols[i];
+                    const align = (i === headers.length - 1) ? 'right' : (i === 0 ? 'left' : 'center');
+                    const tx = align === 'right' ? x + w - 2 : (align === 'center' ? x + w / 2 : x + 2);
+                    doc.text(String(h), tx, y + 4.5, { align: align });
+                    x += w;
+                });
+                y += headH;
+
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(8);
+                doc.setTextColor(20, 20, 20);
+                rows.forEach(function(row, ri) {
+                    ensureSpace(rowH + 2);
+                    if (ri % 2 === 1) {
+                        doc.setFillColor(250, 250, 250);
+                        doc.rect(margin, y, contentW, rowH, 'F');
+                    }
+                    doc.setDrawColor(220, 220, 220);
+                    doc.rect(margin, y, contentW, rowH, 'S');
+                    let xx = margin;
+                    row.forEach(function(cell, i) {
+                        const w = contentW * cols[i];
+                        const align = (i === row.length - 1) ? 'right' : (i === 0 ? 'left' : 'center');
+                        const tx = align === 'right' ? xx + w - 2 : (align === 'center' ? xx + w / 2 : xx + 2);
+                        const txt = String(cell == null ? '' : cell);
+                        doc.text(txt.length > 42 ? txt.slice(0, 40) + '...' : txt, tx, y + 4.2, { align: align });
+                        xx += w;
+                    });
+                    y += rowH;
+                });
+                y += 3;
+            }
+
+            // Produtos
+            tituloSecao('Resumo por produto');
+            const prodRows = Object.keys(dados.porProduto || {}).sort().map(function(k) {
+                const p = dados.porProduto[k];
+                return [k, String(p.qty), formatMoney(p.valor)];
+            });
+            prodRows.push(['TOTAL', String(dados.totalQtd || 0), formatMoney(dados.totalValor)]);
+            drawTable(['Produto', 'Qtd', 'Valor'], prodRows, [0.55, 0.15, 0.30]);
+
+            // Pagamentos
+            tituloSecao('Por forma de pagamento');
+            const pagRows = Object.keys(dados.porPag || {}).sort().map(function(k) {
+                return [k, formatMoney(dados.porPag[k])];
+            });
+            drawTable(['Pagamento', 'Valor'], pagRows, [0.65, 0.35]);
+
+            // Detalhamento
+            tituloSecao('Detalhamento das compras');
+            const vendasOrd = (dados.vendas || []).slice().sort(function(a, b) {
+                return String(a.date || '').localeCompare(String(b.date || ''));
+            });
+            const detRows = vendasOrd.map(function(m, idx) {
+                let dataTxt = '—';
+                try {
+                    if (m.date) {
+                        dataTxt = formatDate(m.date);
+                        if (dataTxt.indexOf(',') >= 0) dataTxt = dataTxt.split(',')[0].trim();
+                    }
+                } catch (e) {}
+                return [
+                    String(idx + 1),
+                    dataTxt,
+                    m.productName || '',
+                    String(m.qty),
+                    m.pagamento || '—',
+                    formatMoney(m.qty * (m.price || 0))
+                ];
+            });
+            drawTable(['#', 'Data', 'Produto', 'Qtd', 'Pag.', 'Valor'], detRows, [0.06, 0.16, 0.34, 0.08, 0.16, 0.20]);
+
+            // Rodapé
+            ensureSpace(10);
+            y = Math.max(y + 6, pageH - 12);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(8);
+            doc.setTextColor(100, 100, 100);
+            doc.text('Documento gerado pelo sistema de controle de estoque GRAJ · Uso interno', pageW / 2, y, { align: 'center' });
+
+            const dataUrl = doc.output('datauristring');
+            return dataUrl;
+        }
+
+        async function gerarPdfBase64ConsumoHtml2Pdf_(dados, mesLabel) {
             const wrap = document.createElement('div');
-            // Visível no layout (opacity 0) — evita PDF em branco do html2canvas off-screen
             wrap.style.position = 'fixed';
             wrap.style.left = '0';
             wrap.style.top = '0';
@@ -5393,28 +5582,22 @@ function limparMovimentacoes() {
             wrap.style.background = '#ffffff';
             wrap.style.opacity = '0';
             wrap.style.pointerEvents = 'none';
-            wrap.style.zIndex = '0';
             wrap.innerHTML = montarHtmlConsumoParaPdf(dados, mesLabel);
             document.body.appendChild(wrap);
-            // Aguarda layout
-            await new Promise(function(r) { setTimeout(r, 80); });
+            await new Promise(function(r) { setTimeout(r, 100); });
             try {
-                const opt = {
-                    margin: [10, 10, 10, 10],
-                    filename: 'extrato.pdf',
+                const pdfBlob = await html2pdf().set({
+                    margin: 10,
                     image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
-                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
-                    pagebreak: { mode: ['avoid-all', 'css', 'legacy'] }
-                };
-                const pdfBlob = await html2pdf().set(opt).from(wrap).outputPdf('blob');
-                const dataUrl = await new Promise(function(resolve, reject) {
+                    html2canvas: { scale: 2, backgroundColor: '#ffffff' },
+                    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+                }).from(wrap).outputPdf('blob');
+                return await new Promise(function(resolve, reject) {
                     const reader = new FileReader();
                     reader.onloadend = function() { resolve(String(reader.result || '')); };
                     reader.onerror = reject;
                     reader.readAsDataURL(pdfBlob);
                 });
-                return dataUrl;
             } finally {
                 if (wrap.parentNode) wrap.parentNode.removeChild(wrap);
             }
