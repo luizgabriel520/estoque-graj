@@ -1284,6 +1284,11 @@
                             <input type="number" id="adminMinQtyProduto" class="form-control" value="5" min="0" step="1">
                         </div>
                     </div>
+                    <div class="form-group">
+                        <label>Código de Barras (opcional)</label>
+                        <input type="text" id="adminBarcodeProduto" class="form-control" placeholder="Bipe ou digite o código de barras" autocomplete="off">
+                        <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.3rem;">Use o leitor USB ou digite manualmente. Deixe em branco se não tiver.</p>
+                    </div>
                     <button class="btn btn-primary" onclick="adminAdicionarProduto()">Cadastrar Produto</button>
                 </div>
             </div>
@@ -1662,7 +1667,13 @@
             </div>
             <div class="modal-body">
                 <div class="form-group">
-                    <label>Buscar produto</label>
+                    <label>📷 Código de Barras</label>
+                    <input type="text" id="vendaBarcode" class="form-control" placeholder="Bipe o código de barras aqui..." autocomplete="off" autofocus
+                        onkeydown="if(event.key==='Enter'){event.preventDefault();processarCodigoBarrasVenda();}">
+                    <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;">Aponte o leitor USB e bipe. O produto será selecionado automaticamente.</p>
+                </div>
+                <div class="form-group">
+                    <label>Buscar produto (nome)</label>
                     <input type="text" id="vendaBusca" class="form-control" placeholder="Digite para filtrar..." oninput="filtrarSelectProdutos('venda')">
                 </div>
                 <div class="form-row">
@@ -2112,6 +2123,10 @@
                             p.category = p.category || 'Outros';
                             p.minQty = p.minQty !== undefined ? p.minQty : 5;
                         }
+                    }
+                    // Garante campo de código de barras
+                    if (p.barcode === undefined || p.barcode === null) {
+                        p.barcode = '';
                     }
                 });
             }
@@ -2897,7 +2912,12 @@
             if (!buscaEl || !selectEl) return;
             const busca = (buscaEl.value || '').toLowerCase().trim();
             const options = state.products
-                .filter(p => !busca || p.name.toLowerCase().includes(busca))
+                .filter(function(p) {
+                    if (!busca) return true;
+                    const nome = (p.name || '').toLowerCase();
+                    const barcode = (p.barcode || '').toLowerCase();
+                    return nome.includes(busca) || barcode.includes(busca);
+                })
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map(p => '<option value="' + p.id + '">' + escapeHtml(p.name) + ' (' + p.qty + ' ' + (p.unit || 'un') + ')</option>')
                 .join('');
@@ -3000,9 +3020,65 @@
             preencherDatalistSocios();
             const vb = document.getElementById('vendaBusca');
             if (vb) vb.value = '';
+            const vbar = document.getElementById('vendaBarcode');
+            if (vbar) vbar.value = '';
             preencherSelects();
             renderListaVendaItens();
             openModal('modalVenda');
+            // Foca no campo de código de barras para o leitor USB
+            setTimeout(function() {
+                const el = document.getElementById('vendaBarcode');
+                if (el) el.focus();
+            }, 250);
+        }
+
+        /**
+         * Processa código de barras bipado no modal de venda.
+         * Funciona com leitores USB (que enviam o código + Enter).
+         */
+        function processarCodigoBarrasVenda() {
+            const input = document.getElementById('vendaBarcode');
+            if (!input) return;
+            const codigo = (input.value || '').trim();
+            if (!codigo) return;
+
+            // Busca produto pelo código de barras (exato)
+            const produto = state.products.find(function(p) {
+                return (p.barcode || '').trim() === codigo;
+            });
+
+            if (!produto) {
+                toast('Código de barras não encontrado: ' + codigo, 'error');
+                input.select();
+                return;
+            }
+
+            // Seleciona o produto no select
+            const select = document.getElementById('vendaProduto');
+            if (select) {
+                // Garante que o produto esteja na lista (caso filtro de nome esteja ativo)
+                const existeOption = Array.from(select.options).some(function(o) { return o.value === produto.id; });
+                if (!existeOption) {
+                    // Limpa filtro de nome e repopula
+                    const vb = document.getElementById('vendaBusca');
+                    if (vb) vb.value = '';
+                    preencherSelects();
+                }
+                select.value = produto.id;
+            }
+
+            // Define quantidade padrão 1 e foca nela (para o usuário confirmar/alterar)
+            const qtdEl = document.getElementById('vendaQtd');
+            if (qtdEl) {
+                qtdEl.value = 1;
+                qtdEl.focus();
+                qtdEl.select();
+            }
+
+            // Limpa o campo de código para o próximo bipe
+            input.value = '';
+
+            toast('Produto encontrado: ' + produto.name + ' (estoque: ' + produto.qty + ')');
         }
 
         function adicionarItemVenda() {
@@ -3786,7 +3862,11 @@ function limparMovimentacoes() {
                 .sort((a, b) => a.name.localeCompare(b.name))
                 .map(p => `
                     <tr>
-                        <td><strong>${escapeHtml(p.name)}</strong><br><span style="font-size:0.75rem;color:var(--text-muted);">${escapeHtml(p.category||'')}</span></td>
+                        <td>
+                            <strong>${escapeHtml(p.name)}</strong><br>
+                            <span style="font-size:0.75rem;color:var(--text-muted);">${escapeHtml(p.category||'')}</span>
+                            ${p.barcode ? '<br><span style="font-size:0.72rem;color:#0d5c2e;font-family:monospace;">📷 ' + escapeHtml(p.barcode) + '</span>' : ''}
+                        </td>
                         <td>${formatMoney(p.price)}</td>
                         <td>${p.qty}</td>
                         <td>${p.unit || 'un'}</td>
@@ -3805,6 +3885,7 @@ function limparMovimentacoes() {
             const unit = document.getElementById('adminUnidadeProduto').value;
             const category = document.getElementById('adminCategoriaProduto').value;
             const minQty = parseInt(document.getElementById('adminMinQtyProduto').value, 10) || 5;
+            const barcode = (document.getElementById('adminBarcodeProduto').value || '').trim();
 
             if (!name) {
                 toast('Informe o nome do produto.', 'error');
@@ -3816,6 +3897,11 @@ function limparMovimentacoes() {
                 return;
             }
 
+            if (barcode && state.products.some(p => (p.barcode || '').trim() === barcode)) {
+                toast('Já existe um produto com este código de barras.', 'error');
+                return;
+            }
+
             state.products.push({
                 id: generateId(),
                 name,
@@ -3823,7 +3909,8 @@ function limparMovimentacoes() {
                 qty,
                 unit,
                 category,
-                minQty
+                minQty,
+                barcode: barcode || ''
             });
 
             saveState();
@@ -3831,6 +3918,7 @@ function limparMovimentacoes() {
             document.getElementById('adminPrecoProduto').value = '';
             document.getElementById('adminQtdProduto').value = '';
             document.getElementById('adminMinQtyProduto').value = '5';
+            document.getElementById('adminBarcodeProduto').value = '';
             renderAdminProdutos();
             toast(`Produto "${name}" cadastrado!`);
         }
@@ -3847,12 +3935,21 @@ function limparMovimentacoes() {
             if (novaCat === null) return;
             const novoMin = prompt('Estoque mínimo:', p.minQty !== undefined ? p.minQty : 5);
             if (novoMin === null) return;
+            const novoBarcode = prompt('Código de barras (deixe em branco para remover):', p.barcode || '');
+            if (novoBarcode === null) return;
+
+            const barcodeLimpo = (novoBarcode || '').trim();
+            if (barcodeLimpo && state.products.some(x => x.id !== id && (x.barcode || '').trim() === barcodeLimpo)) {
+                toast('Já existe outro produto com este código de barras.', 'error');
+                return;
+            }
 
             p.name = novoNome.trim() || p.name;
             p.price = parseFloat(novoPreco) || 0;
             p.category = (novaCat || '').trim() || p.category || 'Outros';
             p.minQty = parseInt(novoMin, 10);
             if (isNaN(p.minQty)) p.minQty = 5;
+            p.barcode = barcodeLimpo;
             saveState();
             renderAdminProdutos();
             toast('Produto atualizado');
