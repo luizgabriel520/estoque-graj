@@ -1670,7 +1670,7 @@
                     <label>📷 Código de Barras</label>
                     <input type="text" id="vendaBarcode" class="form-control" placeholder="Bipe o código de barras aqui..." autocomplete="off" autofocus
                         onkeydown="if(event.key==='Enter'){event.preventDefault();processarCodigoBarrasVenda();}">
-                    <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;">Aponte o leitor USB e bipe. O produto será selecionado automaticamente.</p>
+                    <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;">Bipe o produto. Cada bipe adiciona +1. Bipar o mesmo item várias vezes aumenta a quantidade.</p>
                 </div>
                 <div class="form-group">
                     <label>Buscar produto (nome)</label>
@@ -3035,6 +3035,8 @@
         /**
          * Processa código de barras bipado no modal de venda.
          * Funciona com leitores USB (que enviam o código + Enter).
+         * Cada bipe adiciona +1 unidade do produto na lista de venda.
+         * Bipar o mesmo produto várias vezes aumenta a quantidade automaticamente.
          */
         function processarCodigoBarrasVenda() {
             const input = document.getElementById('vendaBarcode');
@@ -3053,13 +3055,38 @@
                 return;
             }
 
-            // Seleciona o produto no select
+            // Verifica estoque disponível (considerando o que já está no carrinho)
+            const jaNoCarrinho = vendaItens
+                .filter(function(i) { return i.productId === produto.id; })
+                .reduce(function(s, i) { return s + i.qty; }, 0);
+            const disponivel = produto.qty - jaNoCarrinho;
+
+            if (disponivel < 1) {
+                toast('Estoque insuficiente! Disponível: ' + disponivel + ' — ' + produto.name, 'error');
+                input.value = '';
+                input.focus();
+                return;
+            }
+
+            // Adiciona +1 na lista (ou soma se já existir)
+            const existente = vendaItens.find(function(i) { return i.productId === produto.id; });
+            if (existente) {
+                existente.qty += 1;
+            } else {
+                vendaItens.push({
+                    productId: produto.id,
+                    productName: produto.name,
+                    price: produto.price,
+                    unit: produto.unit || 'un',
+                    qty: 1
+                });
+            }
+
+            // Atualiza select visual (opcional, só para consistência)
             const select = document.getElementById('vendaProduto');
             if (select) {
-                // Garante que o produto esteja na lista (caso filtro de nome esteja ativo)
                 const existeOption = Array.from(select.options).some(function(o) { return o.value === produto.id; });
                 if (!existeOption) {
-                    // Limpa filtro de nome e repopula
                     const vb = document.getElementById('vendaBusca');
                     if (vb) vb.value = '';
                     preencherSelects();
@@ -3067,18 +3094,14 @@
                 select.value = produto.id;
             }
 
-            // Define quantidade padrão 1 e foca nela (para o usuário confirmar/alterar)
-            const qtdEl = document.getElementById('vendaQtd');
-            if (qtdEl) {
-                qtdEl.value = 1;
-                qtdEl.focus();
-                qtdEl.select();
-            }
-
-            // Limpa o campo de código para o próximo bipe
+            // Limpa o campo e foca de novo para o próximo bipe
             input.value = '';
+            input.focus();
 
-            toast('Produto encontrado: ' + produto.name + ' (estoque: ' + produto.qty + ')');
+            renderListaVendaItens();
+
+            const qtdAtual = existente ? existente.qty : 1;
+            toast(produto.name + ' → qtd: ' + qtdAtual);
         }
 
         function adicionarItemVenda() {
