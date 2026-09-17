@@ -1782,13 +1782,13 @@
         // ==================== STATE & STORAGE ====================
         // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
         const FIREBASE_CONFIG = {
-       apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
-       authDomain: "estoque-graj-b32b2.firebaseapp.com",
-       databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
-       projectId: "estoque-graj-b32b2",
-       storageBucket: "estoque-graj-b32b2.firebasestorage.app",
-       messagingSenderId: "924249670911",
-       appId: "1:924249670911:web:283128ab7ceba163c478ca"
+            apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
+  authDomain: "estoque-graj-b32b2.firebaseapp.com",
+  databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
+  projectId: "estoque-graj-b32b2",
+  storageBucket: "estoque-graj-b32b2.firebasestorage.app",
+  messagingSenderId: "924249670911",
+  appId: "1:924249670911:web:283128ab7ceba163c478ca"
         };
 
         // Configuração de e-mail (também pode ser salva pelo Admin → Senha)
@@ -1878,6 +1878,39 @@
         let suppressRemote = false;
         let firebaseEnabled = false;
 
+        // Mensalidade do clube (incluída no extrato do sócio)
+        const VALOR_MENSALIDADE = 40;
+        // Sócios isentos de mensalidade (busca flexível pelo nome)
+        const ISENTOS_MENSALIDADE = [
+            'souza',
+            'aguirre',
+            'clauber',
+            'biondo',
+            'dione',
+            'pereira',
+            'rudinei'
+        ];
+
+        function normalizarNomeBusca(nome) {
+            return String(nome || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim();
+        }
+
+        function isIsentoMensalidade(nome) {
+            const n = normalizarNomeBusca(nome);
+            if (!n) return false;
+            return ISENTOS_MENSALIDADE.some(function(chave) {
+                return n.indexOf(chave) >= 0;
+            });
+        }
+
+        function calcularMensalidadeSocio(nome) {
+            return isIsentoMensalidade(nome) ? 0 : VALOR_MENSALIDADE;
+        }
+
         const defaultData = {
             products: [
                 { id: 'p01', name: 'ÁGUA COM GÁS', price: 3.50, qty: 0, unit: 'un', category: 'Bebidas', minQty: 5 },
@@ -1946,6 +1979,7 @@
             serviceOpen: false,
             serviceMilitar: '',
             serviceStartedAt: null,
+            estoqueInicial: null, // snapshot do estoque ao abrir o serviço [{ id, name, qty, price, ... }]
             caixaAbertura: null, // { valor, militar, timestamp, obs }
             caixaRetiradas: [], // [{ id, valor, motivo, militar, timestamp }]
             socios: [
@@ -2275,6 +2309,65 @@
             return Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
         }
 
+        /** Snapshot do estoque atual (para inicial / final do serviço) */
+        function capturarEstoqueSnapshot() {
+            return (state.products || []).map(function(p) {
+                return {
+                    id: p.id,
+                    name: p.name,
+                    qty: p.qty,
+                    price: p.price,
+                    unit: p.unit || 'un',
+                    category: p.category || 'Outros',
+                    minQty: p.minQty,
+                    barcode: p.barcode || ''
+                };
+            });
+        }
+
+        /**
+         * Reconstroi estoque inicial a partir do final + movimentações
+         * (para históricos antigos que só tinham snapshot final).
+         */
+        function reconstruirEstoqueInicial(estoqueFinal, movements) {
+            const map = {};
+            (estoqueFinal || []).forEach(function(p) {
+                map[p.id] = {
+                    id: p.id,
+                    name: p.name,
+                    qty: p.qty,
+                    price: p.price,
+                    unit: p.unit || 'un',
+                    category: p.category || 'Outros',
+                    minQty: p.minQty,
+                    barcode: p.barcode || ''
+                };
+            });
+            (movements || []).forEach(function(m) {
+                if (!m.productId) return;
+                if (!map[m.productId]) {
+                    map[m.productId] = {
+                        id: m.productId,
+                        name: m.productName || m.productId,
+                        qty: 0,
+                        price: m.price || 0,
+                        unit: 'un',
+                        category: 'Outros',
+                        minQty: 0,
+                        barcode: ''
+                    };
+                }
+                if (m.type === 'venda') {
+                    map[m.productId].qty += (m.qty || 0);
+                } else if (m.type === 'entrada') {
+                    map[m.productId].qty -= (m.qty || 0);
+                } else if (m.type === 'ajuste') {
+                    // ajuste não dá para reverter com segurança; deixa como está
+                }
+            });
+            return Object.keys(map).map(function(k) { return map[k]; });
+        }
+
         function toast(msg, type = 'success') {
             const container = document.getElementById('toastContainer');
             const el = document.createElement('div');
@@ -2341,6 +2434,9 @@
             state.serviceOpen = true;
             state.serviceMilitar = nome;
             state.serviceStartedAt = todayISO();
+
+            // Salva estoque inicial do dia (antes de qualquer movimentação deste serviço)
+            state.estoqueInicial = capturarEstoqueSnapshot();
 
             // Abertura de caixa informada na tela de login
             const valorAberturaRaw = (document.getElementById('inputAberturaCaixa') || {}).value;
@@ -3656,15 +3752,14 @@ function limparMovimentacoes() {
         }
 
         function fecharServico() {
-            const snapshot = state.products.map(p => ({
-                id: p.id,
-                name: p.name,
-                qty: p.qty,
-                price: p.price,
-                unit: p.unit,
-                category: p.category,
-                minQty: p.minQty
-            }));
+            const estoqueFinal = capturarEstoqueSnapshot();
+            // Estoque inicial: o capturado na abertura do serviço (ou reconstrói se faltar)
+            let estoqueInicial = Array.isArray(state.estoqueInicial) && state.estoqueInicial.length
+                ? state.estoqueInicial.map(function(p) { return { ...p }; })
+                : reconstruirEstoqueInicial(estoqueFinal, state.movements);
+
+            // Mantém snapshot = estoque final (compatibilidade com versões antigas)
+            const snapshot = estoqueFinal.map(function(p) { return { ...p }; });
 
             const entradas = state.movements.filter(m => m.type === 'entrada').reduce((s, m) => s + m.qty, 0);
             const vendas = state.movements.filter(m => m.type === 'venda').reduce((s, m) => s + m.qty, 0);
@@ -3678,13 +3773,29 @@ function limparMovimentacoes() {
                 ? state.caixaRetiradas.map(function(r) { return { ...r }; })
                 : [];
 
+            // Totais de unidades no estoque inicial e final
+            const totalUnInicial = estoqueInicial.reduce(function(s, p) { return s + (p.qty || 0); }, 0);
+            const totalUnFinal = estoqueFinal.reduce(function(s, p) { return s + (p.qty || 0); }, 0);
+            const valorEstoqueInicial = estoqueInicial.reduce(function(s, p) { return s + (p.qty || 0) * (p.price || 0); }, 0);
+            const valorEstoqueFinal = estoqueFinal.reduce(function(s, p) { return s + (p.qty || 0) * (p.price || 0); }, 0);
+
             state.history.unshift({
                 id: generateId(),
                 date: todayISO(),
                 militar: currentMilitar,
                 snapshot,
+                estoqueInicial: estoqueInicial,
+                estoqueFinal: estoqueFinal,
                 movements: [...state.movements],
-                summary: { entradas, vendas, valor },
+                summary: {
+                    entradas,
+                    vendas,
+                    valor,
+                    totalUnInicial,
+                    totalUnFinal,
+                    valorEstoqueInicial,
+                    valorEstoqueFinal
+                },
                 caixaAbertura: caixaAberturaSalva,
                 caixaRetiradas: caixaRetiradasSalvas,
                 obs
@@ -3699,6 +3810,7 @@ function limparMovimentacoes() {
             state.serviceOpen = false;
             state.serviceMilitar = '';
             state.serviceStartedAt = null;
+            state.estoqueInicial = null;
             state.caixaAbertura = null;
             state.caixaRetiradas = [];
             if (document.getElementById('obsFechamento')) {
@@ -4134,6 +4246,72 @@ function limparMovimentacoes() {
                     previewEntradas = '<br><span style="font-size:0.8rem;color:var(--text-muted);">📦 Nenhuma entrada de mercadoria</span>';
                 }
 
+                // Estoque inicial / final
+                let estoqueFinal = Array.isArray(h.estoqueFinal) ? h.estoqueFinal
+                    : (Array.isArray(h.snapshot) ? h.snapshot : []);
+                let estoqueInicial = Array.isArray(h.estoqueInicial) ? h.estoqueInicial
+                    : reconstruirEstoqueInicial(estoqueFinal, h.movements || []);
+                const totalUnIni = (h.summary && h.summary.totalUnInicial != null)
+                    ? h.summary.totalUnInicial
+                    : estoqueInicial.reduce(function(s, p) { return s + (p.qty || 0); }, 0);
+                const totalUnFin = (h.summary && h.summary.totalUnFinal != null)
+                    ? h.summary.totalUnFinal
+                    : estoqueFinal.reduce(function(s, p) { return s + (p.qty || 0); }, 0);
+                const valorIni = (h.summary && h.summary.valorEstoqueInicial != null)
+                    ? h.summary.valorEstoqueInicial
+                    : estoqueInicial.reduce(function(s, p) { return s + (p.qty || 0) * (p.price || 0); }, 0);
+                const valorFin = (h.summary && h.summary.valorEstoqueFinal != null)
+                    ? h.summary.valorEstoqueFinal
+                    : estoqueFinal.reduce(function(s, p) { return s + (p.qty || 0) * (p.price || 0); }, 0);
+
+                // Tabela de estoque (inicial x final)
+                const mapFin = {};
+                estoqueFinal.forEach(function(p) { mapFin[p.id || p.name] = p; });
+                const mapIni = {};
+                estoqueInicial.forEach(function(p) { mapIni[p.id || p.name] = p; });
+                const ids = {};
+                estoqueInicial.concat(estoqueFinal).forEach(function(p) {
+                    ids[p.id || p.name] = p.name || p.id;
+                });
+                const nomesOrd = Object.keys(ids).sort(function(a, b) {
+                    return String(ids[a]).localeCompare(String(ids[b]));
+                });
+                let estoqueHtml = '';
+                if (nomesOrd.length === 0) {
+                    estoqueHtml = '<p style="color:var(--text-muted);font-size:0.85rem;">Estoque não registrado neste serviço.</p>';
+                } else {
+                    estoqueHtml = '<table style="width:100%;font-size:0.8rem;margin-top:0.35rem;"><thead><tr>' +
+                        '<th style="text-align:left;">Produto</th>' +
+                        '<th style="text-align:center;">Inicial</th>' +
+                        '<th style="text-align:center;">Final</th>' +
+                        '<th style="text-align:center;">Dif.</th>' +
+                        '<th style="text-align:right;">Valor final</th></tr></thead><tbody>';
+                    nomesOrd.forEach(function(key) {
+                        const ini = mapIni[key];
+                        const fin = mapFin[key];
+                        const qIni = ini ? (ini.qty || 0) : 0;
+                        const qFin = fin ? (fin.qty || 0) : 0;
+                        const dif = qFin - qIni;
+                        const nome = (fin && fin.name) || (ini && ini.name) || key;
+                        const preco = (fin && fin.price) || (ini && ini.price) || 0;
+                        const difTxt = dif === 0 ? '0' : (dif > 0 ? '+' + dif : String(dif));
+                        const difColor = dif < 0 ? 'var(--danger)' : (dif > 0 ? 'var(--success)' : 'var(--text-muted)');
+                        estoqueHtml += '<tr>' +
+                            '<td style="padding:0.3rem 0.25rem;">' + escapeHtml(nome) + '</td>' +
+                            '<td style="text-align:center;">' + qIni + '</td>' +
+                            '<td style="text-align:center;font-weight:600;">' + qFin + '</td>' +
+                            '<td style="text-align:center;color:' + difColor + ';font-weight:600;">' + difTxt + '</td>' +
+                            '<td style="text-align:right;">' + formatMoney(qFin * preco) + '</td></tr>';
+                    });
+                    estoqueHtml += '<tr style="background:#f0f7f2;font-weight:700;">' +
+                        '<td>TOTAL</td>' +
+                        '<td style="text-align:center;">' + totalUnIni + '</td>' +
+                        '<td style="text-align:center;">' + totalUnFin + '</td>' +
+                        '<td style="text-align:center;">' + (totalUnFin - totalUnIni > 0 ? '+' : '') + (totalUnFin - totalUnIni) + '</td>' +
+                        '<td style="text-align:right;">' + formatMoney(valorFin) + '</td></tr>';
+                    estoqueHtml += '</tbody></table>';
+                }
+
                 return '<div style="padding:1rem;border-bottom:1px solid var(--border);">' +
                     '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.5rem;flex-wrap:wrap;">' +
                     '<div><strong>' + formatDate(h.date) + '</strong> — ' + escapeHtml(h.militar) + '<br>' +
@@ -4145,16 +4323,22 @@ function limparMovimentacoes() {
                     (Array.isArray(h.caixaRetiradas) && h.caixaRetiradas.length
                         ? ' | Retiradas: ' + formatMoney(totalRetiradasCaixa(h.caixaRetiradas)) : '') +
                     '</span>' +
+                    '<br><span style="font-size:0.8rem;color:var(--primary-dark);">📊 Estoque: inicial ' + totalUnIni +
+                    ' un (' + formatMoney(valorIni) + ') → final ' + totalUnFin +
+                    ' un (' + formatMoney(valorFin) + ')</span>' +
                     previewEntradas +
                     (h.obs ? '<br><span style="font-size:0.8rem;color:var(--text-muted);">Obs: ' + escapeHtml(h.obs) + '</span>' : '') +
                     '</div>' +
                     '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;">' +
                     '<button class="btn btn-sm btn-primary" onclick="baixarFluxoCaixaPDF(' + idx + ')" title="PDF para o presidente">📄 Fluxo de Caixa</button>' +
+                    '<button class="btn btn-sm btn-outline" onclick="baixarEstoqueDiaPDF(' + idx + ')" title="Estoque inicial e final">📦 Estoque do dia</button>' +
                     '<button class="btn btn-sm btn-outline" onclick="toggleHistDetalhe(' + idx + ')">Ver detalhes</button>' +
                     '</div>' +
                     '</div>' +
                     '<div id="' + detalhesId + '" style="display:none;margin-top:0.75rem;padding-top:0.75rem;border-top:1px dashed var(--border);">' +
-                    '<p style="font-weight:600;font-size:0.85rem;margin:0;color:var(--success);">📦 Entradas de mercadoria</p>' +
+                    '<p style="font-weight:600;font-size:0.85rem;margin:0;color:var(--primary-dark);">📊 Estoque (inicial → final)</p>' +
+                    estoqueHtml +
+                    '<p style="font-weight:600;font-size:0.85rem;margin:1rem 0 0;color:var(--success);">📦 Entradas de mercadoria</p>' +
                     entradasHtml +
                     '<p style="font-weight:600;font-size:0.85rem;margin:1rem 0 0;color:var(--danger);">🛒 Vendas do serviço</p>' +
                     vendasHtml +
@@ -4166,6 +4350,145 @@ function limparMovimentacoes() {
             const el = document.getElementById('hist-detalhe-' + idx);
             if (!el) return;
             el.style.display = el.style.display === 'none' ? 'block' : 'none';
+        }
+
+        /**
+         * PDF do estoque do dia (inicial x final) a partir do histórico.
+         * baixarEstoqueDiaPDF(0) = serviço mais recente
+         */
+        function baixarEstoqueDiaPDF(histIdx) {
+            if (!state.history || !state.history[histIdx]) {
+                toast('Serviço do histórico não encontrado.', 'error');
+                return;
+            }
+            const h = state.history[histIdx];
+            let estoqueFinal = Array.isArray(h.estoqueFinal) ? h.estoqueFinal
+                : (Array.isArray(h.snapshot) ? h.snapshot : []);
+            let estoqueInicial = Array.isArray(h.estoqueInicial) ? h.estoqueInicial
+                : reconstruirEstoqueInicial(estoqueFinal, h.movements || []);
+
+            if ((!estoqueInicial || !estoqueInicial.length) && (!estoqueFinal || !estoqueFinal.length)) {
+                toast('Não há estoque registrado neste serviço.', 'error');
+                return;
+            }
+
+            const mapFin = {};
+            estoqueFinal.forEach(function(p) { mapFin[p.id || p.name] = p; });
+            const mapIni = {};
+            estoqueInicial.forEach(function(p) { mapIni[p.id || p.name] = p; });
+            const ids = {};
+            estoqueInicial.concat(estoqueFinal).forEach(function(p) {
+                ids[p.id || p.name] = p.name || p.id;
+            });
+            const nomesOrd = Object.keys(ids).sort(function(a, b) {
+                return String(ids[a]).localeCompare(String(ids[b]));
+            });
+
+            let totalUnIni = 0, totalUnFin = 0, valorIni = 0, valorFin = 0;
+            let rows = '';
+            nomesOrd.forEach(function(key, idx) {
+                const ini = mapIni[key];
+                const fin = mapFin[key];
+                const qIni = ini ? (ini.qty || 0) : 0;
+                const qFin = fin ? (fin.qty || 0) : 0;
+                const dif = qFin - qIni;
+                const nome = (fin && fin.name) || (ini && ini.name) || key;
+                const preco = (fin && fin.price) || (ini && ini.price) || 0;
+                totalUnIni += qIni;
+                totalUnFin += qFin;
+                valorIni += qIni * preco;
+                valorFin += qFin * preco;
+                const difTxt = dif === 0 ? '0' : (dif > 0 ? '+' + dif : String(dif));
+                rows += '<tr>' +
+                    '<td style="text-align:center;">' + (idx + 1) + '</td>' +
+                    '<td>' + escapeHtml(nome) + '</td>' +
+                    '<td style="text-align:center;">' + qIni + '</td>' +
+                    '<td style="text-align:center;font-weight:600;">' + qFin + '</td>' +
+                    '<td style="text-align:center;">' + difTxt + '</td>' +
+                    '<td style="text-align:right;">' + formatMoney(preco) + '</td>' +
+                    '<td style="text-align:right;">' + formatMoney(qFin * preco) + '</td></tr>';
+            });
+
+            const agora = new Date();
+            const dataStr = agora.toLocaleDateString('pt-BR');
+            const horaStr = agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            let dataServicoStr = dataStr;
+            try {
+                if (h.date && /^\d{4}-\d{2}-\d{2}/.test(h.date)) {
+                    const parts = h.date.slice(0, 10).split('-');
+                    dataServicoStr = parts[2] + '/' + parts[1] + '/' + parts[0];
+                } else if (h.date) {
+                    dataServicoStr = formatDate(h.date);
+                }
+            } catch (e) {}
+
+            const html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+                '<title>Estoque do dia GRAJ - ' + dataServicoStr + '</title>' +
+                '<style>' +
+                'body{font-family:Arial,Helvetica,sans-serif;color:#111;padding:22px;font-size:12px;max-width:900px;margin:0 auto;}' +
+                'h1{font-size:18px;margin:0 0 2px;color:#0d5c2e;}' +
+                'h2{font-size:14px;margin:18px 0 8px;color:#0d5c2e;border-bottom:2px solid #0d5c2e;padding-bottom:4px;}' +
+                '.sub{color:#555;margin-bottom:14px;font-size:12px;}' +
+                '.box{display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 16px;}' +
+                '.card{flex:1;min-width:130px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;}' +
+                '.card .lbl{font-size:10px;color:#555;text-transform:uppercase;}' +
+                '.card .val{font-size:14px;font-weight:700;color:#0d5c2e;margin-top:2px;}' +
+                'table{width:100%;border-collapse:collapse;margin-top:6px;font-size:11px;}' +
+                'th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;}' +
+                'th{background:#e8f5ec;color:#084020;font-size:10px;}' +
+                'tr:nth-child(even){background:#fafafa;}' +
+                '.foot{margin-top:28px;font-size:10px;color:#666;text-align:center;}' +
+                '@media print{body{padding:8px;} .no-print{display:none!important;}}' +
+                '</style></head><body>' +
+                '<h1>Grêmio Recreativo Antônio João — GRAJ</h1>' +
+                '<div class="sub"><strong>ESTOQUE DO DIA — Inicial e Final</strong><br>' +
+                'Data do serviço: <strong>' + escapeHtml(dataServicoStr) + '</strong>' +
+                (h.militar ? ' · Militar: <strong>' + escapeHtml(h.militar) + '</strong>' : '') +
+                '<br>Gerado em ' + dataStr + ' às ' + horaStr + '</div>' +
+
+                '<div class="box">' +
+                '<div class="card"><div class="lbl">Unidades inicial</div><div class="val">' + totalUnIni + '</div></div>' +
+                '<div class="card"><div class="lbl">Valor estoque inicial</div><div class="val">' + formatMoney(valorIni) + '</div></div>' +
+                '<div class="card"><div class="lbl">Unidades final</div><div class="val">' + totalUnFin + '</div></div>' +
+                '<div class="card"><div class="lbl">Valor estoque final</div><div class="val">' + formatMoney(valorFin) + '</div></div>' +
+                '</div>' +
+
+                '<h2>Detalhamento por produto</h2>' +
+                '<table><thead><tr>' +
+                '<th>#</th><th>Produto</th><th style="text-align:center;">Inicial</th>' +
+                '<th style="text-align:center;">Final</th><th style="text-align:center;">Dif.</th>' +
+                '<th style="text-align:right;">Preço un.</th><th style="text-align:right;">Valor final</th>' +
+                '</tr></thead><tbody>' + rows +
+                '<tr style="background:#e8f5ec;font-weight:700;">' +
+                '<td colspan="2">TOTAL</td>' +
+                '<td style="text-align:center;">' + totalUnIni + '</td>' +
+                '<td style="text-align:center;">' + totalUnFin + '</td>' +
+                '<td style="text-align:center;">' + (totalUnFin - totalUnIni > 0 ? '+' : '') + (totalUnFin - totalUnIni) + '</td>' +
+                '<td></td>' +
+                '<td style="text-align:right;">' + formatMoney(valorFin) + '</td></tr>' +
+                '</tbody></table>' +
+
+                '<div class="foot">Documento gerado pelo sistema de controle de estoque GRAJ · Uso interno<br>' +
+                'Na janela de impressão, escolha <em>Salvar como PDF</em>.</div>' +
+                '<div class="no-print" style="margin-top:16px;text-align:center;">' +
+                '<button onclick="window.print()" style="padding:10px 18px;font-size:14px;cursor:pointer;background:#0d5c2e;color:#fff;border:none;border-radius:6px;">Imprimir / Salvar PDF</button></div>' +
+                '<script>window.onload=function(){setTimeout(function(){window.print();},400);}<\\/script>' +
+                '</body></html>';
+
+            try {
+                const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                const w = window.open(url, '_blank');
+                if (!w) {
+                    toast('Permita pop-ups para gerar o PDF.', 'error');
+                    return;
+                }
+                toast('Estoque do dia gerado! Na impressão, escolha "Salvar como PDF".');
+                setTimeout(function() { URL.revokeObjectURL(url); }, 120000);
+            } catch (e) {
+                toast('Erro ao gerar PDF do estoque.', 'error');
+                console.error(e);
+            }
         }
 
         /**
@@ -5235,6 +5558,11 @@ function limparMovimentacoes() {
             const whatsappSocio = buscarWhatsappSocio(socioNome) || buscarWhatsappSocio(buscaRaw);
             const emailSocio = buscarEmailSocio(socioNome) || buscarEmailSocio(buscaRaw);
 
+            // Mensalidade do clube (R$ 40) — isentos: Souza, Aguirre, Clauber, Biondo, Dione, R Pereira, Rudinei
+            const mensalidade = calcularMensalidadeSocio(socioNome);
+            const isentoMensalidade = mensalidade === 0;
+            const totalGeral = totalValor + mensalidade;
+
             // Rótulo do período (ciclo 30→29)
             let mesNome = mes;
             try {
@@ -5257,6 +5585,9 @@ function limparMovimentacoes() {
                 porPag: porPag,
                 totalQtd: totalQtd,
                 totalValor: totalValor,
+                mensalidade: mensalidade,
+                isentoMensalidade: isentoMensalidade,
+                totalGeral: totalGeral,
                 whatsapp: whatsappSocio,
                 email: emailSocio
             };
@@ -5268,7 +5599,11 @@ function limparMovimentacoes() {
                 '<span style="font-size:0.9rem;">📅 Período: <strong>' + escapeHtml(mesLabel) + '</strong></span>' +
                 (whatsappSocio ? '<br><span style="font-size:0.85rem;">📱 WhatsApp: ' + escapeHtml(whatsappSocio) + '</span>' : '<br><span style="font-size:0.85rem;color:#b45309;">📱 WhatsApp não cadastrado</span>') +
                 (emailSocio ? '<br><span style="font-size:0.85rem;">📧 E-mail: ' + escapeHtml(emailSocio) + '</span>' : '<br><span style="font-size:0.85rem;color:#b45309;">📧 E-mail não cadastrado</span>') +
-                '<br>' + totalQtd + ' un • Total a cobrar: <strong>' + formatMoney(totalValor) + '</strong> • ' + vendas.length + ' registro(s)</span>' +
+                '<br>' + totalQtd + ' un • Consumo: <strong>' + formatMoney(totalValor) + '</strong>' +
+                (isentoMensalidade
+                    ? ' • Mensalidade: <strong style="color:#0d9488;">isento</strong>'
+                    : ' • Mensalidade: <strong>' + formatMoney(mensalidade) + '</strong>') +
+                ' • <strong>Total a cobrar: ' + formatMoney(totalGeral) + '</strong> • ' + vendas.length + ' registro(s)</span>' +
                 '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;">' +
                 '<button type="button" class="btn btn-primary btn-sm" onclick="baixarConsumoSocioPDF()">📄 PDF do consumo</button>' +
                 '<button type="button" class="btn btn-sm" style="background:#25D366;color:#fff;border:none;" onclick="enviarConsumoSocioWhatsApp()">📲 WhatsApp</button>' +
@@ -5299,11 +5634,24 @@ function limparMovimentacoes() {
         }
 
         function montarMensagemConsumoSocio(dados, mesLabel) {
+            const mensalidade = (typeof dados.mensalidade === 'number')
+                ? dados.mensalidade
+                : calcularMensalidadeSocio(dados.socioNome);
+            const totalGeral = (typeof dados.totalGeral === 'number')
+                ? dados.totalGeral
+                : (Number(dados.totalValor) || 0) + mensalidade;
+
             let msg = '*GRAJ — Extrato de consumo*\n';
             msg += 'Sócio: *' + dados.socioNome + '*\n';
             msg += 'Período: *' + mesLabel + '*\n\n';
             msg += 'Itens: *' + dados.totalQtd + '* un\n';
-            msg += 'Valor total: *' + formatMoney(dados.totalValor) + '*\n\n';
+            msg += 'Consumo (mercadorias): *' + formatMoney(dados.totalValor) + '*\n';
+            if (mensalidade > 0) {
+                msg += 'Mensalidade do clube: *' + formatMoney(mensalidade) + '*\n';
+            } else {
+                msg += 'Mensalidade do clube: *isento*\n';
+            }
+            msg += '*TOTAL A COBRAR: ' + formatMoney(totalGeral) + '*\n\n';
 
             // Detalhe dia a dia (data em que pegou cada mercadoria)
             msg += '*Compras por data:*\n';
@@ -5327,12 +5675,12 @@ function limparMovimentacoes() {
             });
 
             msg += '\n*Resumo por produto:*\n';
-            Object.keys(dados.porProduto).sort().forEach(function(k) {
+            Object.keys(dados.porProduto || {}).sort().forEach(function(k) {
                 const p = dados.porProduto[k];
                 msg += '• ' + k + ': ' + p.qty + ' un — ' + formatMoney(p.valor) + '\n';
             });
             msg += '\n*Por pagamento:*\n';
-            Object.keys(dados.porPag).sort().forEach(function(k) {
+            Object.keys(dados.porPag || {}).sort().forEach(function(k) {
                 msg += '• ' + k + ': ' + formatMoney(dados.porPag[k]) + '\n';
             });
             msg += '\n_Documento gerado pelo sistema de estoque GRAJ._';
@@ -5458,15 +5806,22 @@ function limparMovimentacoes() {
                 '</div>' +
 
                 '<div style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0 16px;">' +
-                '<div style="flex:1;min-width:140px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
+                '<div style="flex:1;min-width:120px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
                 '<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;">Itens</div>' +
                 '<div style="font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;">' + (dados.totalQtd || 0) + '</div></div>' +
-                '<div style="flex:1;min-width:140px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
-                '<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;">Total a cobrar</div>' +
+                '<div style="flex:1;min-width:120px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
+                '<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;">Consumo</div>' +
                 '<div style="font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;">' + formatMoney(dados.totalValor) + '</div></div>' +
-                '<div style="flex:1;min-width:140px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
-                '<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;">Registros</div>' +
-                '<div style="font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;">' + (dados.vendas ? dados.vendas.length : 0) + '</div></div>' +
+                '<div style="flex:1;min-width:120px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
+                '<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;">Mensalidade</div>' +
+                '<div style="font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;">' +
+                ((dados.mensalidade > 0) ? formatMoney(dados.mensalidade) : 'Isento') +
+                '</div></div>' +
+                '<div style="flex:1;min-width:120px;background:#e8f5ec;border:2px solid #0d5c2e;border-radius:8px;padding:10px 12px;">' +
+                '<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;">Total a cobrar</div>' +
+                '<div style="font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;">' +
+                formatMoney((typeof dados.totalGeral === 'number') ? dados.totalGeral : (Number(dados.totalValor)||0) + (Number(dados.mensalidade)||0)) +
+                '</div></div>' +
                 '</div>' +
 
                 '<h2 style="font-size:14px;margin:20px 0 8px;color:#0d5c2e;border-bottom:2px solid #0d5c2e;padding-bottom:4px;">Resumo por produto</h2>' +
@@ -5568,14 +5923,22 @@ function limparMovimentacoes() {
             doc.text('Periodo: ' + String(mesLabel || ''), margin, y); y += 4.5;
             doc.text('Gerado em ' + dataStr + ' as ' + horaStr, margin, y); y += 7;
 
-            // Cards de resumo
+            // Cards de resumo (consumo + mensalidade + total)
+            const mensalidadePdf = (typeof dados.mensalidade === 'number')
+                ? dados.mensalidade
+                : calcularMensalidadeSocio(dados.socioNome);
+            const totalGeralPdf = (typeof dados.totalGeral === 'number')
+                ? dados.totalGeral
+                : (Number(dados.totalValor) || 0) + mensalidadePdf;
+
             const cardH = 16;
-            const gap = 3;
-            const cardW = (contentW - gap * 2) / 3;
+            const gap = 2.5;
+            const cardW = (contentW - gap * 3) / 4;
             const cards = [
                 { lbl: 'ITENS', val: String(dados.totalQtd || 0) },
-                { lbl: 'TOTAL A COBRAR', val: formatMoney(dados.totalValor) },
-                { lbl: 'REGISTROS', val: String((dados.vendas || []).length) }
+                { lbl: 'CONSUMO', val: formatMoney(dados.totalValor) },
+                { lbl: 'MENSALIDADE', val: mensalidadePdf > 0 ? formatMoney(mensalidadePdf) : 'Isento' },
+                { lbl: 'TOTAL A COBRAR', val: formatMoney(totalGeralPdf) }
             ];
             ensureSpace(cardH + 4);
             cards.forEach(function(c, i) {
@@ -5584,13 +5947,13 @@ function limparMovimentacoes() {
                 doc.setDrawColor(197, 224, 206);
                 doc.roundedRect(x, y, cardW, cardH, 2, 2, 'FD');
                 doc.setFont('helvetica', 'normal');
-                doc.setFontSize(7);
+                doc.setFontSize(6.5);
                 doc.setTextColor(cinza[0], cinza[1], cinza[2]);
-                doc.text(c.lbl, x + 3, y + 5);
+                doc.text(c.lbl, x + 2.5, y + 5);
                 doc.setFont('helvetica', 'bold');
-                doc.setFontSize(11);
+                doc.setFontSize(10);
                 doc.setTextColor(verde[0], verde[1], verde[2]);
-                doc.text(c.val, x + 3, y + 12);
+                doc.text(c.val, x + 2.5, y + 12);
             });
             y += cardH + 8;
 
@@ -5805,13 +6168,16 @@ function limparMovimentacoes() {
                     const pagamentos = Object.keys(dados.porPag || {}).sort().map(function(k) {
                         return { nome: k, valor: formatMoney(dados.porPag[k]) };
                     });
+                    const totalEnvio = (typeof dados.totalGeral === 'number')
+                        ? dados.totalGeral
+                        : (Number(dados.totalValor) || 0) + (Number(dados.mensalidade) || 0);
                     const payload = {
                         to_email: email,
                         to_name: dados.socioNome,
                         subject: subject,
                         message: msgTexto,
                         periodo: mesLabel,
-                        total: formatMoney(dados.totalValor),
+                        total: formatMoney(totalEnvio),
                         filename: filename,
                         itens: itens,
                         produtos: produtos,
@@ -5855,13 +6221,16 @@ function limparMovimentacoes() {
                     return;
                 }
                 emailjs.init({ publicKey: emailjsConfig.publicKey });
+                const totalEmailjs = (typeof dados.totalGeral === 'number')
+                    ? dados.totalGeral
+                    : (Number(dados.totalValor) || 0) + (Number(dados.mensalidade) || 0);
                 const templateParams = {
                     to_email: email,
                     to_name: dados.socioNome,
                     subject: subject,
                     message: msgTexto,
                     periodo: mesLabel,
-                    total: formatMoney(dados.totalValor),
+                    total: formatMoney(totalEmailjs),
                     socio: dados.socioNome
                 };
                 if (pdfDataUrl) templateParams.pdf_file = pdfDataUrl;
@@ -5946,8 +6315,12 @@ function limparMovimentacoes() {
 
                 '<div class="box">' +
                 '<div class="card"><div class="lbl">Itens consumidos</div><div class="val">' + dados.totalQtd + '</div></div>' +
-                '<div class="card"><div class="lbl">Registros</div><div class="val">' + dados.vendas.length + '</div></div>' +
-                '<div class="card"><div class="lbl">Valor total</div><div class="val">' + formatMoney(dados.totalValor) + '</div></div>' +
+                '<div class="card"><div class="lbl">Consumo</div><div class="val">' + formatMoney(dados.totalValor) + '</div></div>' +
+                '<div class="card"><div class="lbl">Mensalidade</div><div class="val">' +
+                ((dados.mensalidade > 0) ? formatMoney(dados.mensalidade) : 'Isento') + '</div></div>' +
+                '<div class="card" style="border:2px solid #0d5c2e;"><div class="lbl">Total a cobrar</div><div class="val">' +
+                formatMoney((typeof dados.totalGeral === 'number') ? dados.totalGeral : (Number(dados.totalValor)||0) + (Number(dados.mensalidade)||0)) +
+                '</div></div>' +
                 '</div>' +
 
                 '<h2>Resumo por produto</h2>' +
