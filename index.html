@@ -6179,19 +6179,35 @@ function limparMovimentacoes() {
                     const totalEnvio = (typeof dados.totalGeral === 'number')
                         ? dados.totalGeral
                         : (Number(dados.totalValor) || 0) + (Number(dados.mensalidade) || 0);
+                    // Limpa base64 e evita payload gigante (corrompe no Apps Script)
+                    let pdfB64Limpo = '';
+                    if (pdfDataUrl) {
+                        var b = String(pdfDataUrl);
+                        var ix = b.indexOf('base64,');
+                        if (ix >= 0) b = b.substring(ix + 7);
+                        b = b.replace(/\s+/g, '');
+                        // Só envia visual se for razoável (< ~1.5MB em base64)
+                        if (b.length > 100 && b.length < 1500000) {
+                            pdfB64Limpo = b;
+                        }
+                    }
                     const payload = {
                         to_email: email,
                         to_name: dados.socioNome,
                         subject: subject,
                         message: msgTexto,
                         periodo: mesLabel,
+                        consumo: formatMoney(dados.totalValor),
+                        mensalidade: (dados.mensalidade > 0)
+                            ? formatMoney(dados.mensalidade)
+                            : 'Isento',
                         total: formatMoney(totalEnvio),
                         filename: filename,
                         itens: itens,
                         produtos: produtos,
                         pagamentos: pagamentos,
-                        // PDF com o mesmo designer do fluxo de caixa (gerado no navegador)
-                        pdf_base64: pdfDataUrl || ''
+                        // PDF visual (se válido); senão o Apps Script gera PDF simples confiável
+                        pdf_base64: pdfB64Limpo
                     };
                     const resp = await fetch(gasUrl, {
                         method: 'POST',
