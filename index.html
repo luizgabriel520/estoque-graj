@@ -1007,9 +1007,9 @@
     <!-- Welcome / Login Screen -->
     <div class="welcome-screen" id="welcomeScreen">
         <div class="welcome-card">
-            <div class="logo-big"><img src="logo-clube.jpg" alt="GRAJ - Grêmio Antônio João"></div>
+            <div class="logo-big"><img src="logo-clube.jpg" alt="GBERAJ - Grêmio Antônio João"></div>
             <h2>Controle de Estoque</h2>
-            <p>Grêmio Recreativo Antônio João<br>Sistema de conferência diária</p>
+            <p>Grêmio Beneficente, Esportivo e Recreativo Antônio João<br>Sistema de conferência diária</p>
 
             <div class="form-group" style="text-align:left;">
                 <label for="inputMilitar">Militar do Serviço</label>
@@ -4179,7 +4179,7 @@ function limparMovimentacoes() {
                 if (vendas.length === 0) {
                     vendasHtml = '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhuma venda neste serviço.</p>';
                 } else {
-                    vendasHtml = '<p style="font-size:0.75rem;color:var(--text-muted);margin:0.35rem 0;">Admin pode excluir uma venda: a mercadoria volta ao estoque.</p>' +
+                    vendasHtml = '<p style="font-size:0.75rem;color:var(--text-muted);margin:0.35rem 0;">Admin pode <strong>trocar o sócio</strong> ou <strong>excluir</strong> a venda (excluir devolve ao estoque). Depois imprima de novo o PDF em Consulta ou Fluxo de Caixa.</p>' +
                         '<table style="width:100%;font-size:0.8rem;margin-top:0.25rem;"><thead><tr>' +
                         '<th style="text-align:left;">Produto</th>' +
                         '<th style="text-align:left;">Comprador</th>' +
@@ -4194,9 +4194,11 @@ function limparMovimentacoes() {
                             '<td style="text-align:center;">' + m.qty + '</td>' +
                             '<td style="text-align:center;">' + escapeHtml(m.pagamento || '—') + '</td>' +
                             '<td style="text-align:right;">' + formatMoney(m.qty * (m.price || 0)) + '</td>' +
-                            '<td style="text-align:center;">' +
+                            '<td style="text-align:center;white-space:nowrap;">' +
                             (mid
-                                ? ('<button type="button" class="btn btn-sm btn-danger" style="font-size:0.7rem;padding:0.2rem 0.45rem;" ' +
+                                ? ('<button type="button" class="btn btn-sm btn-outline" style="font-size:0.68rem;padding:0.2rem 0.4rem;margin:0.1rem;" ' +
+                                   'onclick="adminAlterarSocioVendaHistorico(' + idx + ',\'' + mid + '\')" title="Trocar sócio desta venda">Sócio</button> ' +
+                                   '<button type="button" class="btn btn-sm btn-danger" style="font-size:0.68rem;padding:0.2rem 0.4rem;margin:0.1rem;" ' +
                                    'onclick="adminExcluirVendaHistorico(' + idx + ',\'' + mid + '\')" title="Excluir venda e devolver ao estoque">Excluir</button>')
                                 : '—') +
                             '</td></tr>';
@@ -4566,6 +4568,57 @@ function limparMovimentacoes() {
             renderAll();
             if (typeof renderUltimoServico === 'function') renderUltimoServico();
             toast('Venda excluída. ' + (product ? (m.qty + ' un de ' + product.name + ' devolvidas ao estoque.') : ''));
+        }
+
+        /**
+         * Troca o sócio de uma venda já fechada (histórico).
+         * Não altera estoque — só corrige o comprador.
+         * Depois pode gerar de novo o extrato/PDF do sócio correto em Consulta.
+         */
+        function adminAlterarSocioVendaHistorico(histIdx, movId) {
+            if (!isAdmin) {
+                toast('Apenas o administrador pode alterar sócio de vendas antigas.', 'error');
+                return;
+            }
+            if (!state.history || !state.history[histIdx]) {
+                toast('Serviço do histórico não encontrado.', 'error');
+                return;
+            }
+            const h = state.history[histIdx];
+            const movs = h.movements || [];
+            const m = movs.find(function(x) { return x.id === movId; });
+            if (!m || m.type !== 'venda') {
+                toast('Venda não encontrada neste serviço.', 'error');
+                return;
+            }
+
+            const atual = m.socio || '';
+            const novo = prompt(
+                'Trocar sócio desta venda\n\n' +
+                'Produto: ' + (m.productName || '') + '\n' +
+                'Qtd: ' + m.qty + '\n' +
+                'Sócio atual: ' + (atual || '(não informado)') + '\n\n' +
+                'Digite o nome (ou número) do sócio correto:',
+                atual
+            );
+            if (novo === null) return;
+            const nomeLimpo = String(novo || '').trim();
+            if (!nomeLimpo) {
+                toast('Informe o nome do sócio.', 'error');
+                return;
+            }
+
+            const antigo = m.socio || '(vazio)';
+            m.socio = nomeLimpo;
+            saveState();
+            renderHistorico();
+            // Mantém detalhes abertos após atualizar
+            setTimeout(function() {
+                const el = document.getElementById('hist-detalhe-' + histIdx);
+                if (el) el.style.display = 'block';
+            }, 50);
+
+            toast('Sócio alterado: "' + antigo + '" → "' + nomeLimpo + '". Gere o PDF de novo em Consulta ou Fluxo de Caixa.');
         }
 
         function renderUltimoServico() {
@@ -5695,7 +5748,14 @@ function limparMovimentacoes() {
             return msg;
         }
 
-        function enviarConsumoSocioWhatsApp() {
+        /**
+         * Envia extrato pelo WhatsApp:
+         * 1) Gera PDF visual (mesmo estilo do Fluxo de Caixa)
+         * 2) Baixa o PDF automaticamente
+         * 3) Abre o WhatsApp com a mensagem pronta
+         * 4) O presidente só precisa anexar o PDF baixado (limitação do WhatsApp no navegador)
+         */
+        async function enviarConsumoSocioWhatsApp() {
             const dados = window._ultimoConsumoSocio;
             if (!dados || !dados.vendas || dados.vendas.length === 0) {
                 toast('Consulte um sócio com consumo antes de enviar.', 'error');
@@ -5746,20 +5806,55 @@ function limparMovimentacoes() {
             const msg = montarMensagemConsumoSocio(dados, mesLabel);
             const url = 'https://api.whatsapp.com/send?phone=' + encodeURIComponent(phone) +
                 '&text=' + encodeURIComponent(msg);
+            const filename = 'extrato-' + String(dados.socioNome || 'socio').replace(/[^\w\-]+/g, '_').slice(0, 40) + '.pdf';
 
-            // Gera o PDF em paralelo para o admin anexar se quiser
+            toast('Gerando PDF visual (estilo Fluxo de Caixa)...');
+
+            // 1) Gera PDF visual e baixa para o presidente anexar no WhatsApp
+            let pdfOk = false;
             try {
-                baixarConsumoSocioPDF();
-            } catch (e) {}
+                const dataUrl = await gerarPdfBase64Consumo(dados, mesLabel);
+                if (dataUrl) {
+                    // Converte data URL em download real de PDF
+                    let b64 = String(dataUrl);
+                    const ix = b64.indexOf('base64,');
+                    if (ix >= 0) b64 = b64.substring(ix + 7);
+                    const bin = atob(b64);
+                    const bytes = new Uint8Array(bin.length);
+                    for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+                    const blob = new Blob([bytes], { type: 'application/pdf' });
+                    const blobUrl = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = blobUrl;
+                    a.download = filename;
+                    a.style.display = 'none';
+                    document.body.appendChild(a);
+                    a.click();
+                    setTimeout(function() {
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(blobUrl);
+                    }, 2000);
+                    pdfOk = true;
+                }
+            } catch (e) {
+                console.warn('Falha ao gerar PDF visual para WhatsApp:', e);
+                // Fallback: abre o PDF HTML para imprimir/salvar
+                try { baixarConsumoSocioPDF(); } catch (e2) {}
+            }
 
+            // 2) Abre WhatsApp com a mensagem
             const w = window.open(url, '_blank');
             if (!w) {
-                // Fallback: copia e abre
                 toast('Permita pop-ups. Abrindo WhatsApp...', 'error');
                 window.location.href = url;
                 return;
             }
-            toast('WhatsApp aberto com o extrato. Confirme o envio e, se quiser, anexe o PDF.');
+
+            if (pdfOk) {
+                toast('PDF baixado! No WhatsApp, toque no clipe 📎 e anexe o arquivo ' + filename);
+            } else {
+                toast('WhatsApp aberto. Se o PDF abriu, salve e anexe no WhatsApp (📎).');
+            }
         }
 
         function montarHtmlConsumoParaPdf(dados, mesLabel) {
