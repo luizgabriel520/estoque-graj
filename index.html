@@ -1416,6 +1416,36 @@
                             <input type="month" id="consultaSocioMes" class="form-control" onchange="consultarSocioMes()">
                         </div>
                     </div>
+
+                    <!-- Lançamento de evento / taxa de festa na conta do sócio -->
+                    <div style="margin:1rem 0;padding:0.9rem 1rem;border:1px dashed #0d5c2e;border-radius:10px;background:#f6fbf7;">
+                        <p style="font-weight:700;margin:0 0 0.4rem;color:#0d5c2e;font-size:0.95rem;">🎉 Lançar evento / taxa na conta do sócio</p>
+                        <p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 0.65rem;">
+                            Use para festas e eventos do clube. O valor entra no desconto do mês do sócio com a descrição informada.
+                        </p>
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Sócio</label>
+                                <input type="text" id="eventoSocio" class="form-control" list="listaSociosDatalist" placeholder="Nome ou número do sócio">
+                            </div>
+                            <div class="form-group">
+                                <label>Mês da cobrança</label>
+                                <input type="month" id="eventoMes" class="form-control">
+                            </div>
+                        </div>
+                        <div class="form-row">
+                            <div class="form-group" style="flex:2;">
+                                <label>Descrição do evento / cobrança</label>
+                                <input type="text" id="eventoDescricao" class="form-control" placeholder="Ex.: Festa junina — ingresso, Churrasco do clube...">
+                            </div>
+                            <div class="form-group">
+                                <label>Valor (R$)</label>
+                                <input type="number" id="eventoValor" class="form-control" min="0.01" step="0.01" placeholder="0,00">
+                            </div>
+                        </div>
+                        <button type="button" class="btn btn-primary btn-sm" onclick="adminSalvarLancamentoEvento()">➕ Lançar na conta do sócio</button>
+                    </div>
+
                     <div id="consultaSocioResultado">
                         <p style="color:var(--text-muted);font-size:0.9rem;">Digite o sócio e escolha o mês de fechamento.</p>
                     </div>
@@ -1801,7 +1831,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Recreativo Antônio João — GRAJ<br>
+        Grêmio Beneficente, Esportivo e Recreativo Antônio João — GBERAJ<br>
         Sistema de Controle de Estoque • Uso interno
     </footer>
 
@@ -1946,6 +1976,142 @@
             return isIsentoMensalidade(nome) ? 0 : VALOR_MENSALIDADE;
         }
 
+        /** Chave estável para cobrança do sócio no mês (YYYY-MM) */
+        function chaveCobrancaSocio(nome, mes) {
+            return normalizarNomeBusca(nome) + '|' + String(mes || '');
+        }
+
+        function getCobrancaSocio(nome, mes) {
+            if (!state.cobrancasSocio || typeof state.cobrancasSocio !== 'object') {
+                state.cobrancasSocio = {};
+            }
+            const k = chaveCobrancaSocio(nome, mes);
+            const c = state.cobrancasSocio[k];
+            if (!c) return { desconto: 0, valorPago: 0, obs: '' };
+            return {
+                desconto: Math.max(0, Number(c.desconto) || 0),
+                valorPago: Math.max(0, Number(c.valorPago) || 0),
+                obs: String(c.obs || '')
+            };
+        }
+
+        function salvarCobrancaSocioDoForm() {
+            const dados = window._ultimoConsumoSocio;
+            if (!dados || !dados.socioNome || !dados.mes) {
+                toast('Consulte um sócio antes de salvar.', 'error');
+                return;
+            }
+            const descontoRaw = (document.getElementById('cobrancaDesconto') || {}).value;
+            const pagoRaw = (document.getElementById('cobrancaValorPago') || {}).value;
+            const obs = ((document.getElementById('cobrancaObs') || {}).value || '').trim();
+            const desconto = Math.max(0, parseFloat(String(descontoRaw || '0').replace(',', '.')) || 0);
+            const valorPago = Math.max(0, parseFloat(String(pagoRaw || '0').replace(',', '.')) || 0);
+
+            if (!state.cobrancasSocio || typeof state.cobrancasSocio !== 'object') {
+                state.cobrancasSocio = {};
+            }
+            const k = chaveCobrancaSocio(dados.socioNome, dados.mes);
+            state.cobrancasSocio[k] = {
+                desconto: Math.round(desconto * 100) / 100,
+                valorPago: Math.round(valorPago * 100) / 100,
+                obs: obs,
+                atualizadoEm: new Date().toISOString()
+            };
+            saveState();
+            toast('Desconto e valor pago salvos para ' + dados.socioNome);
+            consultarSocioMes();
+        }
+
+        /** Lançamentos de evento do sócio no mês (YYYY-MM) */
+        function filtrarLancamentosEventoSocioMes(nome, mes) {
+            if (!nome || !mes) return [];
+            const n = normalizarNomeBusca(nome);
+            const lista = Array.isArray(state.lancamentosEvento) ? state.lancamentosEvento : [];
+            return lista.filter(function(L) {
+                if (String(L.mes || '') !== String(mes)) return false;
+                const sn = normalizarNomeBusca(L.socio || '');
+                if (!sn) return false;
+                // match flexível: contém um no outro
+                return sn.indexOf(n) >= 0 || n.indexOf(sn) >= 0 ||
+                    String(L.socio || '').toLowerCase().indexOf(String(nome).toLowerCase().trim()) >= 0;
+            });
+        }
+
+        function adminSalvarLancamentoEvento() {
+            if (!isAdmin) {
+                toast('Apenas o administrador pode lançar eventos.', 'error');
+                return;
+            }
+            const socio = ((document.getElementById('eventoSocio') || {}).value || '').trim();
+            const mes = ((document.getElementById('eventoMes') || {}).value || '').trim();
+            const descricao = ((document.getElementById('eventoDescricao') || {}).value || '').trim();
+            const valorRaw = (document.getElementById('eventoValor') || {}).value;
+            const valor = Math.round((parseFloat(String(valorRaw || '').replace(',', '.')) || 0) * 100) / 100;
+
+            if (!socio) {
+                toast('Informe o sócio.', 'error');
+                return;
+            }
+            if (!mes) {
+                toast('Informe o mês da cobrança.', 'error');
+                return;
+            }
+            if (!descricao) {
+                toast('Informe a descrição do evento.', 'error');
+                return;
+            }
+            if (!(valor > 0)) {
+                toast('Informe um valor maior que zero.', 'error');
+                return;
+            }
+
+            if (!Array.isArray(state.lancamentosEvento)) state.lancamentosEvento = [];
+            state.lancamentosEvento.push({
+                id: generateId(),
+                socio: socio,
+                valor: valor,
+                descricao: descricao,
+                mes: mes,
+                data: new Date().toISOString(),
+                criadoEm: new Date().toISOString()
+            });
+            saveState();
+
+            // Limpa campos de valor/descrição; mantém sócio e mês para lançar vários
+            if (document.getElementById('eventoDescricao')) document.getElementById('eventoDescricao').value = '';
+            if (document.getElementById('eventoValor')) document.getElementById('eventoValor').value = '';
+
+            // Preenche consulta com o mesmo sócio/mês
+            if (document.getElementById('consultaSocioBusca')) document.getElementById('consultaSocioBusca').value = socio;
+            if (document.getElementById('consultaSocioMes')) document.getElementById('consultaSocioMes').value = mes;
+            if (document.getElementById('eventoSocio')) document.getElementById('eventoSocio').value = socio;
+            if (document.getElementById('eventoMes')) document.getElementById('eventoMes').value = mes;
+
+            toast('Evento lançado: ' + descricao + ' — ' + formatMoney(valor));
+            consultarSocioMes();
+        }
+
+        function adminExcluirLancamentoEvento(id) {
+            if (!isAdmin) {
+                toast('Apenas o administrador pode excluir lançamentos.', 'error');
+                return;
+            }
+            if (!id || !Array.isArray(state.lancamentosEvento)) return;
+            const L = state.lancamentosEvento.find(function(x) { return x.id === id; });
+            if (!L) {
+                toast('Lançamento não encontrado.', 'error');
+                return;
+            }
+            if (!confirm('Excluir este lançamento da conta do sócio?\n\n' +
+                (L.descricao || '') + '\n' + formatMoney(L.valor || 0) + '\nSócio: ' + (L.socio || ''))) {
+                return;
+            }
+            state.lancamentosEvento = state.lancamentosEvento.filter(function(x) { return x.id !== id; });
+            saveState();
+            toast('Lançamento excluído.');
+            consultarSocioMes();
+        }
+
         const defaultData = {
             products: [
                 { id: 'p01', name: 'ÁGUA COM GÁS', price: 3.50, qty: 0, unit: 'un', category: 'Bebidas', minQty: 5 },
@@ -2017,6 +2183,11 @@
             estoqueInicial: null, // snapshot do estoque ao abrir o serviço [{ id, name, qty, price, ... }]
             caixaAbertura: null, // { valor, militar, timestamp, obs }
             caixaRetiradas: [], // [{ id, valor, motivo, militar, timestamp }]
+            // Cobrança mensal por sócio: chave "nomeNormalizado|YYYY-MM" → { desconto, valorPago, obs }
+            cobrancasSocio: {},
+            // Lançamentos de eventos/festas na conta do sócio
+            // [{ id, socio, valor, descricao, mes, data, criadoEm }]
+            lancamentosEvento: [],
             socios: [
                 { id: 's001', numero: '1', nome: 'TC CARON' },
                 { id: 's002', numero: '2', nome: 'TC SOVAT' },
@@ -5641,17 +5812,7 @@ function limparMovimentacoes() {
 
             const periodo = periodoCicloCobrança(mes);
             const vendas = filtrarVendasSocioMes(busca, mes);
-
-            if (vendas.length === 0) {
-                box.innerHTML = '<div class="alert alert-info">Nenhuma compra deste sócio no período ' +
-                    (periodo ? escapeHtml(periodo.label) : '') + '.</div>';
-                window._ultimoConsumoSocio = null;
-                return;
-            }
-
-            const totalQtd = vendas.reduce((s, m) => s + m.qty, 0);
-            const totalValor = vendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
-            // Nome mais frequente do sócio nos registros
+            // Nome do sócio (pelas vendas ou pela busca digitada)
             const nomesCount = {};
             vendas.forEach(m => {
                 const n = (m.socio || buscaRaw).trim();
@@ -5659,6 +5820,22 @@ function limparMovimentacoes() {
                 nomesCount[n] = (nomesCount[n] || 0) + 1;
             });
             const socioNome = Object.keys(nomesCount).sort((a, b) => nomesCount[b] - nomesCount[a])[0] || buscaRaw;
+            const eventos = filtrarLancamentosEventoSocioMes(socioNome, mes)
+                .concat(filtrarLancamentosEventoSocioMes(buscaRaw, mes))
+                .filter(function(L, i, arr) {
+                    return arr.findIndex(function(x) { return x.id === L.id; }) === i;
+                });
+            const totalEventos = eventos.reduce(function(s, L) { return s + (Number(L.valor) || 0); }, 0);
+
+            if (vendas.length === 0 && eventos.length === 0) {
+                box.innerHTML = '<div class="alert alert-info">Nenhuma compra nem lançamento de evento deste sócio no período ' +
+                    (periodo ? escapeHtml(periodo.label) : '') + '.</div>';
+                window._ultimoConsumoSocio = null;
+                return;
+            }
+
+            const totalQtd = vendas.reduce((s, m) => s + m.qty, 0);
+            const totalValor = vendas.reduce((s, m) => s + m.qty * (m.price || 0), 0);
 
             // agrupar por produto
             const porProduto = {};
@@ -5680,10 +5857,19 @@ function limparMovimentacoes() {
             const whatsappSocio = buscarWhatsappSocio(socioNome) || buscarWhatsappSocio(buscaRaw);
             const emailSocio = buscarEmailSocio(socioNome) || buscarEmailSocio(buscaRaw);
 
-            // Mensalidade do clube (R$ 40) — isentos: Souza, Aguirre, Clauber, Biondo, Dione, R Pereira, Rudinei
+            // Mensalidade do clube (R$ 40) — isentos conforme lista
             const mensalidade = calcularMensalidadeSocio(socioNome);
             const isentoMensalidade = mensalidade === 0;
-            const totalGeral = totalValor + mensalidade;
+            // Bruto = consumo + eventos + mensalidade
+            const totalBruto = totalValor + totalEventos + mensalidade;
+            // Desconto e valor já pago (registrados pelo presidente)
+            const cobranca = getCobrancaSocio(socioNome, mes);
+            const desconto = cobranca.desconto || 0;
+            const valorPago = cobranca.valorPago || 0;
+            const totalACobrar = Math.max(0, totalBruto - desconto);
+            const saldo = Math.round((totalACobrar - valorPago) * 100) / 100;
+            // totalGeral = total a cobrar (compatibilidade)
+            const totalGeral = totalACobrar;
 
             // Rótulo do período (ciclo 30→29)
             let mesNome = mes;
@@ -5703,18 +5889,31 @@ function limparMovimentacoes() {
                 periodoLabel: periodoLabel,
                 periodo: periodo,
                 vendas: vendas.slice(),
+                eventos: eventos.slice(),
                 porProduto: porProduto,
                 porPag: porPag,
                 totalQtd: totalQtd,
                 totalValor: totalValor,
+                totalEventos: totalEventos,
                 mensalidade: mensalidade,
                 isentoMensalidade: isentoMensalidade,
+                totalBruto: totalBruto,
+                desconto: desconto,
+                valorPago: valorPago,
+                totalACobrar: totalACobrar,
+                saldo: saldo,
+                cobrancaObs: cobranca.obs || '',
                 totalGeral: totalGeral,
                 whatsapp: whatsappSocio,
                 email: emailSocio
             };
 
             const mesLabel = periodoLabel;
+            const saldoTxt = saldo > 0.009
+                ? ('Saldo a pagar: <strong style="color:#b91c1c;">' + formatMoney(saldo) + '</strong>')
+                : (saldo < -0.009
+                    ? ('Crédito / pago a mais: <strong style="color:#0d9488;">' + formatMoney(Math.abs(saldo)) + '</strong>')
+                    : '<strong style="color:#0d9488;">Quitado</strong>');
 
             let html = '<div class="alert alert-info" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.5rem;">' +
                 '<span><strong>' + escapeHtml(socioNome) + '</strong><br>' +
@@ -5722,36 +5921,91 @@ function limparMovimentacoes() {
                 (whatsappSocio ? '<br><span style="font-size:0.85rem;">📱 WhatsApp: ' + escapeHtml(whatsappSocio) + '</span>' : '<br><span style="font-size:0.85rem;color:#b45309;">📱 WhatsApp não cadastrado</span>') +
                 (emailSocio ? '<br><span style="font-size:0.85rem;">📧 E-mail: ' + escapeHtml(emailSocio) + '</span>' : '<br><span style="font-size:0.85rem;color:#b45309;">📧 E-mail não cadastrado</span>') +
                 '<br>' + totalQtd + ' un • Consumo: <strong>' + formatMoney(totalValor) + '</strong>' +
+                (totalEventos > 0 ? ' • Eventos: <strong>' + formatMoney(totalEventos) + '</strong>' : '') +
                 (isentoMensalidade
                     ? ' • Mensalidade: <strong style="color:#0d9488;">isento</strong>'
                     : ' • Mensalidade: <strong>' + formatMoney(mensalidade) + '</strong>') +
-                ' • <strong>Total a cobrar: ' + formatMoney(totalGeral) + '</strong> • ' + vendas.length + ' registro(s)</span>' +
+                (desconto > 0 ? ' • Desconto: <strong style="color:#0d9488;">-' + formatMoney(desconto) + '</strong>' : '') +
+                ' • <strong>Total a cobrar: ' + formatMoney(totalACobrar) + '</strong>' +
+                (valorPago > 0 ? ' • Pago: <strong>' + formatMoney(valorPago) + '</strong>' : '') +
+                ' • ' + saldoTxt +
+                ' • ' + vendas.length + ' compra(s)' +
+                (eventos.length ? ' · ' + eventos.length + ' evento(s)' : '') +
+                '</span>' +
                 '<div style="display:flex;gap:0.35rem;flex-wrap:wrap;">' +
                 '<button type="button" class="btn btn-primary btn-sm" onclick="baixarConsumoSocioPDF()">📄 PDF do consumo</button>' +
                 '<button type="button" class="btn btn-sm" style="background:#25D366;color:#fff;border:none;" onclick="enviarConsumoSocioWhatsApp()">📲 WhatsApp</button>' +
                 '<button type="button" class="btn btn-sm" style="background:#2563eb;color:#fff;border:none;" onclick="enviarConsumoSocioEmail()">📧 Enviar e-mail</button>' +
                 '</div></div>';
+
+            // Painel: desconto e valor pago no mês
+            html += '<div style="margin:0.75rem 0;padding:0.85rem 1rem;border:1px solid var(--border);border-radius:10px;background:#fafdfb;">' +
+                '<p style="font-weight:700;font-size:0.9rem;margin:0 0 0.5rem;color:var(--primary-dark);">💳 Pagamento e desconto do mês</p>' +
+                '<p style="font-size:0.8rem;color:var(--text-muted);margin:0 0 0.65rem;">Informe desconto (se houver) e quanto o sócio já pagou. O saldo é calculado automaticamente.</p>' +
+                '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.6rem;">' +
+                '<div class="form-group" style="margin:0;"><label style="font-size:0.8rem;">Desconto (R$)</label>' +
+                '<input type="number" id="cobrancaDesconto" class="form-control" min="0" step="0.01" value="' +
+                (desconto ? desconto.toFixed(2) : '') + '" placeholder="0,00"></div>' +
+                '<div class="form-group" style="margin:0;"><label style="font-size:0.8rem;">Valor pago no mês (R$)</label>' +
+                '<input type="number" id="cobrancaValorPago" class="form-control" min="0" step="0.01" value="' +
+                (valorPago ? valorPago.toFixed(2) : '') + '" placeholder="0,00"></div></div>' +
+                '<div class="form-group" style="margin:0.55rem 0 0;"><label style="font-size:0.8rem;">Observação (opcional)</label>' +
+                '<input type="text" id="cobrancaObs" class="form-control" value="' + escapeHtml(cobranca.obs || '') +
+                '" placeholder="Ex.: pagou a mais, desconto combinado..."></div>' +
+                '<div style="margin-top:0.65rem;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:0.4rem;">' +
+                '<span style="font-size:0.85rem;">Bruto: <strong>' + formatMoney(totalBruto) + '</strong> · ' +
+                'A cobrar: <strong>' + formatMoney(totalACobrar) + '</strong> · ' + saldoTxt + '</span>' +
+                '<button type="button" class="btn btn-primary btn-sm" onclick="salvarCobrancaSocioDoForm()">💾 Salvar pagamento / desconto</button>' +
+                '</div></div>';
+
+            // Eventos / taxas lançados na conta
+            if (eventos.length > 0) {
+                html += '<p style="font-weight:600;font-size:0.9rem;margin:0.75rem 0 0.35rem;color:#0d5c2e;">🎉 Eventos e taxas na conta</p>';
+                html += '<div style="max-height:180px;overflow-y:auto;margin-bottom:0.75rem;"><table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
+                    '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.35rem;">Descrição</th>' +
+                    '<th style="text-align:right;">Valor</th><th style="text-align:center;">Ação</th></tr></thead><tbody>';
+                eventos.forEach(function(L) {
+                    html += '<tr style="border-bottom:1px solid var(--border);">' +
+                        '<td style="padding:0.35rem;">' + escapeHtml(L.descricao || 'Evento') + '</td>' +
+                        '<td style="text-align:right;padding:0.35rem;font-weight:600;">' + formatMoney(L.valor || 0) + '</td>' +
+                        '<td style="text-align:center;">' +
+                        '<button type="button" class="btn btn-sm btn-danger" style="font-size:0.7rem;padding:0.15rem 0.4rem;" ' +
+                        'onclick="adminExcluirLancamentoEvento(\'' + L.id + '\')">Excluir</button></td></tr>';
+                });
+                html += '<tr style="background:#e8f5ec;font-weight:700;"><td style="padding:0.35rem;">Total eventos</td>' +
+                    '<td style="text-align:right;padding:0.35rem;">' + formatMoney(totalEventos) + '</td><td></td></tr>';
+                html += '</tbody></table></div>';
+            }
+
             html += '<p style="font-weight:600;font-size:0.9rem;margin:0.5rem 0;">Resumo por produto</p>';
-            html += '<div style="max-height:160px;overflow-y:auto;margin-bottom:0.75rem;"><table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
-                '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.35rem;">Produto</th><th style="text-align:center;">Qtd</th><th style="text-align:right;">Valor</th></tr></thead><tbody>';
-            Object.keys(porProduto).sort().forEach(k => {
-                html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:0.35rem;">' + escapeHtml(k) +
-                    '</td><td style="text-align:center;">' + porProduto[k].qty +
-                    '</td><td style="text-align:right;padding:0.35rem;">' + formatMoney(porProduto[k].valor) + '</td></tr>';
-            });
-            html += '</tbody></table></div>';
-            html += '<p style="font-weight:600;font-size:0.9rem;">Detalhes</p>';
-            html += '<div style="max-height:300px;overflow-y:auto;"><table style="width:100%;font-size:0.82rem;border-collapse:collapse;">' +
-                '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.4rem;">Data</th><th style="text-align:left;padding:0.4rem;">Produto</th><th>Qtd</th><th>Pag.</th><th>Valor</th></tr></thead><tbody>';
-            vendas.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(m => {
-                html += '<tr style="border-bottom:1px solid var(--border);">' +
-                    '<td style="padding:0.4rem;">' + formatDate(m.date) + '</td>' +
-                    '<td style="padding:0.4rem;">' + escapeHtml(m.productName) + '</td>' +
-                    '<td style="text-align:center;">' + m.qty + '</td>' +
-                    '<td style="text-align:center;">' + escapeHtml(m.pagamento || '—') + '</td>' +
-                    '<td style="text-align:right;padding:0.4rem;">' + formatMoney(m.qty * (m.price || 0)) + '</td></tr>';
-            });
-            html += '</tbody></table></div>';
+            if (Object.keys(porProduto).length === 0) {
+                html += '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhuma compra de mercadoria neste período.</p>';
+            } else {
+                html += '<div style="max-height:160px;overflow-y:auto;margin-bottom:0.75rem;"><table style="width:100%;font-size:0.85rem;border-collapse:collapse;">' +
+                    '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.35rem;">Produto</th><th style="text-align:center;">Qtd</th><th style="text-align:right;">Valor</th></tr></thead><tbody>';
+                Object.keys(porProduto).sort().forEach(k => {
+                    html += '<tr style="border-bottom:1px solid var(--border);"><td style="padding:0.35rem;">' + escapeHtml(k) +
+                        '</td><td style="text-align:center;">' + porProduto[k].qty +
+                        '</td><td style="text-align:right;padding:0.35rem;">' + formatMoney(porProduto[k].valor) + '</td></tr>';
+                });
+                html += '</tbody></table></div>';
+            }
+            html += '<p style="font-weight:600;font-size:0.9rem;">Detalhes das compras</p>';
+            if (vendas.length === 0) {
+                html += '<p style="color:var(--text-muted);font-size:0.85rem;">Sem compras de mercadoria.</p>';
+            } else {
+                html += '<div style="max-height:300px;overflow-y:auto;"><table style="width:100%;font-size:0.82rem;border-collapse:collapse;">' +
+                    '<thead><tr style="background:#f0f7f2;"><th style="text-align:left;padding:0.4rem;">Data</th><th style="text-align:left;padding:0.4rem;">Produto</th><th>Qtd</th><th>Pag.</th><th>Valor</th></tr></thead><tbody>';
+                vendas.sort((a,b) => new Date(b.date) - new Date(a.date)).forEach(m => {
+                    html += '<tr style="border-bottom:1px solid var(--border);">' +
+                        '<td style="padding:0.4rem;">' + formatDate(m.date) + '</td>' +
+                        '<td style="padding:0.4rem;">' + escapeHtml(m.productName) + '</td>' +
+                        '<td style="text-align:center;">' + m.qty + '</td>' +
+                        '<td style="text-align:center;">' + escapeHtml(m.pagamento || '—') + '</td>' +
+                        '<td style="text-align:right;padding:0.4rem;">' + formatMoney(m.qty * (m.price || 0)) + '</td></tr>';
+                });
+                html += '</tbody></table></div>';
+            }
             box.innerHTML = html;
         }
 
@@ -5759,21 +6013,49 @@ function limparMovimentacoes() {
             const mensalidade = (typeof dados.mensalidade === 'number')
                 ? dados.mensalidade
                 : calcularMensalidadeSocio(dados.socioNome);
-            const totalGeral = (typeof dados.totalGeral === 'number')
-                ? dados.totalGeral
+            const totalBruto = (typeof dados.totalBruto === 'number')
+                ? dados.totalBruto
                 : (Number(dados.totalValor) || 0) + mensalidade;
+            const desconto = Number(dados.desconto) || 0;
+            const valorPago = Number(dados.valorPago) || 0;
+            const totalACobrar = (typeof dados.totalACobrar === 'number')
+                ? dados.totalACobrar
+                : Math.max(0, totalBruto - desconto);
+            const saldo = (typeof dados.saldo === 'number')
+                ? dados.saldo
+                : Math.round((totalACobrar - valorPago) * 100) / 100;
 
             let msg = '*GRAJ — Extrato de consumo*\n';
             msg += 'Sócio: *' + dados.socioNome + '*\n';
             msg += 'Período: *' + mesLabel + '*\n\n';
             msg += 'Itens: *' + dados.totalQtd + '* un\n';
             msg += 'Consumo (mercadorias): *' + formatMoney(dados.totalValor) + '*\n';
+            if ((Number(dados.totalEventos) || 0) > 0 || (dados.eventos && dados.eventos.length)) {
+                msg += 'Eventos / taxas: *' + formatMoney(dados.totalEventos || 0) + '*\n';
+                (dados.eventos || []).forEach(function(L) {
+                    msg += '  • ' + (L.descricao || 'Evento') + ': ' + formatMoney(L.valor || 0) + '\n';
+                });
+            }
             if (mensalidade > 0) {
                 msg += 'Mensalidade do clube: *' + formatMoney(mensalidade) + '*\n';
             } else {
                 msg += 'Mensalidade do clube: *isento*\n';
             }
-            msg += '*TOTAL A COBRAR: ' + formatMoney(totalGeral) + '*\n\n';
+            if (desconto > 0) {
+                msg += 'Desconto: *-' + formatMoney(desconto) + '*\n';
+            }
+            msg += '*TOTAL A COBRAR: ' + formatMoney(totalACobrar) + '*\n';
+            if (valorPago > 0) {
+                msg += 'Valor pago: *' + formatMoney(valorPago) + '*\n';
+            }
+            if (saldo > 0.009) {
+                msg += '*SALDO A PAGAR: ' + formatMoney(saldo) + '*\n';
+            } else if (saldo < -0.009) {
+                msg += '*CRÉDITO (pago a mais): ' + formatMoney(Math.abs(saldo)) + '*\n';
+            } else if (valorPago > 0 || totalACobrar === 0) {
+                msg += '*Situação: QUITADO*\n';
+            }
+            msg += '\n';
 
             // Detalhe dia a dia (data em que pegou cada mercadoria)
             msg += '*Compras por data:*\n';
@@ -5976,16 +6258,41 @@ function limparMovimentacoes() {
                 '<div style="flex:1;min-width:120px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
                 '<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;">Consumo</div>' +
                 '<div style="font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;">' + formatMoney(dados.totalValor) + '</div></div>' +
-                '<div style="flex:1;min-width:120px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
+                ((Number(dados.totalEventos) > 0)
+                    ? ('<div style="flex:1;min-width:100px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
+                       '<div style="font-size:10px;color:#555;text-transform:uppercase;">Eventos</div>' +
+                       '<div style="font-size:14px;font-weight:700;color:#0d5c2e;margin-top:2px;">' + formatMoney(dados.totalEventos) + '</div></div>')
+                    : '') +
+                '<div style="flex:1;min-width:100px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
                 '<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;">Mensalidade</div>' +
-                '<div style="font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;">' +
+                '<div style="font-size:14px;font-weight:700;color:#0d5c2e;margin-top:2px;">' +
                 ((dados.mensalidade > 0) ? formatMoney(dados.mensalidade) : 'Isento') +
                 '</div></div>' +
-                '<div style="flex:1;min-width:120px;background:#e8f5ec;border:2px solid #0d5c2e;border-radius:8px;padding:10px 12px;">' +
+                ((Number(dados.desconto) > 0)
+                    ? ('<div style="flex:1;min-width:100px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
+                       '<div style="font-size:10px;color:#555;text-transform:uppercase;">Desconto</div>' +
+                       '<div style="font-size:14px;font-weight:700;color:#0d9488;margin-top:2px;">-' + formatMoney(dados.desconto) + '</div></div>')
+                    : '') +
+                '<div style="flex:1;min-width:100px;background:#e8f5ec;border:2px solid #0d5c2e;border-radius:8px;padding:10px 12px;">' +
                 '<div style="font-size:10px;color:#555;text-transform:uppercase;letter-spacing:0.03em;">Total a cobrar</div>' +
-                '<div style="font-size:15px;font-weight:700;color:#0d5c2e;margin-top:2px;">' +
-                formatMoney((typeof dados.totalGeral === 'number') ? dados.totalGeral : (Number(dados.totalValor)||0) + (Number(dados.mensalidade)||0)) +
+                '<div style="font-size:14px;font-weight:700;color:#0d5c2e;margin-top:2px;">' +
+                formatMoney((typeof dados.totalACobrar === 'number') ? dados.totalACobrar
+                    : ((typeof dados.totalGeral === 'number') ? dados.totalGeral
+                        : (Number(dados.totalValor)||0) + (Number(dados.mensalidade)||0) - (Number(dados.desconto)||0))) +
                 '</div></div>' +
+                ((Number(dados.valorPago) > 0)
+                    ? ('<div style="flex:1;min-width:100px;background:#f0f7f2;border:1px solid #c5e0ce;border-radius:8px;padding:10px 12px;">' +
+                       '<div style="font-size:10px;color:#555;text-transform:uppercase;">Pago</div>' +
+                       '<div style="font-size:14px;font-weight:700;color:#0d5c2e;margin-top:2px;">' + formatMoney(dados.valorPago) + '</div></div>')
+                    : '') +
+                ((typeof dados.saldo === 'number' && (Number(dados.valorPago) > 0 || Number(dados.desconto) > 0))
+                    ? ('<div style="flex:1;min-width:100px;background:#fff7ed;border:1px solid #fdba74;border-radius:8px;padding:10px 12px;">' +
+                       '<div style="font-size:10px;color:#555;text-transform:uppercase;">Saldo</div>' +
+                       '<div style="font-size:14px;font-weight:700;margin-top:2px;">' +
+                       (dados.saldo > 0.009 ? formatMoney(dados.saldo)
+                           : (dados.saldo < -0.009 ? 'Créd. ' + formatMoney(Math.abs(dados.saldo)) : 'Quitado')) +
+                       '</div></div>')
+                    : '') +
                 '</div>' +
 
                 '<h2 style="font-size:14px;margin:20px 0 8px;color:#0d5c2e;border-bottom:2px solid #0d5c2e;padding-bottom:4px;">Resumo por produto</h2>' +
@@ -5998,6 +6305,21 @@ function limparMovimentacoes() {
                 '<td style="border:1px solid #ccc;padding:5px 7px;text-align:center;">' + (dados.totalQtd || 0) + '</td>' +
                 '<td style="border:1px solid #ccc;padding:5px 7px;text-align:right;">' + formatMoney(dados.totalValor) + '</td></tr>' +
                 '</tbody></table>' +
+
+                ((dados.eventos && dados.eventos.length)
+                    ? ('<h2 style="font-size:14px;margin:20px 0 8px;color:#0d5c2e;border-bottom:2px solid #0d5c2e;padding-bottom:4px;">Eventos e taxas</h2>' +
+                       '<table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:11px;">' +
+                       '<thead><tr><th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;text-align:left;">Descrição</th>' +
+                       '<th style="border:1px solid #ccc;padding:5px 7px;background:#e8f5ec;color:#084020;text-align:right;">Valor</th></tr></thead><tbody>' +
+                       dados.eventos.map(function(L) {
+                           return '<tr><td style="border:1px solid #ccc;padding:5px 7px;">' + escapeHtml(L.descricao || 'Evento') +
+                               '</td><td style="border:1px solid #ccc;padding:5px 7px;text-align:right;font-weight:600;">' +
+                               formatMoney(L.valor || 0) + '</td></tr>';
+                       }).join('') +
+                       '<tr style="background:#e8f5ec;font-weight:700;"><td style="border:1px solid #ccc;padding:5px 7px;">TOTAL EVENTOS</td>' +
+                       '<td style="border:1px solid #ccc;padding:5px 7px;text-align:right;">' + formatMoney(dados.totalEventos || 0) + '</td></tr>' +
+                       '</tbody></table>')
+                    : '') +
 
                 '<h2 style="font-size:14px;margin:20px 0 8px;color:#0d5c2e;border-bottom:2px solid #0d5c2e;padding-bottom:4px;">Por forma de pagamento</h2>' +
                 '<table style="width:100%;border-collapse:collapse;margin-top:6px;font-size:11px;">' +
@@ -6087,23 +6409,38 @@ function limparMovimentacoes() {
             doc.text('Periodo: ' + String(mesLabel || ''), margin, y); y += 4.5;
             doc.text('Gerado em ' + dataStr + ' as ' + horaStr, margin, y); y += 7;
 
-            // Cards de resumo (consumo + mensalidade + total)
+            // Cards de resumo (consumo + mensalidade + desconto/pago + total)
             const mensalidadePdf = (typeof dados.mensalidade === 'number')
                 ? dados.mensalidade
                 : calcularMensalidadeSocio(dados.socioNome);
-            const totalGeralPdf = (typeof dados.totalGeral === 'number')
-                ? dados.totalGeral
-                : (Number(dados.totalValor) || 0) + mensalidadePdf;
+            const descontoPdf = Number(dados.desconto) || 0;
+            const pagoPdf = Number(dados.valorPago) || 0;
+            const totalACobrarPdf = (typeof dados.totalACobrar === 'number')
+                ? dados.totalACobrar
+                : Math.max(0, (Number(dados.totalValor) || 0) + mensalidadePdf - descontoPdf);
+            const saldoPdf = (typeof dados.saldo === 'number')
+                ? dados.saldo
+                : Math.round((totalACobrarPdf - pagoPdf) * 100) / 100;
 
             const cardH = 16;
-            const gap = 2.5;
-            const cardW = (contentW - gap * 3) / 4;
+            const gap = 2;
             const cards = [
                 { lbl: 'ITENS', val: String(dados.totalQtd || 0) },
                 { lbl: 'CONSUMO', val: formatMoney(dados.totalValor) },
-                { lbl: 'MENSALIDADE', val: mensalidadePdf > 0 ? formatMoney(mensalidadePdf) : 'Isento' },
-                { lbl: 'TOTAL A COBRAR', val: formatMoney(totalGeralPdf) }
+                { lbl: 'MENSALIDADE', val: mensalidadePdf > 0 ? formatMoney(mensalidadePdf) : 'Isento' }
             ];
+            if (descontoPdf > 0) cards.push({ lbl: 'DESCONTO', val: '-' + formatMoney(descontoPdf) });
+            cards.push({ lbl: 'A COBRAR', val: formatMoney(totalACobrarPdf) });
+            if (pagoPdf > 0) cards.push({ lbl: 'PAGO', val: formatMoney(pagoPdf) });
+            if (pagoPdf > 0 || descontoPdf > 0) {
+                cards.push({
+                    lbl: 'SALDO',
+                    val: saldoPdf > 0.009 ? formatMoney(saldoPdf)
+                        : (saldoPdf < -0.009 ? 'Cred ' + formatMoney(Math.abs(saldoPdf)) : 'Quitado')
+                });
+            }
+            const nCards = cards.length;
+            const cardW = (contentW - gap * Math.max(0, nCards - 1)) / nCards;
             ensureSpace(cardH + 4);
             cards.forEach(function(c, i) {
                 const x = margin + i * (cardW + gap);
@@ -6176,6 +6513,16 @@ function limparMovimentacoes() {
             });
             prodRows.push(['TOTAL', String(dados.totalQtd || 0), formatMoney(dados.totalValor)]);
             drawTable(['Produto', 'Qtd', 'Valor'], prodRows, [0.55, 0.15, 0.30]);
+
+            // Eventos / taxas
+            if (dados.eventos && dados.eventos.length) {
+                tituloSecao('Eventos e taxas');
+                const evRows = dados.eventos.map(function(L) {
+                    return [L.descricao || 'Evento', formatMoney(L.valor || 0)];
+                });
+                evRows.push(['TOTAL EVENTOS', formatMoney(dados.totalEventos || 0)]);
+                drawTable(['Descricao', 'Valor'], evRows, [0.70, 0.30]);
+            }
 
             // Pagamentos
             tituloSecao('Por forma de pagamento');
@@ -6498,9 +6845,23 @@ function limparMovimentacoes() {
                 '<div class="card"><div class="lbl">Consumo</div><div class="val">' + formatMoney(dados.totalValor) + '</div></div>' +
                 '<div class="card"><div class="lbl">Mensalidade</div><div class="val">' +
                 ((dados.mensalidade > 0) ? formatMoney(dados.mensalidade) : 'Isento') + '</div></div>' +
+                ((Number(dados.desconto) > 0)
+                    ? '<div class="card"><div class="lbl">Desconto</div><div class="val">-' + formatMoney(dados.desconto) + '</div></div>'
+                    : '') +
                 '<div class="card" style="border:2px solid #0d5c2e;"><div class="lbl">Total a cobrar</div><div class="val">' +
-                formatMoney((typeof dados.totalGeral === 'number') ? dados.totalGeral : (Number(dados.totalValor)||0) + (Number(dados.mensalidade)||0)) +
+                formatMoney((typeof dados.totalACobrar === 'number') ? dados.totalACobrar
+                    : ((typeof dados.totalGeral === 'number') ? dados.totalGeral
+                        : (Number(dados.totalValor)||0) + (Number(dados.mensalidade)||0) - (Number(dados.desconto)||0))) +
                 '</div></div>' +
+                ((Number(dados.valorPago) > 0)
+                    ? '<div class="card"><div class="lbl">Valor pago</div><div class="val">' + formatMoney(dados.valorPago) + '</div></div>'
+                    : '') +
+                ((typeof dados.saldo === 'number' && (Number(dados.valorPago) > 0 || Number(dados.desconto) > 0))
+                    ? '<div class="card"><div class="lbl">Saldo</div><div class="val">' +
+                      (dados.saldo > 0.009 ? formatMoney(dados.saldo)
+                          : (dados.saldo < -0.009 ? 'Créd. ' + formatMoney(Math.abs(dados.saldo)) : 'Quitado')) +
+                      '</div></div>'
+                    : '') +
                 '</div>' +
 
                 '<h2>Resumo por produto</h2>' +
@@ -6509,6 +6870,17 @@ function limparMovimentacoes() {
                 '<tr style="background:#e8f5ec;font-weight:700;"><td>TOTAL</td><td style="text-align:center;">' + dados.totalQtd +
                 '</td><td style="text-align:right;">' + formatMoney(dados.totalValor) + '</td></tr>' +
                 '</tbody></table>' +
+
+                ((dados.eventos && dados.eventos.length)
+                    ? ('<h2>Eventos e taxas</h2>' +
+                       '<table><thead><tr><th>Descrição</th><th>Valor</th></tr></thead><tbody>' +
+                       dados.eventos.map(function(L) {
+                           return '<tr><td>' + escapeHtml(L.descricao || 'Evento') + '</td><td style="text-align:right;font-weight:600;">' +
+                               formatMoney(L.valor || 0) + '</td></tr>';
+                       }).join('') +
+                       '<tr style="background:#e8f5ec;font-weight:700;"><td>TOTAL EVENTOS</td><td style="text-align:right;">' +
+                       formatMoney(dados.totalEventos || 0) + '</td></tr></tbody></table>')
+                    : '') +
 
                 '<h2>Por forma de pagamento</h2>' +
                 '<table><thead><tr><th>Pagamento</th><th>Valor</th></tr></thead><tbody>' + rowsPag + '</tbody></table>' +
