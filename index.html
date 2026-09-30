@@ -1403,7 +1403,9 @@
                 <div class="card-body">
                     <div class="alert alert-info" style="font-size:0.85rem;margin-bottom:0.85rem;">
                         Cobrança do clube: do <strong>dia 30</strong> até o <strong>dia 29</strong> do mês seguinte.<br>
-                        Escolha o <strong>mês de fechamento</strong> (ex.: setembro = consumo de 30/08 a 29/09).
+                        Escolha o <strong>mês de fechamento</strong> (ex.: setembro = consumo de 30/08 a 29/09).<br>
+                        <strong>Desconto do sócio:</strong> entram só compras na <strong>conta (fiado)</strong>.
+                        Pix e dinheiro <strong>não</strong> entram neste extrato.
                     </div>
                     <div class="form-row">
                         <div class="form-group">
@@ -1553,13 +1555,13 @@
                 <div class="card-body">
                     <p style="font-size:0.85rem;color:var(--text-muted);margin-bottom:0.75rem;">
                         <strong>Recomendado:</strong> envia o PDF anexado pelo Gmail, grátis.
-                        Siga o arquivo <code>COMO-ENVIAR-PDF-GMAIL.txt</code> do ZIP, publique o script e cole a URL abaixo.
+                        Cole a URL do Apps Script abaixo e salve — ela <strong>sincroniza na nuvem</strong> e vale em todos os celulares e computadores do clube.
                     </p>
                     <div class="form-group">
                         <label>URL do Google Apps Script (termina com /exec)</label>
                         <input type="url" id="gasWebAppUrl" class="form-control" placeholder="https://script.google.com/macros/s/XXXX/exec">
                     </div>
-                    <button class="btn btn-primary" onclick="salvarConfigGasEmail()">💾 Salvar URL do Gmail</button>
+                    <button class="btn btn-primary" onclick="salvarConfigGasEmail()">💾 Salvar URL do Gmail (sincroniza)</button>
                     <p id="gasEmailStatus" style="font-size:0.8rem;margin-top:0.5rem;color:var(--text-muted);"></p>
                 </div>
             </div>
@@ -1840,12 +1842,12 @@
         // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
-  authDomain: "estoque-graj-b32b2.firebaseapp.com",
-  databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
-  projectId: "estoque-graj-b32b2",
-  storageBucket: "estoque-graj-b32b2.firebasestorage.app",
-  messagingSenderId: "924249670911",
-  appId: "1:924249670911:web:283128ab7ceba163c478ca"
+       authDomain: "estoque-graj-b32b2.firebaseapp.com",
+       databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
+       projectId: "estoque-graj-b32b2",
+       storageBucket: "estoque-graj-b32b2.firebasestorage.app",
+       messagingSenderId: "924249670911",
+       appId: "1:924249670911:web:283128ab7ceba163c478ca"
         };
 
         // Configuração de e-mail (também pode ser salva pelo Admin → Senha)
@@ -1863,6 +1865,12 @@
         }
 
         function loadGasEmailConfig() {
+            // Preferência: URL vinda do estado (Firebase). Fallback: localStorage antigo.
+            try {
+                if (typeof state !== 'undefined' && state && state.gasWebAppUrl) {
+                    return { webAppUrl: String(state.gasWebAppUrl || '').trim() };
+                }
+            } catch (e) {}
             try {
                 const raw = localStorage.getItem(GAS_EMAIL_STORAGE_KEY);
                 if (raw) return JSON.parse(raw);
@@ -1870,15 +1878,28 @@
             return { webAppUrl: '' };
         }
 
-        function salvarConfigGasEmail() {
-            const url = ((document.getElementById('gasWebAppUrl') || {}).value || '').trim();
-            gasEmailConfig = { webAppUrl: url };
+        /** Sincroniza variável gasEmailConfig com state + localStorage */
+        function aplicarGasUrlNoRuntime(url) {
+            const u = String(url || '').trim();
+            gasEmailConfig = { webAppUrl: u };
             try {
                 localStorage.setItem(GAS_EMAIL_STORAGE_KEY, JSON.stringify(gasEmailConfig));
             } catch (e) {}
+            if (typeof state !== 'undefined' && state) {
+                state.gasWebAppUrl = u;
+            }
+        }
+
+        function salvarConfigGasEmail() {
+            const url = ((document.getElementById('gasWebAppUrl') || {}).value || '').trim();
+            aplicarGasUrlNoRuntime(url);
+            // Salva na nuvem (Firebase) para todos os aparelhos
+            if (typeof saveState === 'function') {
+                try { saveState(); } catch (e) {}
+            }
             atualizarStatusEmailJS();
             if (url && url.indexOf('script.google.com') >= 0) {
-                toast('URL do Google salva. Envio com PDF ativado.');
+                toast('URL do Google salva e sincronizada (vale em todos os aparelhos).');
             } else if (url) {
                 toast('URL salva. Confira se termina com /exec.', 'error');
             } else {
@@ -2188,6 +2209,8 @@
             // Lançamentos de eventos/festas na conta do sócio
             // [{ id, socio, valor, descricao, mes, data, criadoEm }]
             lancamentosEvento: [],
+            // URL do Google Apps Script (envio de extrato com PDF) — sincroniza na nuvem
+            gasWebAppUrl: '',
             socios: [
                 { id: 's001', numero: '1', nome: 'TC CARON' },
                 { id: 's002', numero: '2', nome: 'TC SOVAT' },
@@ -2435,20 +2458,60 @@
             if (!data) return;
             suppressRemote = true;
             state = migrateProducts(data);
+            // URL do Gmail/PDF: prioriza a da nuvem; se vazia, sobe a do localStorage antigo
+            let urlNuvem = (state.gasWebAppUrl && String(state.gasWebAppUrl).trim()) || '';
+            if (!urlNuvem) {
+                try {
+                    const raw = localStorage.getItem(GAS_EMAIL_STORAGE_KEY);
+                    if (raw) {
+                        const localCfg = JSON.parse(raw);
+                        if (localCfg && localCfg.webAppUrl && String(localCfg.webAppUrl).indexOf('http') === 0) {
+                            urlNuvem = String(localCfg.webAppUrl).trim();
+                            state.gasWebAppUrl = urlNuvem;
+                            // Envia para a nuvem sem reentrar no listener
+                            if (firebaseEnabled && dbRef) {
+                                dbRef.child('gasWebAppUrl').set(urlNuvem).catch(function() {});
+                            }
+                        }
+                    }
+                } catch (e) {}
+            }
+            aplicarGasUrlNoRuntime(urlNuvem);
             saveStateLocal();
             // Atualiza telas se já estiverem abertas
             try {
                 if (typeof renderAll === 'function') renderAll();
                 if (typeof renderAdmin === 'function' && isAdmin) renderAdmin();
+                if (typeof atualizarStatusEmailJS === 'function') atualizarStatusEmailJS();
                 if (typeof updateWelcomeServiceAviso === 'function') updateWelcomeServiceAviso();
             } catch (e) {}
             suppressRemote = false;
+        }
+
+        /** Após carregar state local, puxa URL do Gmail do localStorage se state ainda não tiver */
+        function migrarGasUrlLocalParaState() {
+            try {
+                if (state && state.gasWebAppUrl && String(state.gasWebAppUrl).indexOf('http') === 0) {
+                    aplicarGasUrlNoRuntime(state.gasWebAppUrl);
+                    return;
+                }
+                const raw = localStorage.getItem(GAS_EMAIL_STORAGE_KEY);
+                if (raw) {
+                    const localCfg = JSON.parse(raw);
+                    if (localCfg && localCfg.webAppUrl && String(localCfg.webAppUrl).indexOf('http') === 0) {
+                        aplicarGasUrlNoRuntime(localCfg.webAppUrl);
+                        return;
+                    }
+                }
+            } catch (e) {}
+            aplicarGasUrlNoRuntime((state && state.gasWebAppUrl) || '');
         }
 
         function initFirebase() {
             if (!isFirebaseConfigured()) {
                 console.log('Firebase não configurado — usando apenas localStorage');
                 state = loadStateLocal();
+                migrarGasUrlLocalParaState();
                 return;
             }
             try {
@@ -2463,8 +2526,9 @@
                         applyRemoteState(data);
                         console.log('Dados sincronizados da nuvem');
                     } else {
-                        // Banco vazio: sobe o estado local atual
+                        // Banco vazio: sobe o estado local atual (inclui URL do Gmail se existir)
                         state = loadStateLocal();
+                        migrarGasUrlLocalParaState();
                         dbRef.set(state);
                         console.log('Banco vazio — enviando dados locais');
                     }
@@ -2472,6 +2536,7 @@
                     console.error('Erro listener Firebase:', err);
                     toast('Erro de conexão com a nuvem', 'error');
                     state = loadStateLocal();
+                    migrarGasUrlLocalParaState();
                 });
 
                 // Indicador visual opcional
@@ -2484,6 +2549,7 @@
                 console.error('Falha ao iniciar Firebase:', e);
                 firebaseEnabled = false;
                 state = loadStateLocal();
+                migrarGasUrlLocalParaState();
                 toast('Firebase não iniciou. Usando modo local.', 'error');
             }
         }
@@ -2493,6 +2559,7 @@
         // Se Firebase não estiver ativo, carrega local imediatamente
         if (!firebaseEnabled) {
             state = loadStateLocal();
+            migrarGasUrlLocalParaState();
         }
 
         // ==================== UTILS ====================
@@ -5778,12 +5845,20 @@ function limparMovimentacoes() {
             }
         }
 
+        /** Só compras na conta do sócio (fiado). Pix e dinheiro NÃO entram no desconto. */
+        function isPagamentoContaSocio(pagamento) {
+            const p = String(pagamento || '').toLowerCase();
+            return /s[oó]cio|conta|fiado/.test(p);
+        }
+
         function filtrarVendasSocioMes(busca, mes) {
             const buscaLow = (busca || '').trim().toLowerCase();
             if (!buscaLow || !mes) return [];
             const periodo = periodoCicloCobrança(mes);
             if (!periodo) return [];
             return todasVendasHistorico().filter(m => {
+                // Desconto do sócio: apenas fiado / conta — exclui Pix e Dinheiro
+                if (!isPagamentoContaSocio(m.pagamento)) return false;
                 const socioTxt = (m.socio || '').toLowerCase();
                 if (!socioTxt.includes(buscaLow) && !buscaLow.split(/\s+/).every(t => socioTxt.includes(t))) {
                     if (!(m.socio && String(m.socio).toLowerCase().indexOf(buscaLow) >= 0)) return false;
@@ -6634,7 +6709,13 @@ function limparMovimentacoes() {
 
             const mesLabel = dados.periodoLabel || dados.mes || '';
             const msgTexto = montarMensagemConsumoSocio(dados, mesLabel);
-            const subject = 'GRAJ — Extrato de consumo · ' + mesLabel;
+            // Assunto só com caracteres simples (evita erro de codificação no Gmail)
+            const subjectSafe = ('GRAJ - Extrato de consumo - ' + String(mesLabel || ''))
+                .replace(/[—–·•]/g, '-')
+                .replace(/\s+/g, ' ')
+                .trim()
+                .slice(0, 180);
+            const subject = subjectSafe;
             const filename = 'extrato-' + String(dados.socioNome || 'socio').replace(/[^\w\-]+/g, '_').slice(0, 40) + '.pdf';
 
             toast(temGas ? 'Gerando PDF (mesmo visual do fluxo) e enviando...' : 'Enviando e-mail...');
