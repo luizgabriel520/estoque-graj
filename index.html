@@ -1007,7 +1007,7 @@
     <!-- Welcome / Login Screen -->
     <div class="welcome-screen" id="welcomeScreen">
         <div class="welcome-card">
-            <div class="logo-big"><img src="logo-clube.jpg" alt="GRAJ - Grêmio Antônio João"></div>
+            <div class="logo-big"><img src="logo-clube.jpg" alt="GBERAJ - Grêmio Antônio João"></div>
             <h2>Controle de Estoque</h2>
             <p>Grêmio Recreativo Antônio João<br>Sistema de conferência diária</p>
 
@@ -1390,6 +1390,11 @@
             <div class="card">
                 <div class="card-header"><h2>Lista de Sócios (<span id="sociosCount">0</span>)</h2></div>
                 <div class="card-body" style="max-height:400px;overflow-y:auto;">
+                    <p style="font-size:0.82rem;color:var(--text-muted);margin:0 0 0.65rem;">
+                        <strong>🔒 Bloquear</strong> impede compra na <strong>conta (fiado)</strong>.
+                        O sócio ainda pode pagar em Pix ou dinheiro.
+                        Use <strong>🔓 Desbloquear</strong> para liberar a conta de novo.
+                    </p>
                     <input type="text" id="socioBuscaLista" class="form-control" placeholder="Filtrar sócio..." oninput="renderAdminSocios()" style="margin-bottom:0.75rem;">
                     <div id="adminListaSocios"></div>
                 </div>
@@ -1842,12 +1847,12 @@
         // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
         const FIREBASE_CONFIG = {
             apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
-       authDomain: "estoque-graj-b32b2.firebaseapp.com",
-       databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
-       projectId: "estoque-graj-b32b2",
-       storageBucket: "estoque-graj-b32b2.firebasestorage.app",
-       messagingSenderId: "924249670911",
-       appId: "1:924249670911:web:283128ab7ceba163c478ca"
+  authDomain: "estoque-graj-b32b2.firebaseapp.com",
+  databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
+  projectId: "estoque-graj-b32b2",
+  storageBucket: "estoque-graj-b32b2.firebasestorage.app",
+  messagingSenderId: "924249670911",
+  appId: "1:924249670911:web:283128ab7ceba163c478ca"
         };
 
         // Configuração de e-mail (também pode ser salva pelo Admin → Senha)
@@ -3688,6 +3693,18 @@
                 : 1;
             const vencimentos = isContaPag ? gerarVencimentosParcelas(numParcelas) : [];
 
+            // Sócio bloqueado: não pode comprar na conta (fiado)
+            if (isContaPag) {
+                if (!socio) {
+                    toast('Informe o sócio para venda na conta.', 'error');
+                    return;
+                }
+                if (isSocioBloqueadoParaConta(socio)) {
+                    toast('Sócio BLOQUEADO: não pode comprar na conta. Use Pix ou dinheiro, ou peça ao presidente para desbloquear.', 'error');
+                    return;
+                }
+            }
+
             // Se a lista estiver vazia, tenta vender o item selecionado no formulário (1 produto)
             if (vendaItens.length === 0) {
                 const productId = document.getElementById('vendaProduto').value;
@@ -5006,7 +5023,8 @@ function limparMovimentacoes() {
                 numero: numero,
                 nome: nome || numero,
                 whatsapp: whatsapp || '',
-                email: email || ''
+                email: email || '',
+                bloqueado: false
             });
             document.getElementById('socioNumero').value = '';
             document.getElementById('socioNome').value = '';
@@ -5070,7 +5088,8 @@ function limparMovimentacoes() {
                         numero: numero,
                         nome: nome,
                         whatsapp: whatsapp || '',
-                        email: email || ''
+                        email: email || '',
+                        bloqueado: false
                     });
                     add++;
                 }
@@ -5110,18 +5129,62 @@ function limparMovimentacoes() {
                 box.innerHTML = '<p style="color:var(--text-muted);">Nenhum sócio cadastrado.</p>';
                 return;
             }
-            box.innerHTML = list.map(s =>
-                '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0;border-bottom:1px solid var(--border);gap:0.5rem;flex-wrap:wrap;">' +
+            box.innerHTML = list.map(s => {
+                const bloqueado = !!s.bloqueado;
+                return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0;border-bottom:1px solid var(--border);gap:0.5rem;flex-wrap:wrap;' +
+                (bloqueado ? 'opacity:0.85;background:#fef2f2;' : '') + '">' +
                 '<span><strong>' + escapeHtml(s.numero || '—') + '</strong> — ' + escapeHtml(s.nome || '') +
+                (bloqueado ? ' <span style="font-size:0.75rem;color:#b91c1c;font-weight:700;">🔒 BLOQUEADO</span>' : '') +
                 (s.whatsapp ? '<br><span style="font-size:0.78rem;color:var(--text-muted);">📱 ' + escapeHtml(s.whatsapp) + '</span>' : '') +
                 (s.email ? '<br><span style="font-size:0.78rem;color:var(--text-muted);">📧 ' + escapeHtml(s.email) + '</span>' : '') +
                 '</span>' +
-                '<div style="display:flex;gap:0.3rem;">' +
+                '<div style="display:flex;gap:0.3rem;flex-wrap:wrap;">' +
+                '<button class="btn btn-sm ' + (bloqueado ? 'btn-primary' : 'btn-outline') + '" style="' +
+                (bloqueado ? '' : 'border-color:#b91c1c;color:#b91c1c;') + '" data-id="' + s.id +
+                '" onclick="adminToggleBloqueioSocio(this.getAttribute(\'data-id\'))" title="' +
+                (bloqueado ? 'Desbloquear compra na conta' : 'Bloquear compra na conta') + '">' +
+                (bloqueado ? '🔓 Desbloquear' : '🔒 Bloquear') + '</button>' +
                 '<button class="btn btn-sm btn-outline" data-id="' + s.id + '" onclick="adminEditarWhatsappSocio(this.getAttribute(\'data-id\'))" title="WhatsApp">📱</button>' +
                 '<button class="btn btn-sm btn-outline" data-id="' + s.id + '" onclick="adminEditarEmailSocio(this.getAttribute(\'data-id\'))" title="E-mail">📧</button>' +
                 '<button class="btn btn-sm btn-danger" data-id="' + s.id + '" onclick="adminRemoverSocio(this.getAttribute(\'data-id\'))">✕</button>' +
-                '</div></div>'
-            ).join('');
+                '</div></div>';
+            }).join('');
+        }
+
+        /** Bloqueia ou desbloqueia compra na conta (fiado) do sócio */
+        function adminToggleBloqueioSocio(id) {
+            if (!isAdmin) {
+                toast('Apenas o administrador pode bloquear/desbloquear sócios.', 'error');
+                return;
+            }
+            const s = (state.socios || []).find(x => x.id === id);
+            if (!s) {
+                toast('Sócio não encontrado.', 'error');
+                return;
+            }
+            const vaiBloquear = !s.bloqueado;
+            const nome = s.nome || s.numero || 'sócio';
+            if (vaiBloquear) {
+                if (!confirm('Bloquear este sócio?\n\n' + nome + '\n\nEnquanto estiver bloqueado, NÃO poderá comprar na conta (fiado).\nAinda pode pagar em Pix ou dinheiro.')) {
+                    return;
+                }
+                s.bloqueado = true;
+                toast('Sócio bloqueado: não pode mais comprar na conta.');
+            } else {
+                if (!confirm('Desbloquear este sócio?\n\n' + nome + '\n\nEle voltará a poder comprar na conta (fiado).')) {
+                    return;
+                }
+                s.bloqueado = false;
+                toast('Sócio desbloqueado: pode comprar na conta novamente.');
+            }
+            saveState();
+            renderAdminSocios();
+        }
+
+        /** Verifica se o sócio (pelo nome/número digitado) está bloqueado para conta */
+        function isSocioBloqueadoParaConta(nomeOuBusca) {
+            const s = buscarSocioCadastro(nomeOuBusca);
+            return !!(s && s.bloqueado);
         }
 
         function adminEditarWhatsappSocio(id) {
@@ -6212,7 +6275,8 @@ function limparMovimentacoes() {
                         id: generateId(),
                         numero: '',
                         nome: dados.socioNome,
-                        whatsapp: phone
+                        whatsapp: phone,
+                        bloqueado: false
                     });
                     saveState();
                     renderAdminSocios();
