@@ -1015,12 +1015,18 @@
                 <label for="inputMilitar">Militar do Serviço</label>
                 <select id="inputMilitar" class="form-control">
                     <option value="">— Selecione o militar —</option>
-                    <option value="CB DIOGO GIL">CB DIOGO GIL</option>
-                    <option value="CB GUSTAVO RAMIRES">CB GUSTAVO RAMIRES</option>
-                    <option value="SD GABRIEL RAMIRES">SD GABRIEL RAMIRES</option>
-                    <option value="SD VITOR">SD VITOR</option>
-                    <option value="SD MAYCON DOUGLAS">SD MAYCON DOUGLAS</option>
                 </select>
+            </div>
+
+            <div style="text-align:left;margin:0.35rem 0 0.85rem;padding:0.65rem 0.75rem;background:#f6fbf7;border:1px dashed #0d5c2e;border-radius:8px;">
+                <p style="font-size:0.8rem;font-weight:600;margin:0 0 0.4rem;color:#0d5c2e;">➕ Cadastrar novo militar de serviço</p>
+                <div style="display:flex;gap:0.4rem;flex-wrap:wrap;">
+                    <input type="text" id="novoMilitarNome" class="form-control" style="flex:1;min-width:140px;"
+                        placeholder="Ex: SD JOÃO SILVA" autocomplete="off"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault();cadastrarMilitarServico();}">
+                    <button type="button" class="btn btn-primary btn-sm" onclick="cadastrarMilitarServico()">Cadastrar</button>
+                </div>
+                <p style="font-size:0.72rem;color:var(--text-muted);margin:0.35rem 0 0;">O nome entra na lista e fica disponível em todos os aparelhos.</p>
             </div>
 
             <div class="form-group" style="text-align:left;">
@@ -2216,6 +2222,14 @@
             lancamentosEvento: [],
             // URL do Google Apps Script (envio de extrato com PDF) — sincroniza na nuvem
             gasWebAppUrl: '',
+            // Militares que podem iniciar o serviço do dia (tela inicial)
+            militaresServico: [
+                'CB DIOGO GIL',
+                'CB GUSTAVO RAMIRES',
+                'SD GABRIEL RAMIRES',
+                'SD VITOR',
+                'SD MAYCON DOUGLAS'
+            ],
             socios: [
                 { id: 's001', numero: '1', nome: 'TC CARON' },
                 { id: 's002', numero: '2', nome: 'TC SOVAT' },
@@ -2482,9 +2496,11 @@
                 } catch (e) {}
             }
             aplicarGasUrlNoRuntime(urlNuvem);
+            garantirListaMilitaresServico();
             saveStateLocal();
             // Atualiza telas se já estiverem abertas
             try {
+                if (typeof preencherSelectMilitares === 'function') preencherSelectMilitares();
                 if (typeof renderAll === 'function') renderAll();
                 if (typeof renderAdmin === 'function' && isAdmin) renderAdmin();
                 if (typeof atualizarStatusEmailJS === 'function') atualizarStatusEmailJS();
@@ -2677,6 +2693,91 @@
         }
 
         // ==================== LOGIN / SERVICE ====================
+        /** Lista padrão de militares de serviço (primeira instalação / migração) */
+        function militaresServicoPadrao() {
+            return [
+                'CB DIOGO GIL',
+                'CB GUSTAVO RAMIRES',
+                'SD GABRIEL RAMIRES',
+                'SD VITOR',
+                'SD MAYCON DOUGLAS'
+            ];
+        }
+
+        function garantirListaMilitaresServico() {
+            if (!Array.isArray(state.militaresServico) || state.militaresServico.length === 0) {
+                state.militaresServico = militaresServicoPadrao();
+            }
+            // Normaliza: strings únicas, sem vazios, ordenadas
+            const vistos = {};
+            const limpos = [];
+            state.militaresServico.forEach(function(n) {
+                const nome = String(n || '').trim();
+                if (!nome) return;
+                const k = nome.toUpperCase();
+                if (vistos[k]) return;
+                vistos[k] = true;
+                limpos.push(nome);
+            });
+            limpos.sort(function(a, b) { return a.localeCompare(b, 'pt-BR'); });
+            state.militaresServico = limpos;
+            return state.militaresServico;
+        }
+
+        function preencherSelectMilitares() {
+            const sel = document.getElementById('inputMilitar');
+            if (!sel) return;
+            const atual = sel.value || '';
+            const lista = garantirListaMilitaresServico();
+            let html = '<option value="">— Selecione o militar —</option>';
+            lista.forEach(function(n) {
+                html += '<option value="' + escapeHtml(n) + '">' + escapeHtml(n) + '</option>';
+            });
+            sel.innerHTML = html;
+            if (atual && lista.some(function(n) { return n === atual; })) {
+                sel.value = atual;
+            }
+        }
+
+        function cadastrarMilitarServico() {
+            const input = document.getElementById('novoMilitarNome');
+            const nome = ((input && input.value) || '').trim();
+            if (!nome) {
+                toast('Digite o nome do militar (ex: SD JOÃO SILVA).', 'error');
+                if (input) input.focus();
+                return;
+            }
+            if (nome.length < 3) {
+                toast('Nome muito curto.', 'error');
+                return;
+            }
+            garantirListaMilitaresServico();
+            const existe = state.militaresServico.some(function(n) {
+                return String(n).toUpperCase() === nome.toUpperCase();
+            });
+            if (existe) {
+                toast('Este militar já está na lista.', 'error');
+                // Seleciona o existente
+                preencherSelectMilitares();
+                const sel = document.getElementById('inputMilitar');
+                if (sel) {
+                    const hit = state.militaresServico.find(function(n) {
+                        return String(n).toUpperCase() === nome.toUpperCase();
+                    });
+                    if (hit) sel.value = hit;
+                }
+                if (input) input.value = '';
+                return;
+            }
+            state.militaresServico.push(nome);
+            saveState();
+            preencherSelectMilitares();
+            const sel = document.getElementById('inputMilitar');
+            if (sel) sel.value = nome;
+            if (input) input.value = '';
+            toast('Militar cadastrado: ' + nome);
+        }
+
         function iniciarServico() {
             const nome = document.getElementById('inputMilitar').value.trim();
             if (!nome) {
@@ -7509,6 +7610,8 @@ function limparMovimentacoes() {
 
         // ==================== START ====================
         updateHeaderDate();
+        // Lista de militares na tela inicial (sincroniza com a nuvem)
+        try { preencherSelectMilitares(); } catch (e) {}
         // Prefill last militar if exists
         if (state.lastMilitar) {
             const select = document.getElementById('inputMilitar');
@@ -7518,7 +7621,10 @@ function limparMovimentacoes() {
         }
         // Aviso de serviço aberto (local + após sync Firebase)
         setTimeout(function() { updateWelcomeServiceAviso(); }, 500);
-        setTimeout(function() { updateWelcomeServiceAviso(); }, 2000);
+        setTimeout(function() {
+            try { preencherSelectMilitares(); } catch (e) {}
+            updateWelcomeServiceAviso();
+        }, 2000);
     </script>
 </body>
 </html>
