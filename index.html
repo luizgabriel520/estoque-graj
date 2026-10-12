@@ -1007,7 +1007,7 @@
     <!-- Welcome / Login Screen -->
     <div class="welcome-screen" id="welcomeScreen">
         <div class="welcome-card">
-            <div class="logo-big"><img src="logo-clube.jpg" alt="GBERAJ - Grêmio Antônio João"></div>
+            <div class="logo-big"><img src="logo-clube.jpg" alt="GRAJ - Grêmio Antônio João"></div>
             <h2>Controle de Estoque</h2>
             <p>Grêmio Recreativo Antônio João<br>Sistema de conferência diária</p>
 
@@ -1813,29 +1813,41 @@
         </div>
     </div>
 
-    <!-- Modal Trocar Sócio (histórico) -->
+    <!-- Modal Corrigir venda (sócio + pagamento no histórico) -->
     <div class="modal-overlay" id="modalTrocarSocio">
         <div class="modal" style="max-width:440px;">
             <div class="modal-header">
-                <h3>👤 Trocar sócio da venda</h3>
+                <h3>✏️ Corrigir venda</h3>
                 <button class="modal-close" onclick="fecharModal('modalTrocarSocio')">&times;</button>
             </div>
             <div class="modal-body">
                 <div id="trocarSocioInfo" class="alert alert-info" style="font-size:0.9rem;margin-bottom:1rem;"></div>
                 <div class="form-group">
-                    <label>Sócio correto</label>
+                    <label>Sócio / comprador</label>
                     <input type="text" id="trocarSocioInput" class="form-control" list="listaSociosDatalistTroca"
                         placeholder="Digite nome ou número do sócio..." autocomplete="off"
                         onkeydown="if(event.key==='Enter'){event.preventDefault();confirmarTrocaSocioHistorico();}">
                     <datalist id="listaSociosDatalistTroca"></datalist>
                     <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.35rem;">
-                        Digite para buscar na lista de sócios cadastrados (igual na tela de venda).
+                        Digite para buscar na lista de sócios (igual na tela de venda).
+                    </p>
+                </div>
+                <div class="form-group">
+                    <label>Forma de pagamento</label>
+                    <select id="trocarPagamentoSelect" class="form-control">
+                        <option value="Dinheiro">Dinheiro</option>
+                        <option value="Pix">Pix</option>
+                        <option value="Sócio (conta)">Sócio (conta)</option>
+                    </select>
+                    <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.35rem;">
+                        Só <strong>Sócio (conta)</strong> entra no desconto/extrato do sócio.
+                        Dinheiro e Pix não entram na conta.
                     </p>
                 </div>
             </div>
             <div class="modal-footer">
                 <button class="btn btn-outline" onclick="fecharModal('modalTrocarSocio')">Cancelar</button>
-                <button class="btn btn-primary" onclick="confirmarTrocaSocioHistorico()">Salvar sócio</button>
+                <button class="btn btn-primary" onclick="confirmarTrocaSocioHistorico()">Salvar correção</button>
             </div>
         </div>
     </div>
@@ -1844,7 +1856,7 @@
     <div class="toast-container" id="toastContainer"></div>
 
     <footer class="footer no-print">
-        Grêmio Recreativo Antônio João — GRAJ<br>
+        Grêmio Beneficente, Esportivo e Recreativo Antônio João — GBERAJ<br>
         Sistema de Controle de Estoque • Uso interno
     </footer>
 
@@ -1852,13 +1864,13 @@
         // ==================== STATE & STORAGE ====================
         // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
         const FIREBASE_CONFIG = {
-            apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
-  authDomain: "estoque-graj-b32b2.firebaseapp.com",
-  databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
-  projectId: "estoque-graj-b32b2",
-  storageBucket: "estoque-graj-b32b2.firebasestorage.app",
-  messagingSenderId: "924249670911",
-  appId: "1:924249670911:web:283128ab7ceba163c478ca"
+            apiKey: "COLE_AQUI",
+            authDomain: "COLE_AQUI",
+            databaseURL: "COLE_AQUI",
+            projectId: "COLE_AQUI",
+            storageBucket: "COLE_AQUI",
+            messagingSenderId: "COLE_AQUI",
+            appId: "COLE_AQUI"
         };
 
         // Configuração de e-mail (também pode ser salva pelo Admin → Senha)
@@ -4562,7 +4574,7 @@ function limparMovimentacoes() {
                 if (vendas.length === 0) {
                     vendasHtml = '<p style="color:var(--text-muted);font-size:0.85rem;">Nenhuma venda neste serviço.</p>';
                 } else {
-                    vendasHtml = '<p style="font-size:0.75rem;color:var(--text-muted);margin:0.35rem 0;">Admin pode <strong>trocar o sócio</strong> ou <strong>excluir</strong> a venda (excluir devolve ao estoque). Depois imprima de novo o PDF em Consulta ou Fluxo de Caixa.</p>' +
+                    vendasHtml = '<p style="font-size:0.75rem;color:var(--text-muted);margin:0.35rem 0;">Admin pode <strong>corrigir sócio e pagamento</strong> ou <strong>excluir</strong> a venda (excluir devolve ao estoque). Depois gere de novo o PDF em Consulta ou Fluxo de Caixa.</p>' +
                         '<table style="width:100%;font-size:0.8rem;margin-top:0.25rem;"><thead><tr>' +
                         '<th style="text-align:left;">Produto</th>' +
                         '<th style="text-align:left;">Comprador</th>' +
@@ -4580,7 +4592,7 @@ function limparMovimentacoes() {
                             '<td style="text-align:center;white-space:nowrap;">' +
                             (mid
                                 ? ('<button type="button" class="btn btn-sm btn-outline" style="font-size:0.68rem;padding:0.2rem 0.4rem;margin:0.1rem;" ' +
-                                   'onclick="adminAlterarSocioVendaHistorico(' + idx + ',\'' + mid + '\')" title="Trocar sócio desta venda">Sócio</button> ' +
+                                   'onclick="adminAlterarSocioVendaHistorico(' + idx + ',\'' + mid + '\')" title="Corrigir sócio e forma de pagamento">Corrigir</button> ' +
                                    '<button type="button" class="btn btn-sm btn-danger" style="font-size:0.68rem;padding:0.2rem 0.4rem;margin:0.1rem;" ' +
                                    'onclick="adminExcluirVendaHistorico(' + idx + ',\'' + mid + '\')" title="Excluir venda e devolver ao estoque">Excluir</button>')
                                 : '—') +
@@ -4954,12 +4966,11 @@ function limparMovimentacoes() {
         }
 
         /**
-         * Abre modal para trocar o sócio de uma venda já fechada (histórico).
-         * Lista de sócios igual à tela de venda (datalist).
+         * Abre modal para corrigir sócio e/ou forma de pagamento de venda no histórico.
          */
         function adminAlterarSocioVendaHistorico(histIdx, movId) {
             if (!isAdmin) {
-                toast('Apenas o administrador pode alterar sócio de vendas antigas.', 'error');
+                toast('Apenas o administrador pode corrigir vendas antigas.', 'error');
                 return;
             }
             if (!state.history || !state.history[histIdx]) {
@@ -4982,6 +4993,7 @@ function limparMovimentacoes() {
                     '<strong>Produto:</strong> ' + escapeHtml(m.productName || '') +
                     ' × ' + m.qty + '<br>' +
                     '<strong>Sócio atual:</strong> ' + escapeHtml(m.socio || '(não informado)') + '<br>' +
+                    '<strong>Pagamento atual:</strong> ' + escapeHtml(m.pagamento || '—') + '<br>' +
                     '<strong>Valor:</strong> ' + formatMoney(m.qty * (m.price || 0));
             }
 
@@ -4989,6 +5001,13 @@ function limparMovimentacoes() {
             const input = document.getElementById('trocarSocioInput');
             if (input) {
                 input.value = m.socio || '';
+            }
+            const pagSel = document.getElementById('trocarPagamentoSelect');
+            if (pagSel) {
+                const p = String(m.pagamento || 'Dinheiro');
+                if (/s[oó]cio|conta|fiado/i.test(p)) pagSel.value = 'Sócio (conta)';
+                else if (/pix/i.test(p)) pagSel.value = 'Pix';
+                else pagSel.value = 'Dinheiro';
             }
             openModal('modalTrocarSocio');
             setTimeout(function() {
@@ -5002,7 +5021,7 @@ function limparMovimentacoes() {
         function confirmarTrocaSocioHistorico() {
             const ctx = window._trocaSocioCtx;
             if (!ctx || ctx.histIdx == null || !ctx.movId) {
-                toast('Contexto da troca perdido. Abra de novo.', 'error');
+                toast('Contexto da correção perdido. Abra de novo.', 'error');
                 return;
             }
             if (!state.history || !state.history[ctx.histIdx]) {
@@ -5018,14 +5037,30 @@ function limparMovimentacoes() {
 
             const input = document.getElementById('trocarSocioInput');
             const nomeLimpo = ((input && input.value) || '').trim();
-            if (!nomeLimpo) {
-                toast('Selecione ou digite o nome do sócio.', 'error');
+            const pagSel = document.getElementById('trocarPagamentoSelect');
+            const novoPag = (pagSel && pagSel.value) ? pagSel.value : (m.pagamento || 'Dinheiro');
+            const isConta = /s[oó]cio|conta|fiado/i.test(novoPag);
+
+            if (isConta && !nomeLimpo) {
+                toast('Para pagamento Sócio (conta), informe o nome do sócio.', 'error');
                 if (input) input.focus();
                 return;
             }
+            if (isConta && nomeLimpo && typeof isSocioBloqueadoParaConta === 'function' && isSocioBloqueadoParaConta(nomeLimpo)) {
+                toast('Este sócio está BLOQUEADO para compra na conta.', 'error');
+                return;
+            }
 
-            const antigo = m.socio || '(vazio)';
+            const antigoSocio = m.socio || '(vazio)';
+            const antigoPag = m.pagamento || '—';
             m.socio = nomeLimpo;
+            m.pagamento = novoPag;
+            // Limpa parcelas se não for mais conta
+            if (!isConta) {
+                m.parcelas = null;
+                m.vencimentos = null;
+            }
+
             saveState();
             fecharModal('modalTrocarSocio');
             window._trocaSocioCtx = null;
@@ -5035,7 +5070,8 @@ function limparMovimentacoes() {
                 if (el) el.style.display = 'block';
             }, 50);
 
-            toast('Sócio alterado: "' + antigo + '" → "' + nomeLimpo + '". Gere o PDF de novo em Consulta ou Fluxo de Caixa.');
+            toast('Corrigido: sócio "' + antigoSocio + '" → "' + (nomeLimpo || '—') +
+                '"; pagamento "' + antigoPag + '" → "' + novoPag + '". Gere o PDF de novo se precisar.');
         }
 
         function renderUltimoServico() {
