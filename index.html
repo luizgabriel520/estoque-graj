@@ -1386,6 +1386,22 @@
                             <input type="email" id="socioEmail" class="form-control" placeholder="Ex: socio@email.com">
                         </div>
                     </div>
+                    <div class="form-group" style="margin-bottom:0.85rem;">
+                        <label style="display:block;margin-bottom:0.4rem;">Mensalidade do clube (R$ 40)</label>
+                        <div style="display:flex;flex-wrap:wrap;gap:0.75rem 1.25rem;">
+                            <label style="display:flex;align-items:center;gap:0.4rem;font-weight:500;cursor:pointer;">
+                                <input type="radio" name="socioMensalidadeOpcao" id="socioMensalidadePaga" value="paga" checked>
+                                Cobra mensalidade (R$ 40)
+                            </label>
+                            <label style="display:flex;align-items:center;gap:0.4rem;font-weight:500;cursor:pointer;">
+                                <input type="radio" name="socioMensalidadeOpcao" id="socioMensalidadeIsento" value="isento">
+                                Isento de mensalidade
+                            </label>
+                        </div>
+                        <p style="font-size:0.78rem;color:var(--text-muted);margin:0.35rem 0 0;">
+                            Pode alterar depois na lista de sócios.
+                        </p>
+                    </div>
                     <button class="btn btn-primary" onclick="adminAdicionarSocio()">Adicionar Sócio</button>
                     <p style="font-size:0.8rem;color:var(--text-muted);margin-top:0.5rem;">Ou cole a lista completa (um por linha). Formatos:<br>
                     <code>123 - João Silva</code> · <code>123 - João Silva - 11999998888</code> · <code>123 - João - 1199… - email@x.com</code></p>
@@ -1864,7 +1880,7 @@
         // ==================== STATE & STORAGE ====================
         // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
         const FIREBASE_CONFIG = {
-            apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
+           apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
        authDomain: "estoque-graj-b32b2.firebaseapp.com",
        databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
        projectId: "estoque-graj-b32b2",
@@ -2009,6 +2025,14 @@
         }
 
         function isIsentoMensalidade(nome) {
+            // 1) Flag no cadastro do sócio (prioridade)
+            try {
+                const cad = typeof buscarSocioCadastro === 'function' ? buscarSocioCadastro(nome) : null;
+                if (cad && typeof cad.isentoMensalidade === 'boolean') {
+                    return !!cad.isentoMensalidade;
+                }
+            } catch (e) {}
+            // 2) Lista fixa legada (sargentos / militares do serviço)
             const n = normalizarNomeBusca(nome);
             if (!n) return false;
             return ISENTOS_MENSALIDADE.some(function(chave) {
@@ -5142,6 +5166,8 @@ function limparMovimentacoes() {
             const nome = (document.getElementById('socioNome').value || '').trim();
             const whatsapp = normalizarWhatsapp((document.getElementById('socioWhatsapp') || {}).value);
             const email = ((document.getElementById('socioEmail') || {}).value || '').trim().toLowerCase();
+            const isentoRadio = document.getElementById('socioMensalidadeIsento');
+            const isentoMensalidade = !!(isentoRadio && isentoRadio.checked);
             if (!nome && !numero) {
                 toast('Informe número ou nome do sócio.', 'error');
                 return;
@@ -5161,16 +5187,20 @@ function limparMovimentacoes() {
                 nome: nome || numero,
                 whatsapp: whatsapp || '',
                 email: email || '',
-                bloqueado: false
+                bloqueado: false,
+                isentoMensalidade: isentoMensalidade
             });
             document.getElementById('socioNumero').value = '';
             document.getElementById('socioNome').value = '';
             if (document.getElementById('socioWhatsapp')) document.getElementById('socioWhatsapp').value = '';
             if (document.getElementById('socioEmail')) document.getElementById('socioEmail').value = '';
+            if (document.getElementById('socioMensalidadePaga')) document.getElementById('socioMensalidadePaga').checked = true;
             saveState();
             renderAdminSocios();
             preencherDatalistSocios();
-            toast('Sócio adicionado.');
+            toast(isentoMensalidade
+                ? 'Sócio adicionado (isento de mensalidade).'
+                : 'Sócio adicionado (mensalidade R$ 40).');
         }
 
         function adminImportarSociosLote() {
@@ -5226,7 +5256,8 @@ function limparMovimentacoes() {
                         nome: nome,
                         whatsapp: whatsapp || '',
                         email: email || '',
-                        bloqueado: false
+                        bloqueado: false,
+                        isentoMensalidade: false
                     });
                     add++;
                 }
@@ -5268,14 +5299,24 @@ function limparMovimentacoes() {
             }
             box.innerHTML = list.map(s => {
                 const bloqueado = !!s.bloqueado;
+                // Mensalidade: flag no cadastro tem prioridade; senão usa lista legada
+                const isentoMen = (typeof s.isentoMensalidade === 'boolean')
+                    ? !!s.isentoMensalidade
+                    : isIsentoMensalidade((s.numero ? s.numero + ' - ' : '') + (s.nome || ''));
                 return '<div style="display:flex;justify-content:space-between;align-items:center;padding:0.45rem 0;border-bottom:1px solid var(--border);gap:0.5rem;flex-wrap:wrap;' +
                 (bloqueado ? 'opacity:0.85;background:#fef2f2;' : '') + '">' +
                 '<span><strong>' + escapeHtml(s.numero || '—') + '</strong> — ' + escapeHtml(s.nome || '') +
                 (bloqueado ? ' <span style="font-size:0.75rem;color:#b91c1c;font-weight:700;">🔒 BLOQUEADO</span>' : '') +
+                (isentoMen
+                    ? ' <span style="font-size:0.72rem;color:#0d9488;font-weight:700;">✓ Isento mensalidade</span>'
+                    : ' <span style="font-size:0.72rem;color:#0d5c2e;font-weight:600;">R$ 40/mês</span>') +
                 (s.whatsapp ? '<br><span style="font-size:0.78rem;color:var(--text-muted);">📱 ' + escapeHtml(s.whatsapp) + '</span>' : '') +
                 (s.email ? '<br><span style="font-size:0.78rem;color:var(--text-muted);">📧 ' + escapeHtml(s.email) + '</span>' : '') +
                 '</span>' +
                 '<div style="display:flex;gap:0.3rem;flex-wrap:wrap;">' +
+                '<button class="btn btn-sm btn-outline" style="font-size:0.72rem;" data-id="' + s.id +
+                '" onclick="adminToggleIsentoMensalidade(this.getAttribute(\'data-id\'))" title="Alternar mensalidade / isento">' +
+                (isentoMen ? '💰 Cobrar R$ 40' : '✓ Tornar isento') + '</button>' +
                 '<button class="btn btn-sm ' + (bloqueado ? 'btn-primary' : 'btn-outline') + '" style="' +
                 (bloqueado ? '' : 'border-color:#b91c1c;color:#b91c1c;') + '" data-id="' + s.id +
                 '" onclick="adminToggleBloqueioSocio(this.getAttribute(\'data-id\'))" title="' +
@@ -5286,6 +5327,34 @@ function limparMovimentacoes() {
                 '<button class="btn btn-sm btn-danger" data-id="' + s.id + '" onclick="adminRemoverSocio(this.getAttribute(\'data-id\'))">✕</button>' +
                 '</div></div>';
             }).join('');
+        }
+
+        /** Alterna isento de mensalidade no cadastro do sócio */
+        function adminToggleIsentoMensalidade(id) {
+            if (!isAdmin) {
+                toast('Apenas o administrador pode alterar mensalidade.', 'error');
+                return;
+            }
+            const s = (state.socios || []).find(x => x.id === id);
+            if (!s) {
+                toast('Sócio não encontrado.', 'error');
+                return;
+            }
+            const atualIsento = (typeof s.isentoMensalidade === 'boolean')
+                ? !!s.isentoMensalidade
+                : isIsentoMensalidade((s.numero ? s.numero + ' - ' : '') + (s.nome || ''));
+            const nome = s.nome || s.numero || 'sócio';
+            if (atualIsento) {
+                if (!confirm('Passar a COBRAR mensalidade de R$ 40 deste sócio?\n\n' + nome)) return;
+                s.isentoMensalidade = false;
+                toast('Mensalidade R$ 40 ativada para ' + nome);
+            } else {
+                if (!confirm('Tornar este sócio ISENTO de mensalidade?\n\n' + nome)) return;
+                s.isentoMensalidade = true;
+                toast('Sócio isento de mensalidade: ' + nome);
+            }
+            saveState();
+            renderAdminSocios();
         }
 
         /** Bloqueia ou desbloqueia compra na conta (fiado) do sócio */
