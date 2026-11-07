@@ -948,6 +948,377 @@
             to { transform: translate3d(30px, 20px, 0) scale(1.15); }
         }
 
+        /* ========== PDV GRAJ PREMIUM DARK ========== */
+        #modalVenda.modal-overlay {
+            background: #050D19;
+            padding: 0;
+            align-items: stretch;
+            justify-content: stretch;
+            z-index: 2000;
+        }
+        #modalVenda .modal.pdv-shell {
+            max-width: none;
+            width: 100%;
+            height: 100%;
+            max-height: 100%;
+            margin: 0;
+            border-radius: 0;
+            background: #050D19;
+            color: #F4F7FA;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: none;
+        }
+        #modalVenda .pdv-topbar {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.65rem 1rem;
+            background: #09172A;
+            border-bottom: 1px solid #203957;
+            flex-wrap: wrap;
+        }
+        #modalVenda .pdv-brand {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            min-width: 140px;
+        }
+        #modalVenda .pdv-brand img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            object-fit: cover;
+            background: #fff;
+        }
+        #modalVenda .pdv-brand strong {
+            display: block;
+            font-size: 1.05rem;
+            color: #00D889;
+            letter-spacing: 0.04em;
+        }
+        #modalVenda .pdv-brand span {
+            font-size: 0.68rem;
+            color: #A9B8CA;
+        }
+        #modalVenda .pdv-search {
+            flex: 1;
+            min-width: 180px;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            background: #10223B;
+            border: 1px solid #203957;
+            border-radius: 12px;
+            padding: 0.35rem 0.65rem;
+        }
+        #modalVenda .pdv-search input {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: #F4F7FA;
+            outline: none;
+            font-size: 0.92rem;
+            min-width: 0;
+        }
+        #modalVenda .pdv-search input::placeholder { color: #7a8ba0; }
+        #modalVenda .pdv-meta {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+            font-size: 0.8rem;
+            color: #A9B8CA;
+        }
+        #modalVenda .pdv-chip {
+            background: #10223B;
+            border: 1px solid #203957;
+            border-radius: 999px;
+            padding: 0.35rem 0.7rem;
+            color: #F4F7FA;
+        }
+        #modalVenda .pdv-chip.ok {
+            border-color: #00D889;
+            color: #00D889;
+        }
+        #modalVenda .pdv-close-btn {
+            background: transparent;
+            border: 1px solid #203957;
+            color: #A9B8CA;
+            border-radius: 10px;
+            padding: 0.4rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        #modalVenda .pdv-close-btn:hover { border-color: #EF4444; color: #EF4444; }
+        #modalVenda .pdv-body {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1.35fr 0.95fr 0.85fr;
+            gap: 0.75rem;
+            padding: 0.75rem;
+            min-height: 0;
+            overflow: hidden;
+        }
+        @media (max-width: 1100px) {
+            #modalVenda .pdv-body {
+                grid-template-columns: 1fr 1fr;
+                overflow: auto;
+            }
+            #modalVenda .pdv-panel-checkout { grid-column: 1 / -1; }
+        }
+        @media (max-width: 720px) {
+            #modalVenda .pdv-body { grid-template-columns: 1fr; }
+        }
+        #modalVenda .pdv-panel {
+            background: #09172A;
+            border: 1px solid #203957;
+            border-radius: 16px;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+            overflow: hidden;
+        }
+        #modalVenda .pdv-panel-h {
+            padding: 0.7rem 0.9rem;
+            border-bottom: 1px solid #203957;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        #modalVenda .pdv-panel-h h3 {
+            margin: 0;
+            font-size: 0.95rem;
+            color: #F4F7FA;
+            font-weight: 700;
+        }
+        #modalVenda .pdv-cats {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.35rem;
+            padding: 0.55rem 0.75rem;
+            border-bottom: 1px solid #203957;
+        }
+        #modalVenda .pdv-cat {
+            border: 1px solid #203957;
+            background: #10223B;
+            color: #A9B8CA;
+            border-radius: 999px;
+            padding: 0.3rem 0.7rem;
+            font-size: 0.75rem;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        #modalVenda .pdv-cat.active {
+            background: #00D889;
+            border-color: #00D889;
+            color: #050D19;
+        }
+        #modalVenda .pdv-grid {
+            flex: 1;
+            overflow: auto;
+            padding: 0.65rem;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.55rem;
+            align-content: start;
+        }
+        #modalVenda .pdv-card {
+            background: #10223B;
+            border: 1px solid #203957;
+            border-radius: 14px;
+            padding: 0.65rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+            min-height: 120px;
+        }
+        #modalVenda .pdv-card .nm {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #F4F7FA;
+            line-height: 1.25;
+            flex: 1;
+        }
+        #modalVenda .pdv-card .pr {
+            font-size: 0.95rem;
+            font-weight: 800;
+            color: #00D889;
+        }
+        #modalVenda .pdv-card .st {
+            font-size: 0.7rem;
+            color: #A9B8CA;
+        }
+        #modalVenda .pdv-card .st.low { color: #F5A623; }
+        #modalVenda .pdv-card .st.out { color: #EF4444; }
+        #modalVenda .pdv-add {
+            margin-top: 0.25rem;
+            width: 100%;
+            border: none;
+            border-radius: 10px;
+            background: #00D889;
+            color: #050D19;
+            font-weight: 800;
+            padding: 0.4rem;
+            cursor: pointer;
+            font-size: 0.85rem;
+        }
+        #modalVenda .pdv-add:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+        #modalVenda .pdv-cart {
+            flex: 1;
+            overflow: auto;
+            padding: 0.55rem 0.7rem;
+        }
+        #modalVenda .pdv-cart-item {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 0.35rem 0.5rem;
+            padding: 0.55rem 0;
+            border-bottom: 1px solid #203957;
+        }
+        #modalVenda .pdv-cart-item .cn { font-size: 0.85rem; font-weight: 700; }
+        #modalVenda .pdv-cart-item .cu { font-size: 0.72rem; color: #A9B8CA; }
+        #modalVenda .pdv-qty {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: #10223B;
+            border-radius: 8px;
+            border: 1px solid #203957;
+            padding: 0.1rem;
+        }
+        #modalVenda .pdv-qty button {
+            width: 28px;
+            height: 28px;
+            border: none;
+            background: transparent;
+            color: #00D889;
+            font-size: 1rem;
+            font-weight: 800;
+            cursor: pointer;
+            border-radius: 6px;
+        }
+        #modalVenda .pdv-qty span {
+            min-width: 22px;
+            text-align: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+        }
+        #modalVenda .pdv-cart-empty {
+            text-align: center;
+            color: #7a8ba0;
+            padding: 2rem 0.5rem;
+            font-size: 0.88rem;
+        }
+        #modalVenda .pdv-socio-box {
+            padding: 0.65rem 0.75rem;
+            border-top: 1px solid #203957;
+        }
+        #modalVenda .pdv-socio-box label {
+            display: block;
+            font-size: 0.72rem;
+            color: #A9B8CA;
+            margin-bottom: 0.25rem;
+        }
+        #modalVenda .pdv-socio-box input,
+        #modalVenda .pdv-checkout input,
+        #modalVenda .pdv-checkout select,
+        #modalVenda .pdv-checkout textarea {
+            width: 100%;
+            background: #10223B;
+            border: 1px solid #203957;
+            border-radius: 10px;
+            color: #F4F7FA;
+            padding: 0.5rem 0.65rem;
+            font-size: 0.88rem;
+            outline: none;
+        }
+        #modalVenda .pdv-socio-box input:focus,
+        #modalVenda .pdv-checkout input:focus,
+        #modalVenda .pdv-checkout select:focus {
+            border-color: #00D889;
+        }
+        #modalVenda .pdv-total {
+            background: linear-gradient(135deg, #00B975, #00D889);
+            margin: 0.75rem;
+            border-radius: 14px;
+            padding: 0.9rem 1rem;
+            color: #050D19;
+        }
+        #modalVenda .pdv-total .lbl {
+            font-size: 0.78rem;
+            font-weight: 700;
+            opacity: 0.85;
+        }
+        #modalVenda .pdv-total .val {
+            font-size: 1.85rem;
+            font-weight: 800;
+            line-height: 1.15;
+            letter-spacing: -0.02em;
+        }
+        #modalVenda .pdv-checkout {
+            padding: 0 0.75rem 0.75rem;
+            overflow: auto;
+            flex: 1;
+        }
+        #modalVenda .pdv-pay-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            margin: 0.5rem 0 0.75rem;
+        }
+        #modalVenda .pdv-pay {
+            display: flex;
+            align-items: center;
+            gap: 0.55rem;
+            padding: 0.55rem 0.7rem;
+            border-radius: 12px;
+            border: 1px solid #203957;
+            background: #10223B;
+            color: #F4F7FA;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 0.88rem;
+        }
+        #modalVenda .pdv-pay.active {
+            border-color: #00D889;
+            background: rgba(0, 216, 137, 0.12);
+            color: #00D889;
+            box-shadow: inset 0 0 0 1px #00D889;
+        }
+        #modalVenda .pdv-finalize {
+            width: 100%;
+            border: none;
+            border-radius: 14px;
+            background: #00D889;
+            color: #050D19;
+            font-weight: 800;
+            font-size: 1rem;
+            padding: 0.85rem 1rem;
+            cursor: pointer;
+            margin-top: 0.5rem;
+        }
+        #modalVenda .pdv-finalize:hover { filter: brightness(1.05); }
+        #modalVenda .pdv-footer-stats {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            padding: 0.55rem 1rem;
+            background: #09172A;
+            border-top: 1px solid #203957;
+            font-size: 0.78rem;
+            color: #A9B8CA;
+        }
+        #modalVenda .pdv-footer-stats strong { color: #00D889; }
+        #modalVenda .modal-header,
+        #modalVenda .modal-footer { display: none !important; }
+        #modalVenda .pdv-legacy-hidden { display: none !important; }
+
     </style>
 
     <!-- Firebase SDK -->
@@ -1227,6 +1598,7 @@
             <button class="tab-btn" onclick="mostrarTabAdmin('ajustes')">Ajustes</button>
             <button class="tab-btn" onclick="mostrarTabAdmin('historico')">Histórico</button>
             <button class="tab-btn" onclick="mostrarTabAdmin('resumo')">Resumo</button>
+            <button class="tab-btn" onclick="mostrarTabAdmin('relatorio')">Relatório</button>
             <button class="tab-btn" onclick="mostrarTabAdmin('senha')">Senha</button>
         </div>
 
@@ -1552,6 +1924,38 @@
             </div>
         </div>
 
+        <!-- Tab Relatório (log para o presidente) -->
+        <div id="tab-relatorio" class="admin-tab" style="display:none;">
+            <div class="card" style="margin-bottom:1.5rem;">
+                <div class="card-header"><h2>📋 Relatório de alterações (Admin)</h2></div>
+                <div class="card-body">
+                    <p style="font-size:0.88rem;color:var(--text-muted);margin:0 0 0.85rem;">
+                        Tudo o que o administrador faz fica registrado aqui.
+                        Gere o resumo e envie ao presidente por WhatsApp enquanto ele estiver fora.
+                    </p>
+                    <div class="form-row" style="margin-bottom:0.75rem;">
+                        <div class="form-group">
+                            <label>Período</label>
+                            <select id="relatorioLogPeriodo" class="form-control" onchange="renderAdminLog()">
+                                <option value="hoje">Só hoje</option>
+                                <option value="3">Últimos 3 dias</option>
+                                <option value="7" selected>Últimos 7 dias</option>
+                                <option value="30">Últimos 30 dias</option>
+                                <option value="tudo">Tudo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div style="display:flex;flex-wrap:wrap;gap:0.5rem;margin-bottom:0.85rem;">
+                        <button type="button" class="btn btn-primary btn-sm" onclick="copiarResumoAdminLog()">📋 Copiar resumo</button>
+                        <button type="button" class="btn btn-success btn-sm" onclick="enviarResumoAdminWhatsApp()">📱 Enviar no WhatsApp</button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="baixarResumoAdminLogPDF()">📄 Salvar PDF</button>
+                        <button type="button" class="btn btn-outline btn-sm" onclick="renderAdminLog()">🔄 Atualizar lista</button>
+                    </div>
+                    <div id="adminLogLista" style="max-height:420px;overflow-y:auto;font-size:0.85rem;"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- Tab Senha -->
         <div id="tab-senha" class="admin-tab" style="display:none;">
             <div class="card" style="margin-bottom:1.5rem;">
@@ -1719,71 +2123,102 @@
 
     <!-- Modal Venda -->
     <div class="modal-overlay" id="modalVenda">
-        <div class="modal" style="max-width:520px;">
-            <div class="modal-header">
-                <h3>🛒 Registrar Venda</h3>
-                <button class="modal-close" onclick="fecharModal('modalVenda')">&times;</button>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>📷 Código de Barras</label>
-                    <input type="text" id="vendaBarcode" class="form-control" placeholder="Bipe o código de barras aqui..." autocomplete="off" autofocus
+        <div class="modal pdv-shell">
+            <div class="modal-header pdv-legacy-hidden"><h3>Venda</h3></div>
+            <div class="pdv-topbar">
+                <div class="pdv-brand">
+                    <img src="logo-clube.jpg" alt="GRAJ">
+                    <div>
+                        <strong>GRAJ</strong>
+                        <span>Grêmio Recreativo Antônio João</span>
+                    </div>
+                </div>
+                <div class="pdv-search">
+                    <span aria-hidden="true">📷</span>
+                    <input type="text" id="vendaBarcode" placeholder="Bipe o código de barras..." autocomplete="off"
                         onkeydown="if(event.key==='Enter'){event.preventDefault();processarCodigoBarrasVenda();}">
-                    <p style="font-size:0.75rem;color:var(--text-muted);margin-top:0.3rem;">Bipe o produto. Cada bipe adiciona +1. Bipar o mesmo item várias vezes aumenta a quantidade.</p>
                 </div>
-                <div class="form-group">
-                    <label>Buscar produto (nome)</label>
-                    <input type="text" id="vendaBusca" class="form-control" placeholder="Digite para filtrar..." oninput="filtrarSelectProdutos('venda')">
+                <div class="pdv-search">
+                    <span aria-hidden="true">🔍</span>
+                    <input type="text" id="vendaBusca" placeholder="Digite o nome do produto..." autocomplete="off"
+                        oninput="renderPdvProdutos()">
                 </div>
-                <div class="form-row">
-                    <div class="form-group" style="flex:2;">
-                        <label>Produto</label>
-                        <select id="vendaProduto" class="form-control"></select>
+                <div class="pdv-meta">
+                    <span class="pdv-chip" id="pdvOperadorChip">👤 Operador</span>
+                    <span class="pdv-chip" id="pdvDataChip">📅</span>
+                    <span class="pdv-chip ok">● PDV</span>
+                    <button type="button" class="pdv-close-btn" onclick="fecharModal('modalVenda')">Fechar</button>
+                </div>
+            </div>
+            <div class="pdv-body">
+                <div class="pdv-panel">
+                    <div class="pdv-panel-h"><h3>📦 Produtos</h3></div>
+                    <div class="pdv-cats" id="pdvCategorias">
+                        <button type="button" class="pdv-cat active" data-cat="" onclick="pdvFiltrarCategoria(this,'')">Todos</button>
+                        <button type="button" class="pdv-cat" data-cat="Cervejas" onclick="pdvFiltrarCategoria(this,'Cervejas')">Cervejas</button>
+                        <button type="button" class="pdv-cat" data-cat="Refrigerantes" onclick="pdvFiltrarCategoria(this,'Refrigerantes')">Refrigerantes</button>
+                        <button type="button" class="pdv-cat" data-cat="Bebidas" onclick="pdvFiltrarCategoria(this,'Bebidas')">Bebidas</button>
+                        <button type="button" class="pdv-cat" data-cat="Doces" onclick="pdvFiltrarCategoria(this,'Doces')">Doces</button>
+                        <button type="button" class="pdv-cat" data-cat="Snacks" onclick="pdvFiltrarCategoria(this,'Snacks')">Snacks</button>
+                        <button type="button" class="pdv-cat" data-cat="Sorvetes" onclick="pdvFiltrarCategoria(this,'Sorvetes')">Sorvetes</button>
+                        <button type="button" class="pdv-cat" data-cat="Outros" onclick="pdvFiltrarCategoria(this,'Outros')">Diversos</button>
                     </div>
-                    <div class="form-group" style="flex:1;">
-                        <label>Qtd</label>
-                        <input type="number" id="vendaQtd" class="form-control" min="1" step="1" value="1">
-                    </div>
+                    <div class="pdv-grid" id="pdvGridProdutos"></div>
                 </div>
-                <button type="button" class="btn btn-outline btn-block" style="margin-bottom:1rem;" onclick="adicionarItemVenda()">
-                    ➕ Adicionar à lista
-                </button>
-                <div id="listaVendaItens" style="max-height:220px;overflow-y:auto;margin-bottom:0.75rem;"></div>
-                <div id="vendaTotalBox" class="alert alert-info" style="display:none;margin-bottom:0.75rem;"></div>
-                <div class="form-row">
-                    <div class="form-group">
+                <div class="pdv-panel">
+                    <div class="pdv-panel-h">
+                        <h3>🛒 Carrinho</h3>
+                        <button type="button" class="pdv-close-btn" style="padding:0.25rem 0.5rem;" onclick="pdvLimparCarrinho()" title="Limpar">🗑</button>
+                    </div>
+                    <div class="pdv-cart" id="listaVendaItens"></div>
+                    <div class="pdv-socio-box">
                         <label>Sócio</label>
-                        <input type="text" id="vendaSocio" class="form-control" list="listaSociosDatalistVenda" placeholder="Buscar sócio...">
+                        <input type="text" id="vendaSocio" list="listaSociosDatalistVenda" placeholder="Nome ou número do sócio...">
                         <datalist id="listaSociosDatalistVenda"></datalist>
                     </div>
-                    <div class="form-group">
-                        <label>Pagamento</label>
-                        <select id="vendaPagamento" class="form-control" onchange="onPagamentoChange()">
+                </div>
+                <div class="pdv-panel pdv-panel-checkout">
+                    <div class="pdv-total">
+                        <div class="lbl">Total da Venda</div>
+                        <div class="val" id="pdvTotalValor">R$ 0,00</div>
+                    </div>
+                    <div class="pdv-checkout">
+                        <div style="font-size:0.78rem;color:#A9B8CA;margin-bottom:0.35rem;font-weight:600;">Formas de Pagamento</div>
+                        <div class="pdv-pay-list">
+                            <button type="button" class="pdv-pay active" data-pag="Dinheiro" onclick="pdvSelecionarPagamento(this,'Dinheiro')">💵 Dinheiro</button>
+                            <button type="button" class="pdv-pay" data-pag="Pix" onclick="pdvSelecionarPagamento(this,'Pix')">💠 PIX</button>
+                            <button type="button" class="pdv-pay" data-pag="Sócio (conta)" onclick="pdvSelecionarPagamento(this,'Sócio (conta)')">⭐ Sócio (conta)</button>
+                        </div>
+                        <select id="vendaPagamento" class="pdv-legacy-hidden" onchange="onPagamentoChange()">
                             <option value="Dinheiro">Dinheiro</option>
                             <option value="Pix">Pix</option>
                             <option value="Sócio (conta)">Sócio (conta)</option>
                         </select>
+                        <div id="boxParcelasConta" style="display:none;margin-bottom:0.65rem;padding:0.55rem;background:#10223B;border-radius:10px;border:1px solid #203957;">
+                            <input type="hidden" id="vendaParcelas" value="1">
+                            <div id="previewParcelas" style="font-size:0.82rem;font-weight:600;color:#00D889;"></div>
+                        </div>
+                        <label style="font-size:0.72rem;color:#A9B8CA;">Observações (opcional)</label>
+                        <input type="text" id="vendaObs" placeholder="Digite uma observação..." style="margin-bottom:0.55rem;">
+                        <label style="display:flex;align-items:center;gap:0.45rem;font-size:0.82rem;color:#A9B8CA;cursor:pointer;margin-bottom:0.35rem;">
+                            <input type="checkbox" id="vendaImprimir" checked style="width:16px;height:16px;">
+                            Imprimir comprovante
+                        </label>
+                        <button type="button" class="pdv-finalize" onclick="registrarVenda()">✓ Finalizar Venda</button>
+                        <!-- legados para funções existentes -->
+                        <select id="vendaProduto" class="pdv-legacy-hidden"></select>
+                        <input type="number" id="vendaQtd" class="pdv-legacy-hidden" value="1" min="1">
+                        <div id="vendaTotalBox" class="pdv-legacy-hidden"></div>
                     </div>
                 </div>
-                <div id="boxParcelasConta" style="display:none;margin-bottom:1rem;padding:0.75rem;background:#f0f7f2;border-radius:8px;border:1px solid var(--border);">
-                    <input type="hidden" id="vendaParcelas" value="1">
-                    <div id="previewParcelas" style="font-size:0.9rem;font-weight:600;color:var(--primary-dark);"></div>
-                </div>
-                <div class="form-group">
-                    <label>Observação (opcional)</label>
-                    <input type="text" id="vendaObs" class="form-control" placeholder="Opcional">
-                </div>
-                <div class="form-group" style="margin-bottom:0;">
-                    <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;font-weight:600;color:var(--text);">
-                        <input type="checkbox" id="vendaImprimir" checked style="width:18px;height:18px;">
-                        Imprimir comprovante para o sócio assinar
-                    </label>
-                </div>
             </div>
-            <div class="modal-footer">
-                <button class="btn btn-outline" onclick="fecharModal('modalVenda')">Cancelar</button>
-                <button class="btn btn-danger" onclick="registrarVenda()">Confirmar Venda</button>
+            <div class="pdv-footer-stats">
+                <span>Vendas hoje: <strong id="pdvStatVendas">0</strong></span>
+                <span>Valor: <strong id="pdvStatValor">R$ 0,00</strong></span>
+                <span>Sócios: <strong id="pdvStatSocios">0</strong></span>
+                <span>Estoque baixo: <strong id="pdvStatBaixo">0</strong></span>
             </div>
+            <div class="modal-footer pdv-legacy-hidden"></div>
         </div>
     </div>
 
@@ -1880,7 +2315,7 @@
         // ==================== STATE & STORAGE ====================
         // >>> COLE AQUI A CONFIGURAÇÃO DO FIREBASE <<<
         const FIREBASE_CONFIG = {
-           apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
+            apiKey: "AIzaSyCCd7iZEXBaJYow5lQr_WmwC4zseBMimo8",
        authDomain: "estoque-graj-b32b2.firebaseapp.com",
        databaseURL: "https://estoque-graj-b32b2-default-rtdb.firebaseio.com",
        projectId: "estoque-graj-b32b2",
@@ -2143,6 +2578,7 @@
                 data: new Date().toISOString(),
                 criadoEm: new Date().toISOString()
             });
+            registrarLogAdmin('Evento na conta do sócio', socio + ' — ' + descricao + ' — ' + formatMoney(valor) + ' (mês ' + mes + ')');
             saveState();
 
             // Limpa campos de valor/descrição; mantém sócio e mês para lançar vários
@@ -2258,6 +2694,9 @@
             lancamentosEvento: [],
             // URL do Google Apps Script (envio de extrato com PDF) — sincroniza na nuvem
             gasWebAppUrl: '',
+            // Log de alterações do administrador (para informar o presidente)
+            // [{ id, when, who, acao, detalhe }]
+            adminLog: [],
             // Militares que podem iniciar o serviço do dia (tela inicial)
             militaresServico: [
                 'CB DIOGO GIL',
@@ -2479,6 +2918,187 @@
                     toast('Erro ao sincronizar na nuvem', 'error');
                 });
             }
+        }
+
+        /** Registra alteração do admin (sincroniza na nuvem para o presidente ver) */
+        function registrarLogAdmin(acao, detalhe) {
+            try {
+                if (!Array.isArray(state.adminLog)) state.adminLog = [];
+                const who = (typeof isAdmin !== 'undefined' && isAdmin)
+                    ? ('Admin' + (currentMilitar ? ' (' + currentMilitar + ')' : ''))
+                    : (currentMilitar || state.serviceMilitar || 'Sistema');
+                state.adminLog.unshift({
+                    id: generateId(),
+                    when: new Date().toISOString(),
+                    who: who,
+                    acao: String(acao || 'Alteração'),
+                    detalhe: String(detalhe || '')
+                });
+                // Mantém no máximo 400 registros
+                if (state.adminLog.length > 400) state.adminLog = state.adminLog.slice(0, 400);
+            } catch (e) {
+                console.warn('Log admin:', e);
+            }
+        }
+
+        function filtrarAdminLogPorPeriodo() {
+            const sel = (document.getElementById('relatorioLogPeriodo') || {}).value || '7';
+            const lista = Array.isArray(state.adminLog) ? state.adminLog : [];
+            if (sel === 'tudo') return lista.slice();
+            const agora = Date.now();
+            let ms = 7 * 24 * 60 * 60 * 1000;
+            if (sel === 'hoje') {
+                const ini = new Date();
+                ini.setHours(0, 0, 0, 0);
+                return lista.filter(function(L) {
+                    return L.when && new Date(L.when).getTime() >= ini.getTime();
+                });
+            }
+            if (sel === '3') ms = 3 * 24 * 60 * 60 * 1000;
+            else if (sel === '30') ms = 30 * 24 * 60 * 60 * 1000;
+            return lista.filter(function(L) {
+                if (!L.when) return false;
+                return (agora - new Date(L.when).getTime()) <= ms;
+            });
+        }
+
+        function montarTextoResumoAdminLog() {
+            const lista = filtrarAdminLogPorPeriodo();
+            const periodo = ((document.getElementById('relatorioLogPeriodo') || {}).value || '7');
+            const labelPeriodo = {
+                hoje: 'hoje',
+                '3': 'últimos 3 dias',
+                '7': 'últimos 7 dias',
+                '30': 'últimos 30 dias',
+                tudo: 'todo o período'
+            }[periodo] || periodo;
+            let msg = '*GRAJ — Resumo de alterações (Admin)*\n';
+            msg += 'Período: ' + labelPeriodo + '\n';
+            msg += 'Gerado em: ' + new Date().toLocaleString('pt-BR') + '\n';
+            msg += 'Total de registros: ' + lista.length + '\n\n';
+            if (!lista.length) {
+                msg += '_Nenhuma alteração registrada neste período._\n';
+                return msg;
+            }
+            lista.forEach(function(L, i) {
+                let quando = L.when || '';
+                try {
+                    quando = new Date(L.when).toLocaleString('pt-BR');
+                } catch (e) {}
+                msg += (i + 1) + '. *' + (L.acao || 'Alteração') + '*\n';
+                msg += '   ' + quando + ' — ' + (L.who || 'Admin') + '\n';
+                if (L.detalhe) msg += '   ' + L.detalhe + '\n';
+                msg += '\n';
+            });
+            msg += '_Enviado pelo sistema de estoque GRAJ._';
+            return msg;
+        }
+
+        function renderAdminLog() {
+            const box = document.getElementById('adminLogLista');
+            if (!box) return;
+            const lista = filtrarAdminLogPorPeriodo();
+            if (!lista.length) {
+                box.innerHTML = '<p style="color:var(--text-muted);">Nenhuma alteração neste período.</p>';
+                return;
+            }
+            box.innerHTML = lista.map(function(L) {
+                let quando = L.when || '';
+                try { quando = new Date(L.when).toLocaleString('pt-BR'); } catch (e) {}
+                return '<div style="padding:0.55rem 0;border-bottom:1px solid var(--border);">' +
+                    '<div style="font-weight:700;color:var(--primary-dark);">' + escapeHtml(L.acao || 'Alteração') + '</div>' +
+                    '<div style="font-size:0.78rem;color:var(--text-muted);">' + escapeHtml(quando) +
+                    ' · ' + escapeHtml(L.who || 'Admin') + '</div>' +
+                    (L.detalhe ? '<div style="margin-top:0.2rem;">' + escapeHtml(L.detalhe) + '</div>' : '') +
+                    '</div>';
+            }).join('');
+        }
+
+        function copiarResumoAdminLog() {
+            const texto = montarTextoResumoAdminLog();
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(texto).then(function() {
+                    toast('Resumo copiado! Cole no WhatsApp do presidente.');
+                }).catch(function() {
+                    prompt('Copie o texto abaixo:', texto);
+                });
+            } else {
+                prompt('Copie o texto abaixo:', texto);
+            }
+        }
+
+        function enviarResumoAdminWhatsApp() {
+            const texto = montarTextoResumoAdminLog();
+            const url = 'https://api.whatsapp.com/send?text=' + encodeURIComponent(texto);
+            window.open(url, '_blank');
+            toast('Abrindo WhatsApp com o resumo...');
+        }
+
+        /** Gera PDF do relatório de alterações do admin (Imprimir → Salvar como PDF) */
+        function baixarResumoAdminLogPDF() {
+            const lista = filtrarAdminLogPorPeriodo();
+            const periodo = ((document.getElementById('relatorioLogPeriodo') || {}).value || '7');
+            const labelPeriodo = {
+                hoje: 'Hoje',
+                '3': 'Últimos 3 dias',
+                '7': 'Últimos 7 dias',
+                '30': 'Últimos 30 dias',
+                tudo: 'Todo o período'
+            }[periodo] || periodo;
+            const geradoEm = new Date().toLocaleString('pt-BR');
+
+            let rows = '';
+            if (!lista.length) {
+                rows = '<tr><td colspan="3" style="padding:12px;text-align:center;color:#666;">Nenhuma alteração neste período.</td></tr>';
+            } else {
+                lista.forEach(function(L, i) {
+                    let quando = L.when || '—';
+                    try { quando = new Date(L.when).toLocaleString('pt-BR'); } catch (e) {}
+                    rows += '<tr>' +
+                        '<td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;vertical-align:top;width:28%;">' +
+                        escapeHtml(quando) + '<br><span style="font-size:11px;color:#666;">' + escapeHtml(L.who || 'Admin') + '</span></td>' +
+                        '<td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;vertical-align:top;font-weight:700;width:28%;">' +
+                        escapeHtml(L.acao || 'Alteração') + '</td>' +
+                        '<td style="padding:8px 6px;border-bottom:1px solid #e5e7eb;vertical-align:top;">' +
+                        escapeHtml(L.detalhe || '—') + '</td></tr>';
+                });
+            }
+
+            const html = '<!DOCTYPE html><html><head><meta charset="UTF-8">' +
+                '<title>Relatório Admin GRAJ - ' + escapeHtml(labelPeriodo) + '</title>' +
+                '<style>' +
+                '@page{margin:12mm;}' +
+                'body{font-family:Arial,Helvetica,sans-serif;color:#111;font-size:13px;line-height:1.35;margin:0;padding:16px;}' +
+                'h1{font-size:18px;margin:0 0 4px;color:#0d5c2e;}' +
+                '.sub{color:#555;font-size:12px;margin-bottom:14px;}' +
+                'table{width:100%;border-collapse:collapse;}' +
+                'th{text-align:left;background:#0d5c2e;color:#fff;padding:8px 6px;font-size:12px;}' +
+                '.no-print{margin:12px 0 16px;}' +
+                '@media print{.no-print{display:none!important;}}' +
+                '</style></head><body>' +
+                '<div class="no-print">' +
+                '<button onclick="window.print()" style="padding:10px 18px;font-size:14px;cursor:pointer;background:#0d5c2e;color:#fff;border:none;border-radius:6px;">Imprimir / Salvar PDF</button> ' +
+                '<span style="font-size:12px;color:#555;margin-left:8px;">Na impressão, escolha <strong>Salvar como PDF</strong>.</span></div>' +
+                '<h1>GRAJ — Relatório de alterações (Admin)</h1>' +
+                '<div class="sub">Grêmio Recreativo Antônio João · Controle de Estoque<br>' +
+                'Período: <strong>' + escapeHtml(labelPeriodo) + '</strong> · ' +
+                'Registros: <strong>' + lista.length + '</strong> · Gerado em: ' + escapeHtml(geradoEm) + '</div>' +
+                '<table><thead><tr>' +
+                '<th>Data / Responsável</th><th>Ação</th><th>Detalhe</th>' +
+                '</tr></thead><tbody>' + rows + '</tbody></table>' +
+                '<p style="margin-top:18px;font-size:11px;color:#666;">Documento gerado pelo sistema de estoque GRAJ para acompanhamento do presidente.</p>' +
+                '<script>window.onload=function(){setTimeout(function(){window.print();},400);}<\\/script>' +
+                '</body></html>';
+
+            const w = window.open('', '_blank');
+            if (!w) {
+                toast('Permita pop-ups para gerar o PDF.', 'error');
+                return;
+            }
+            w.document.open();
+            w.document.write(html);
+            w.document.close();
+            toast('PDF aberto — use Imprimir → Salvar como PDF.');
         }
 
         function updateWelcomeServiceAviso() {
@@ -2968,6 +3588,7 @@
             if (tab === 'vendas') renderAdminVendas();
             if (tab === 'socios') renderAdminSocios();
             if (tab === 'senha') atualizarStatusEmailJS();
+            if (tab === 'relatorio') renderAdminLog();
             if (tab === 'resumo') {
                 const mes = document.getElementById('resumoMes');
                 if (mes && !mes.value) {
@@ -3518,13 +4139,19 @@
                 return;
             }
             vendaItens = [];
-            document.getElementById('vendaQtd').value = 1;
-            document.getElementById('vendaObs').value = '';
+            window._pdvCategoria = '';
+            const vq = document.getElementById('vendaQtd');
+            if (vq) vq.value = 1;
+            const vo = document.getElementById('vendaObs');
+            if (vo) vo.value = '';
             const vs = document.getElementById('vendaSocio');
             if (vs) vs.value = '';
             const vp = document.getElementById('vendaPagamento');
             if (vp) vp.value = 'Dinheiro';
             window._formaPagamentoSelecionada = 'Dinheiro';
+            document.querySelectorAll('#modalVenda .pdv-pay').forEach(function(b) {
+                b.classList.toggle('active', b.getAttribute('data-pag') === 'Dinheiro');
+            });
             const vparc = document.getElementById('vendaParcelas');
             if (vparc) vparc.value = 1;
             if (typeof toggleParcelasConta === 'function') toggleParcelasConta();
@@ -3534,13 +4161,142 @@
             const vbar = document.getElementById('vendaBarcode');
             if (vbar) vbar.value = '';
             preencherSelects();
+            renderPdvProdutos();
             renderListaVendaItens();
+            atualizarPdvStats();
+            const op = document.getElementById('pdvOperadorChip');
+            if (op) op.textContent = '👤 ' + (currentMilitar || state.serviceMilitar || 'Operador');
+            const dt = document.getElementById('pdvDataChip');
+            if (dt) {
+                const agora = new Date();
+                dt.textContent = '📅 ' + agora.toLocaleDateString('pt-BR') + ' · ' +
+                    agora.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            }
             openModal('modalVenda');
-            // Foca no campo de código de barras para o leitor USB
             setTimeout(function() {
                 const el = document.getElementById('vendaBarcode');
                 if (el) el.focus();
             }, 250);
+        }
+
+        function pdvFiltrarCategoria(btn, cat) {
+            window._pdvCategoria = cat || '';
+            document.querySelectorAll('#pdvCategorias .pdv-cat').forEach(function(b) {
+                b.classList.toggle('active', b === btn);
+            });
+            renderPdvProdutos();
+        }
+
+        function pdvSelecionarPagamento(btn, valor) {
+            const vp = document.getElementById('vendaPagamento');
+            if (vp) vp.value = valor;
+            window._formaPagamentoSelecionada = valor;
+            document.querySelectorAll('#modalVenda .pdv-pay').forEach(function(b) {
+                b.classList.toggle('active', b === btn);
+            });
+            if (typeof onPagamentoChange === 'function') onPagamentoChange();
+        }
+
+        function pdvLimparCarrinho() {
+            if (!vendaItens.length) return;
+            if (!confirm('Limpar todos os itens do carrinho?')) return;
+            vendaItens = [];
+            renderListaVendaItens();
+            renderPdvProdutos();
+        }
+
+        function pdvAddProduto(productId) {
+            const produto = state.products.find(function(p) { return p.id === productId; });
+            if (!produto) return;
+            const jaNoCarrinho = vendaItens
+                .filter(function(i) { return i.productId === produto.id; })
+                .reduce(function(s, i) { return s + i.qty; }, 0);
+            if (produto.qty - jaNoCarrinho < 1) {
+                toast('Estoque insuficiente: ' + produto.name, 'error');
+                return;
+            }
+            const existente = vendaItens.find(function(i) { return i.productId === produto.id; });
+            if (existente) existente.qty += 1;
+            else {
+                vendaItens.push({
+                    productId: produto.id,
+                    productName: produto.name,
+                    price: produto.price,
+                    unit: produto.unit || 'un',
+                    qty: 1
+                });
+            }
+            renderListaVendaItens();
+            renderPdvProdutos();
+        }
+
+        function pdvAlterarQtd(idx, delta) {
+            if (!vendaItens[idx]) return;
+            const item = vendaItens[idx];
+            const produto = state.products.find(function(p) { return p.id === item.productId; });
+            const nova = item.qty + delta;
+            if (nova <= 0) {
+                vendaItens.splice(idx, 1);
+            } else {
+                if (produto && nova > produto.qty) {
+                    toast('Estoque insuficiente! Disponível: ' + produto.qty, 'error');
+                    return;
+                }
+                item.qty = nova;
+            }
+            renderListaVendaItens();
+            renderPdvProdutos();
+        }
+
+        function renderPdvProdutos() {
+            const grid = document.getElementById('pdvGridProdutos');
+            if (!grid) return;
+            const busca = ((document.getElementById('vendaBusca') || {}).value || '').toLowerCase().trim();
+            const cat = window._pdvCategoria || '';
+            let list = (state.products || []).slice().sort(function(a, b) {
+                return (a.name || '').localeCompare(b.name || '');
+            });
+            if (cat) list = list.filter(function(p) { return (p.category || '') === cat; });
+            if (busca) {
+                list = list.filter(function(p) {
+                    return (p.name || '').toLowerCase().indexOf(busca) >= 0 ||
+                        (p.barcode || '').indexOf(busca) >= 0;
+                });
+            }
+            if (!list.length) {
+                grid.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:#7a8ba0;padding:1.5rem;">Nenhum produto encontrado.</p>';
+                return;
+            }
+            grid.innerHTML = list.map(function(p) {
+                const noCart = vendaItens
+                    .filter(function(i) { return i.productId === p.id; })
+                    .reduce(function(s, i) { return s + i.qty; }, 0);
+                const disp = (p.qty || 0) - noCart;
+                const stClass = disp <= 0 ? 'out' : (disp <= (p.minQty || 5) ? 'low' : '');
+                const stTxt = disp <= 0 ? 'Sem estoque' : ('Estoque: ' + p.qty + (noCart ? ' (−' + noCart + ' no carrinho)' : ''));
+                return '<div class="pdv-card">' +
+                    '<div class="nm">' + escapeHtml(p.name) + '</div>' +
+                    '<div class="pr">' + formatMoney(p.price) + '</div>' +
+                    '<div class="st ' + stClass + '">' + stTxt + '</div>' +
+                    '<button type="button" class="pdv-add" ' + (disp < 1 ? 'disabled' : '') +
+                    ' onclick="pdvAddProduto(\'' + p.id + '\')">+ Adicionar</button></div>';
+            }).join('');
+        }
+
+        function atualizarPdvStats() {
+            const vendas = (state.movements || []).filter(function(m) { return m.type === 'venda'; });
+            const valor = vendas.reduce(function(s, m) { return s + m.qty * (m.price || 0); }, 0);
+            const baixo = (state.products || []).filter(function(p) {
+                return (p.qty || 0) <= (p.minQty != null ? p.minQty : 5);
+            }).length;
+            const elV = document.getElementById('pdvStatVendas');
+            const el$ = document.getElementById('pdvStatValor');
+            const elS = document.getElementById('pdvStatSocios');
+            const elB = document.getElementById('pdvStatBaixo');
+            if (elV) elV.textContent = String(vendas.length);
+            if (el$) el$.textContent = formatMoney(valor);
+            if (elS) elS.textContent = String((state.socios || []).length);
+            if (elB) elB.textContent = String(baixo);
         }
 
         /**
@@ -3610,6 +4366,7 @@
             input.focus();
 
             renderListaVendaItens();
+            if (typeof renderPdvProdutos === 'function') renderPdvProdutos();
 
             const qtdAtual = existente ? existente.qty : 1;
             toast(produto.name + ' → qtd: ' + qtdAtual);
@@ -3664,27 +4421,39 @@
         function renderListaVendaItens() {
             const box = document.getElementById('listaVendaItens');
             const totalBox = document.getElementById('vendaTotalBox');
+            const pdvTotal = document.getElementById('pdvTotalValor');
             if (!box) return;
             if (vendaItens.length === 0) {
-                box.innerHTML = '<p style="color:var(--text-muted);font-size:0.9rem;text-align:center;padding:0.5rem;">Nenhum item na lista. Adicione produtos acima.</p>';
+                box.innerHTML = '<div class="pdv-cart-empty">Carrinho vazio.<br>Toque em um produto ou bipe o código de barras.</div>';
                 if (totalBox) totalBox.style.display = 'none';
+                if (pdvTotal) pdvTotal.textContent = formatMoney(0);
                 return;
             }
             let totalQtd = 0;
             let totalValor = 0;
-            box.innerHTML = vendaItens.map((item, idx) => {
+            box.innerHTML = vendaItens.map(function(item, idx) {
                 totalQtd += item.qty;
                 totalValor += item.qty * (item.price || 0);
-                return '<div style="display:flex;align-items:center;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid var(--border);gap:0.5rem;">' +
-                    '<div style="flex:1;min-width:0;"><strong style="font-size:0.9rem;">' + escapeHtml(item.productName) + '</strong>' +
-                    '<div style="font-size:0.8rem;color:var(--text-muted);">' + formatMoney(item.price) + ' x ' + item.qty + ' = ' + formatMoney(item.qty * item.price) + '</div></div>' +
-                    '<button type="button" class="btn btn-sm btn-danger" onclick="removerItemVenda(' + idx + ')">✕</button></div>';
+                return '<div class="pdv-cart-item">' +
+                    '<div><div class="cn">' + escapeHtml(item.productName) + '</div>' +
+                    '<div class="cu">' + formatMoney(item.price) + ' un</div></div>' +
+                    '<div style="text-align:right;">' +
+                    '<div class="pdv-qty">' +
+                    '<button type="button" onclick="pdvAlterarQtd(' + idx + ',-1)">−</button>' +
+                    '<span>' + item.qty + '</span>' +
+                    '<button type="button" onclick="pdvAlterarQtd(' + idx + ',1)">+</button>' +
+                    '</div>' +
+                    '<div style="font-size:0.82rem;font-weight:700;margin-top:0.2rem;color:#00D889;">' +
+                    formatMoney(item.qty * item.price) + '</div>' +
+                    '<button type="button" class="pdv-close-btn" style="margin-top:0.25rem;padding:0.15rem 0.4rem;font-size:0.7rem;" onclick="removerItemVenda(' + idx + ')">Remover</button>' +
+                    '</div></div>';
             }).join('');
             if (totalBox) {
                 totalBox.style.display = 'block';
                 totalBox.innerHTML = '<strong>' + vendaItens.length + ' produto(s)</strong> • ' +
                     totalQtd + ' un • Total: <strong>' + formatMoney(totalValor) + '</strong>';
             }
+            if (pdvTotal) pdvTotal.textContent = formatMoney(totalValor);
         }
 
         function registrarEntrada() {
@@ -3736,7 +4505,9 @@
             }
 
             const qtdProdutos = entradaItens.length;
+            const resumoEnt = entradaItens.map(function(i) { return i.productName + ' +' + i.qty; }).join(', ');
             entradaItens = [];
+            registrarLogAdmin('Entrada de mercadoria', qtdProdutos + ' produto(s), ' + totalItens + ' un — ' + resumoEnt);
             saveState();
             renderAll();
             fecharModal('modalEntrada');
@@ -3821,6 +4592,13 @@
         }
 
         function registrarVenda() {
+            // Evita clique duplo / Enter duplo gravando a mesma venda 2 vezes
+            if (window._registrandoVenda) {
+                toast('Aguarde — venda já está sendo registrada...', 'error');
+                return;
+            }
+            window._registrandoVenda = true;
+            try {
             const obs = document.getElementById('vendaObs').value.trim();
             const socio = (document.getElementById('vendaSocio') && document.getElementById('vendaSocio').value.trim()) || '';
             const pagamento = lerFormaPagamento();
@@ -3883,8 +4661,26 @@
 
             let totalItens = 0;
             let totalValor = 0;
+            const agoraTs = new Date().toISOString();
             for (const item of vendaItens) {
                 const product = state.products.find(p => p.id === item.productId);
+                // Bloqueia venda idêntica nos últimos 5 segundos (evita duplicar no estoque e no extrato)
+                const socioLow = (socio || '').toLowerCase().trim();
+                const nomeProd = (item.productName || '').toLowerCase();
+                const duplicataRecente = (state.movements || []).some(function(m) {
+                    if (m.type !== 'venda') return false;
+                    if ((m.productName || '').toLowerCase() !== nomeProd) return false;
+                    if (Number(m.qty) !== Number(item.qty)) return false;
+                    if (Number(m.price) !== Number(item.price)) return false;
+                    if ((m.socio || '').toLowerCase().trim() !== socioLow) return false;
+                    if (!m.timestamp) return false;
+                    const diff = Math.abs(new Date(agoraTs) - new Date(m.timestamp));
+                    return diff < 5000;
+                });
+                if (duplicataRecente) {
+                    toast('Esta venda já foi registrada há poucos segundos. Não foi duplicada.', 'error');
+                    continue;
+                }
                 product.qty -= item.qty;
                 totalItens += item.qty;
                 totalValor += item.qty * (item.price || 0);
@@ -3902,8 +4698,12 @@
                     vencimentos: isContaPag ? vencimentos.map(formatDateBR) : null,
                     militar: currentMilitar,
                     date: todayISO(),
-                    timestamp: new Date().toISOString()
+                    timestamp: agoraTs
                 });
+            }
+            if (totalItens === 0) {
+                toast('Nenhuma venda nova registrada.', 'error');
+                return;
             }
 
             const qtdProdutos = vendaItens.length;
@@ -3926,6 +4726,9 @@
                     parcelas: numParcelas,
                     vencimentos: vencimentos
                 });
+            }
+            } finally {
+                window._registrandoVenda = false;
             }
         }
 
@@ -4475,6 +5278,7 @@ function limparMovimentacoes() {
                 barcode: barcode || ''
             });
 
+            registrarLogAdmin('Produto cadastrado', name + ' — ' + formatMoney(price) + ' — qtd ' + qty);
             saveState();
             document.getElementById('adminNomeProduto').value = '';
             document.getElementById('adminPrecoProduto').value = '';
@@ -4506,12 +5310,14 @@ function limparMovimentacoes() {
                 return;
             }
 
+            const precoAntigo = p.price;
             p.name = novoNome.trim() || p.name;
             p.price = parseFloat(novoPreco) || 0;
             p.category = (novaCat || '').trim() || p.category || 'Outros';
             p.minQty = parseInt(novoMin, 10);
             if (isNaN(p.minQty)) p.minQty = 5;
             p.barcode = barcodeLimpo;
+            registrarLogAdmin('Produto editado', p.name + ' — preço ' + formatMoney(precoAntigo) + ' → ' + formatMoney(p.price));
             saveState();
             renderAdminProdutos();
             toast('Produto atualizado');
@@ -4526,6 +5332,7 @@ function limparMovimentacoes() {
             if (!p) return;
             if (!confirm(`Excluir o produto "${p.name}"? Esta ação não pode ser desfeita.`)) return;
 
+            registrarLogAdmin('Produto excluído', p.name + ' (qtd ' + p.qty + ')');
             state.products = state.products.filter(x => x.id !== id);
             saveState();
             renderAdminProdutos();
@@ -4561,6 +5368,7 @@ function limparMovimentacoes() {
                 date: todayISO()
             });
 
+            registrarLogAdmin('Ajuste de estoque', product.name + ': ' + antiga + ' → ' + novaQtd + (motivo ? ' (' + motivo + ')' : ''));
             saveState();
             renderAdminProdutos();
             document.getElementById('ajusteQtd').value = '';
@@ -4693,11 +5501,39 @@ function limparMovimentacoes() {
                     ? h.summary.valorEstoqueFinal
                     : estoqueFinal.reduce(function(s, p) { return s + (p.qty || 0) * (p.price || 0); }, 0);
 
-                // Tabela de estoque (inicial x final)
+                // Tabela de estoque (inicial x final) + conferência com entradas/vendas
                 const mapFin = {};
                 estoqueFinal.forEach(function(p) { mapFin[p.id || p.name] = p; });
                 const mapIni = {};
                 estoqueInicial.forEach(function(p) { mapIni[p.id || p.name] = p; });
+                const mapEnt = {};
+                const mapVend = {};
+                (h.movements || []).forEach(function(m) {
+                    if (!m) return;
+                    const kNome = String(m.productName || '').trim();
+                    const kId = m.productId || kNome;
+                    if (!kNome && !kId) return;
+                    const keys = [kId];
+                    if (kNome && kNome !== kId) keys.push(kNome);
+                    // também indexa pelo nome para casar com snapshot
+                    keys.forEach(function(k) {
+                        if (m.type === 'entrada') {
+                            mapEnt[k] = (mapEnt[k] || 0) + (Number(m.qty) || 0);
+                        } else if (m.type === 'venda') {
+                            mapVend[k] = (mapVend[k] || 0) + (Number(m.qty) || 0);
+                        }
+                    });
+                });
+                function qtdMovPorProduto(map, p) {
+                    if (!p) return 0;
+                    const byId = p.id != null ? (map[p.id] || 0) : 0;
+                    const byName = p.name ? (map[p.name] || 0) : 0;
+                    // evita somar 2x se id e nome apontam o mesmo acumulado
+                    if (p.id != null && p.name && map[p.id] != null && map[p.name] != null && p.id !== p.name) {
+                        return map[p.id] || 0;
+                    }
+                    return byId || byName || 0;
+                }
                 const ids = {};
                 estoqueInicial.concat(estoqueFinal).forEach(function(p) {
                     ids[p.id || p.name] = p.name || p.id;
@@ -4709,36 +5545,62 @@ function limparMovimentacoes() {
                 if (nomesOrd.length === 0) {
                     estoqueHtml = '<p style="color:var(--text-muted);font-size:0.85rem;">Estoque não registrado neste serviço.</p>';
                 } else {
-                    estoqueHtml = '<table style="width:100%;font-size:0.8rem;margin-top:0.35rem;"><thead><tr>' +
+                    estoqueHtml = '<p style="font-size:0.75rem;color:var(--text-muted);margin:0.25rem 0 0.4rem;">' +
+                        '<strong>Dif.</strong> = Final − Inicial. ' +
+                        '<strong>Esperado</strong> = Inicial + Entradas − Vendas. ' +
+                        'Se Final ≠ Esperado, algo foi ajustado fora das entradas/vendas.</p>' +
+                        '<table style="width:100%;font-size:0.78rem;margin-top:0.35rem;"><thead><tr>' +
                         '<th style="text-align:left;">Produto</th>' +
                         '<th style="text-align:center;">Inicial</th>' +
+                        '<th style="text-align:center;">Entr.</th>' +
+                        '<th style="text-align:center;">Vend.</th>' +
+                        '<th style="text-align:center;">Esperado</th>' +
                         '<th style="text-align:center;">Final</th>' +
                         '<th style="text-align:center;">Dif.</th>' +
-                        '<th style="text-align:right;">Valor final</th></tr></thead><tbody>';
+                        '<th style="text-align:center;">Conf.</th></tr></thead><tbody>';
+                    let divergencias = 0;
                     nomesOrd.forEach(function(key) {
                         const ini = mapIni[key];
                         const fin = mapFin[key];
                         const qIni = ini ? (ini.qty || 0) : 0;
                         const qFin = fin ? (fin.qty || 0) : 0;
-                        const dif = qFin - qIni;
                         const nome = (fin && fin.name) || (ini && ini.name) || key;
-                        const preco = (fin && fin.price) || (ini && ini.price) || 0;
+                        const ref = fin || ini || { id: key, name: nome };
+                        const qEnt = qtdMovPorProduto(mapEnt, ref);
+                        const qVend = qtdMovPorProduto(mapVend, ref);
+                        const esperado = qIni + qEnt - qVend;
+                        const dif = qFin - qIni;
+                        const conf = qFin - esperado;
+                        if (conf !== 0) divergencias++;
                         const difTxt = dif === 0 ? '0' : (dif > 0 ? '+' + dif : String(dif));
+                        const confTxt = conf === 0 ? 'OK' : (conf > 0 ? '+' + conf : String(conf));
                         const difColor = dif < 0 ? 'var(--danger)' : (dif > 0 ? 'var(--success)' : 'var(--text-muted)');
-                        estoqueHtml += '<tr>' +
+                        const confColor = conf === 0 ? 'var(--success)' : 'var(--danger)';
+                        const rowBg = conf !== 0 ? 'background:#fef2f2;' : '';
+                        estoqueHtml += '<tr style="' + rowBg + '">' +
                             '<td style="padding:0.3rem 0.25rem;">' + escapeHtml(nome) + '</td>' +
                             '<td style="text-align:center;">' + qIni + '</td>' +
+                            '<td style="text-align:center;">' + (qEnt ? ('+' + qEnt) : '0') + '</td>' +
+                            '<td style="text-align:center;">' + (qVend ? ('−' + qVend) : '0') + '</td>' +
+                            '<td style="text-align:center;">' + esperado + '</td>' +
                             '<td style="text-align:center;font-weight:600;">' + qFin + '</td>' +
                             '<td style="text-align:center;color:' + difColor + ';font-weight:600;">' + difTxt + '</td>' +
-                            '<td style="text-align:right;">' + formatMoney(qFin * preco) + '</td></tr>';
+                            '<td style="text-align:center;color:' + confColor + ';font-weight:700;font-size:0.72rem;">' + confTxt + '</td></tr>';
                     });
                     estoqueHtml += '<tr style="background:#f0f7f2;font-weight:700;">' +
                         '<td>TOTAL</td>' +
                         '<td style="text-align:center;">' + totalUnIni + '</td>' +
+                        '<td colspan="3"></td>' +
                         '<td style="text-align:center;">' + totalUnFin + '</td>' +
                         '<td style="text-align:center;">' + (totalUnFin - totalUnIni > 0 ? '+' : '') + (totalUnFin - totalUnIni) + '</td>' +
-                        '<td style="text-align:right;">' + formatMoney(valorFin) + '</td></tr>';
+                        '<td style="text-align:center;font-size:0.72rem;">' +
+                        (divergencias ? (divergencias + ' ⚠') : 'OK') + '</td></tr>';
                     estoqueHtml += '</tbody></table>';
+                    if (divergencias > 0) {
+                        estoqueHtml += '<p style="font-size:0.75rem;color:#b91c1c;margin:0.4rem 0 0;">⚠ ' +
+                            divergencias + ' produto(s) com Final diferente do Esperado (Inicial + Entradas − Vendas). ' +
+                            'Pode ser abertura de estoque errada ou ajuste manual de quantidade.</p>';
+                    }
                 }
 
                 return '<div style="padding:1rem;border-bottom:1px solid var(--border);">' +
@@ -4982,6 +5844,9 @@ function limparMovimentacoes() {
                 valor: vendasRest.reduce(function(s, x) { return s + x.qty * (x.price || 0); }, 0)
             };
 
+            registrarLogAdmin('Venda excluída (histórico)',
+                (m.productName || '') + ' × ' + m.qty + ' — ' + (m.socio || '—') +
+                ' — ' + formatMoney(m.qty * (m.price || 0)));
             saveState();
             renderHistorico();
             renderAll();
@@ -5085,6 +5950,10 @@ function limparMovimentacoes() {
                 m.vencimentos = null;
             }
 
+            registrarLogAdmin('Venda corrigida (histórico)',
+                (m.productName || '') + ' × ' + m.qty +
+                ' — sócio "' + antigoSocio + '" → "' + (nomeLimpo || '—') +
+                '"; pag. "' + antigoPag + '" → "' + novoPag + '"');
             saveState();
             fecharModal('modalTrocarSocio');
             window._trocaSocioCtx = null;
@@ -5181,10 +6050,11 @@ function limparMovimentacoes() {
                 toast('Sócio já cadastrado.', 'error');
                 return;
             }
+            const nomeSocio = nome || numero;
             state.socios.push({
                 id: generateId(),
                 numero: numero,
-                nome: nome || numero,
+                nome: nomeSocio,
                 whatsapp: whatsapp || '',
                 email: email || '',
                 bloqueado: false,
@@ -5195,6 +6065,8 @@ function limparMovimentacoes() {
             if (document.getElementById('socioWhatsapp')) document.getElementById('socioWhatsapp').value = '';
             if (document.getElementById('socioEmail')) document.getElementById('socioEmail').value = '';
             if (document.getElementById('socioMensalidadePaga')) document.getElementById('socioMensalidadePaga').checked = true;
+            registrarLogAdmin('Sócio cadastrado', (numero ? numero + ' - ' : '') + nomeSocio +
+                (isentoMensalidade ? ' (isento mensalidade)' : ' (mensalidade R$ 40)'));
             saveState();
             renderAdminSocios();
             preencherDatalistSocios();
@@ -5273,6 +6145,8 @@ function limparMovimentacoes() {
 
         function adminRemoverSocio(id) {
             if (!confirm('Remover este sócio?')) return;
+            const s = (state.socios || []).find(x => x.id === id);
+            registrarLogAdmin('Sócio removido', s ? ((s.numero ? s.numero + ' - ' : '') + (s.nome || '')) : id);
             state.socios = (state.socios || []).filter(s => s.id !== id);
             saveState();
             renderAdminSocios();
@@ -5347,10 +6221,12 @@ function limparMovimentacoes() {
             if (atualIsento) {
                 if (!confirm('Passar a COBRAR mensalidade de R$ 40 deste sócio?\n\n' + nome)) return;
                 s.isentoMensalidade = false;
+                registrarLogAdmin('Mensalidade ativada', nome + ' — R$ 40');
                 toast('Mensalidade R$ 40 ativada para ' + nome);
             } else {
                 if (!confirm('Tornar este sócio ISENTO de mensalidade?\n\n' + nome)) return;
                 s.isentoMensalidade = true;
+                registrarLogAdmin('Mensalidade isenta', nome);
                 toast('Sócio isento de mensalidade: ' + nome);
             }
             saveState();
@@ -5375,12 +6251,14 @@ function limparMovimentacoes() {
                     return;
                 }
                 s.bloqueado = true;
+                registrarLogAdmin('Sócio bloqueado (conta)', nome);
                 toast('Sócio bloqueado: não pode mais comprar na conta.');
             } else {
                 if (!confirm('Desbloquear este sócio?\n\n' + nome + '\n\nEle voltará a poder comprar na conta (fiado).')) {
                     return;
                 }
                 s.bloqueado = false;
+                registrarLogAdmin('Sócio desbloqueado (conta)', nome);
                 toast('Sócio desbloqueado: pode comprar na conta novamente.');
             }
             saveState();
@@ -5447,13 +6325,53 @@ function limparMovimentacoes() {
 
         function todasVendasHistorico() {
             const list = [];
+            const vistosId = {};
+            const vistosConteudo = {};
+            // Mesmo conteúdo no mesmo minuto = venda duplicada (ex.: clique duplo / sync)
+            function minutoISO(ts, dateStr) {
+                if (ts) {
+                    try {
+                        const d = new Date(ts);
+                        if (!isNaN(d.getTime())) {
+                            return d.getFullYear() + '-' +
+                                String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                                String(d.getDate()).padStart(2, '0') + ' ' +
+                                String(d.getHours()).padStart(2, '0') + ':' +
+                                String(d.getMinutes()).padStart(2, '0');
+                        }
+                    } catch (e) {}
+                }
+                return String(dateStr || '');
+            }
+            function chaveConteudo(m) {
+                return [
+                    minutoISO(m.timestamp, m.date),
+                    String(m.productName || '').toLowerCase().trim(),
+                    Number(m.qty) || 0,
+                    Number(m.price) || 0,
+                    String(m.socio || '').toLowerCase().trim(),
+                    String(m.pagamento || '').toLowerCase().trim()
+                ].join('|');
+            }
+            function pushVenda(m, militarServico) {
+                if (!m || m.type !== 'venda') return;
+                if (m.id) {
+                    const kid = 'id:' + String(m.id);
+                    if (vistosId[kid]) return;
+                    vistosId[kid] = true;
+                }
+                const kc = chaveConteudo(m);
+                if (vistosConteudo[kc]) return; // duplicata de conteúdo (mesmo item/sócio/minuto)
+                vistosConteudo[kc] = true;
+                list.push({ ...m, _militarServico: militarServico || '' });
+            }
             (state.history || []).forEach(h => {
-                (h.movements || []).filter(m => m.type === 'venda').forEach(m => {
-                    list.push({ ...m, _militarServico: h.militar });
+                (h.movements || []).forEach(m => {
+                    pushVenda(m, h.militar);
                 });
             });
-            (state.movements || []).filter(m => m.type === 'venda').forEach(m => {
-                list.push({ ...m, _militarServico: state.serviceMilitar || currentMilitar || '' });
+            (state.movements || []).forEach(m => {
+                pushVenda(m, state.serviceMilitar || currentMilitar || '');
             });
             return list;
         }
