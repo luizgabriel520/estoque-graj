@@ -1705,6 +1705,18 @@
                         <input type="text" id="adminBarcodeProduto" class="form-control" placeholder="Bipe ou digite o código de barras" autocomplete="off">
                         <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.3rem;">Use o leitor USB ou digite manualmente. Deixe em branco se não tiver.</p>
                     </div>
+                    <div class="form-group">
+                        <label>Foto do produto (opcional)</label>
+                        <input type="file" id="adminImageFileProduto" class="form-control" accept="image/*" style="padding:0.45rem;">
+                        <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.3rem;">No celular: toque e escolha da <strong>galeria</strong> ou tire uma foto. A imagem é comprimida automaticamente.</p>
+                        <div id="adminImagePreviewWrap" style="display:none;margin-top:0.6rem;align-items:center;gap:0.75rem;">
+                            <img id="adminImagePreview" alt="Prévia" style="width:72px;height:72px;object-fit:cover;border-radius:10px;border:1px solid var(--border);background:#111;">
+                            <button type="button" class="btn btn-sm btn-outline" onclick="adminLimparImagemProduto()">Remover foto</button>
+                        </div>
+                        <input type="hidden" id="adminImageProduto" value="">
+                        <label style="margin-top:0.75rem;display:block;">Ou cole um link da imagem</label>
+                        <input type="url" id="adminImageUrlProduto" class="form-control" placeholder="https://... (opcional)" autocomplete="off">
+                    </div>
                     <button class="btn btn-primary" onclick="adminAdicionarProduto()">Cadastrar Produto</button>
                 </div>
             </div>
@@ -4324,48 +4336,8 @@
 
         
         
-        // Imagens / ícones das mercadorias
-        // Prioridade: 1) p.image (cadastrado no admin)  2) mapa por nome  3) emoji da categoria
-        const PRODUCT_IMAGES = {
-            // Cervejas
-            'CERVEJA BUDWEISER LONG NECK': 'https://logo.clearbit.com/budweiser.com',
-            'CERVEJA CORONA LONG NECK': 'https://logo.clearbit.com/corona.com',
-            'CERVEJA HEINEKEN 600': 'https://logo.clearbit.com/heineken.com',
-            'CERVEJA HEINEKEN LONG NECK': 'https://logo.clearbit.com/heineken.com',
-            'HEINEKEN LATA': 'https://logo.clearbit.com/heineken.com',
-            'CERVEJA ORIGINAL LITRO': 'https://logo.clearbit.com/ambev.com.br',
-            'ORIGINAL LATA': 'https://logo.clearbit.com/ambev.com.br',
-            'CERVEJA SPATEN 600': 'https://logo.clearbit.com/spaten.com',
-            'CERVEJA SPATEN LONG NECK': 'https://logo.clearbit.com/spaten.com',
-            // Refrigerantes / bebidas
-            'COCA COLA 2 LITROS': 'https://logo.clearbit.com/coca-cola.com',
-            'COCA COLA 2 LITROS - ZERO': 'https://logo.clearbit.com/coca-cola.com',
-            'COCA COLA LATA': 'https://logo.clearbit.com/coca-cola.com',
-            'COCA COLA LATA - ZERO': 'https://logo.clearbit.com/coca-cola.com',
-            'FANTA LARANJA 2 LITROS': 'https://logo.clearbit.com/fanta.com',
-            'FANTA LARANJA LATA': 'https://logo.clearbit.com/fanta.com',
-            'SPRITE LATA': 'https://logo.clearbit.com/sprite.com',
-            'GUARANÁ ANTARCTICA 2 LITROS': 'https://logo.clearbit.com/guaranaantarctica.com.br',
-            'GUARANÁ ANTARCTICA 2 LITROS - ZERO': 'https://logo.clearbit.com/guaranaantarctica.com.br',
-            'GUARANÁ ANTARCTICA LATA': 'https://logo.clearbit.com/guaranaantarctica.com.br',
-            'GATORADE': 'https://logo.clearbit.com/gatorade.com',
-            'POWER ADE': 'https://logo.clearbit.com/powerade.com',
-            'MONSTER BRANCO': 'https://logo.clearbit.com/monsterenergy.com',
-            'MONSTER MANGO': 'https://logo.clearbit.com/monsterenergy.com',
-            'MONSTER TRADICIONAL': 'https://logo.clearbit.com/monsterenergy.com',
-            'MONSTER TRADICIONAL - ZERO': 'https://logo.clearbit.com/monsterenergy.com',
-            // Doces
-            'KIT KAT AO LEITE': 'https://logo.clearbit.com/kitkat.com',
-            'KIT KAT BRANCO': 'https://logo.clearbit.com/kitkat.com',
-            'KIT KAT COTTON CANDY': 'https://logo.clearbit.com/kitkat.com',
-            'KIT KAT LEMON': 'https://logo.clearbit.com/kitkat.com',
-            'KIT KAT STRAWBERRY': 'https://logo.clearbit.com/kitkat.com',
-            'SNICKERS NEGRO': 'https://logo.clearbit.com/snickers.com',
-            'BIS BRANCO': 'https://logo.clearbit.com/lacta.com.br',
-            'BIS EXTRA ORIGINAL': 'https://logo.clearbit.com/lacta.com.br',
-            'PRINGLES CHURRASCO': 'https://logo.clearbit.com/pringles.com'
-        };
-
+        
+        // Imagem do produto: 1) URL cadastrada no Admin  2) emoji da categoria
         const CATEGORY_EMOJI = {
             'Cervejas': '🍺',
             'Refrigerantes': '🥤',
@@ -4389,34 +4361,13 @@
         };
 
         function getProductImageHtml(p) {
-            const name = String(p.name || '').trim();
-            const nameUp = name.toUpperCase();
-            let url = (p.image && String(p.image).trim()) || PRODUCT_IMAGES[name] || null;
-
-            if (!url) {
-                if (nameUp.indexOf('HEINEKEN') >= 0) url = PRODUCT_IMAGES['CERVEJA HEINEKEN LONG NECK'];
-                else if (nameUp.indexOf('COCA') >= 0) url = PRODUCT_IMAGES['COCA COLA LATA'];
-                else if (nameUp.indexOf('KIT KAT') >= 0 || nameUp.indexOf('KITKAT') >= 0) url = PRODUCT_IMAGES['KIT KAT AO LEITE'];
-                else if (nameUp.indexOf('MONSTER') >= 0) url = PRODUCT_IMAGES['MONSTER TRADICIONAL'];
-                else if (nameUp.indexOf('GUARAN') >= 0) url = PRODUCT_IMAGES['GUARANÁ ANTARCTICA LATA'];
-                else if (nameUp.indexOf('FANTA') >= 0) url = PRODUCT_IMAGES['FANTA LARANJA LATA'];
-                else if (nameUp.indexOf('SPRITE') >= 0) url = PRODUCT_IMAGES['SPRITE LATA'];
-                else if (nameUp.indexOf('SNICKERS') >= 0) url = PRODUCT_IMAGES['SNICKERS NEGRO'];
-                else if (nameUp.indexOf('PRINGLES') >= 0) url = PRODUCT_IMAGES['PRINGLES CHURRASCO'];
-                else if (nameUp.indexOf('BUDWEISER') >= 0) url = PRODUCT_IMAGES['CERVEJA BUDWEISER LONG NECK'];
-                else if (nameUp.indexOf('CORONA') >= 0) url = PRODUCT_IMAGES['CERVEJA CORONA LONG NECK'];
-                else if (nameUp.indexOf('GATORADE') >= 0) url = PRODUCT_IMAGES['GATORADE'];
-                else if (nameUp.indexOf('SPATEN') >= 0) url = PRODUCT_IMAGES['CERVEJA SPATEN LONG NECK'];
-                else if (nameUp.indexOf('ORIGINAL') >= 0) url = PRODUCT_IMAGES['ORIGINAL LATA'];
-                else if (nameUp.indexOf('BIS ') === 0 || nameUp.indexOf('BIS EXTRA') >= 0) url = PRODUCT_IMAGES['BIS BRANCO'];
-            }
-
             const emoji = CATEGORY_EMOJI[p.category] || '🛒';
             const bg = CATEGORY_BG[p.category] || '#1a2535';
+            const url = (p.image && String(p.image).trim()) || '';
 
             if (url) {
                 return '<div class="pdv-img-wrap" style="background:' + bg + '">' +
-                    '<img src="' + url + '" alt="" loading="lazy" referrerpolicy="no-referrer" ' +
+                    '<img src="' + url.replace(/"/g, '') + '" alt="" loading="lazy" referrerpolicy="no-referrer" ' +
                     "onerror=\"this.style.display='none';var f=this.parentNode.querySelector('.pdv-img-fallback');if(f)f.style.display='flex';\">" +
                     '<span class="pdv-img-fallback" style="display:none">' + emoji + '</span></div>';
             }
@@ -5377,10 +5328,126 @@ function limparMovimentacoes() {
                         <td>${p.unit || 'un'}</td>
                         <td>
                             <button class="btn btn-sm btn-outline" onclick="adminEditarProduto('${p.id}')">Editar</button>
+                            <button class="btn btn-sm btn-outline" onclick="adminTrocarFotoProduto('${p.id}')">Foto</button>
                             <button class="btn btn-sm btn-danger" onclick="adminExcluirProduto('${p.id}')">Excluir</button>
                         </td>
                     </tr>
                 `).join('');
+        }
+
+        
+        let adminImageDataUrl = '';
+
+        function adminLimparImagemProduto() {
+            adminImageDataUrl = '';
+            const hid = document.getElementById('adminImageProduto');
+            const file = document.getElementById('adminImageFileProduto');
+            const url = document.getElementById('adminImageUrlProduto');
+            const wrap = document.getElementById('adminImagePreviewWrap');
+            const prev = document.getElementById('adminImagePreview');
+            if (hid) hid.value = '';
+            if (file) file.value = '';
+            if (url) url.value = '';
+            if (prev) prev.src = '';
+            if (wrap) wrap.style.display = 'none';
+        }
+
+        function adminMostrarPreviewImagem(dataUrl) {
+            adminImageDataUrl = dataUrl || '';
+            const hid = document.getElementById('adminImageProduto');
+            const wrap = document.getElementById('adminImagePreviewWrap');
+            const prev = document.getElementById('adminImagePreview');
+            if (hid) hid.value = adminImageDataUrl;
+            if (prev) prev.src = adminImageDataUrl;
+            if (wrap) wrap.style.display = adminImageDataUrl ? 'flex' : 'none';
+        }
+
+        function compressImageFile(file, maxSide, quality) {
+            maxSide = maxSide || 320;
+            quality = quality || 0.72;
+            return new Promise(function(resolve, reject) {
+                if (!file || !file.type || file.type.indexOf('image/') !== 0) {
+                    reject(new Error('Arquivo inválido'));
+                    return;
+                }
+                const reader = new FileReader();
+                reader.onerror = function() { reject(new Error('Falha ao ler arquivo')); };
+                reader.onload = function() {
+                    const img = new Image();
+                    img.onload = function() {
+                        let w = img.width;
+                        let h = img.height;
+                        if (w > maxSide || h > maxSide) {
+                            if (w >= h) {
+                                h = Math.round(h * (maxSide / w));
+                                w = maxSide;
+                            } else {
+                                w = Math.round(w * (maxSide / h));
+                                h = maxSide;
+                            }
+                        }
+                        const canvas = document.createElement('canvas');
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, w, h);
+                        let out = canvas.toDataURL('image/jpeg', quality);
+                        // Se ainda ficar muito grande, reduz qualidade
+                        if (out.length > 180000) {
+                            out = canvas.toDataURL('image/jpeg', 0.55);
+                        }
+                        if (out.length > 220000) {
+                            out = canvas.toDataURL('image/jpeg', 0.4);
+                        }
+                        resolve(out);
+                    };
+                    img.onerror = function() { reject(new Error('Imagem inválida')); };
+                    img.src = reader.result;
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function adminInitImageInputs() {
+            const fileInput = document.getElementById('adminImageFileProduto');
+            const urlInput = document.getElementById('adminImageUrlProduto');
+            if (fileInput && !fileInput._bound) {
+                fileInput._bound = true;
+                fileInput.addEventListener('change', function() {
+                    const f = fileInput.files && fileInput.files[0];
+                    if (!f) return;
+                    toast('Processando imagem...');
+                    compressImageFile(f, 320, 0.72).then(function(dataUrl) {
+                        adminMostrarPreviewImagem(dataUrl);
+                        if (urlInput) urlInput.value = '';
+                        toast('Foto pronta!');
+                    }).catch(function(err) {
+                        console.error(err);
+                        toast('Não foi possível usar esta imagem.', 'error');
+                    });
+                });
+            }
+            if (urlInput && !urlInput._bound) {
+                urlInput._bound = true;
+                urlInput.addEventListener('change', function() {
+                    const u = (urlInput.value || '').trim();
+                    if (!u) return;
+                    adminImageDataUrl = '';
+                    const hid = document.getElementById('adminImageProduto');
+                    if (hid) hid.value = u;
+                    const wrap = document.getElementById('adminImagePreviewWrap');
+                    const prev = document.getElementById('adminImagePreview');
+                    if (prev) prev.src = u;
+                    if (wrap) wrap.style.display = 'flex';
+                });
+            }
+        }
+
+        // inicia listeners quando o DOM estiver pronto
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', adminInitImageInputs);
+        } else {
+            setTimeout(adminInitImageInputs, 0);
         }
 
         function adminAdicionarProduto() {
@@ -5391,6 +5458,9 @@ function limparMovimentacoes() {
             const category = document.getElementById('adminCategoriaProduto').value;
             const minQty = parseInt(document.getElementById('adminMinQtyProduto').value, 10) || 5;
             const barcode = (document.getElementById('adminBarcodeProduto').value || '').trim();
+            const urlImg = (document.getElementById('adminImageUrlProduto') && document.getElementById('adminImageUrlProduto').value || '').trim();
+            const hidImg = (document.getElementById('adminImageProduto') && document.getElementById('adminImageProduto').value || '').trim();
+            const image = hidImg || urlImg || adminImageDataUrl || '';
 
             if (!name) {
                 toast('Informe o nome do produto.', 'error');
@@ -5415,7 +5485,8 @@ function limparMovimentacoes() {
                 unit,
                 category,
                 minQty,
-                barcode: barcode || ''
+                barcode: barcode || '',
+                image: image || ''
             });
 
             registrarLogAdmin('Produto cadastrado', name + ' — ' + formatMoney(price) + ' — qtd ' + qty);
@@ -5425,8 +5496,36 @@ function limparMovimentacoes() {
             document.getElementById('adminQtdProduto').value = '';
             document.getElementById('adminMinQtyProduto').value = '5';
             document.getElementById('adminBarcodeProduto').value = '';
+            adminLimparImagemProduto();
             renderAdminProdutos();
             toast(`Produto "${name}" cadastrado!`);
+        }
+
+        
+        function adminTrocarFotoProduto(id) {
+            const p = state.products.find(function(x) { return x.id === id; });
+            if (!p) return;
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.style.display = 'none';
+            input.onchange = function() {
+                const f = input.files && input.files[0];
+                document.body.removeChild(input);
+                if (!f) return;
+                toast('Processando imagem...');
+                compressImageFile(f, 320, 0.72).then(function(dataUrl) {
+                    p.image = dataUrl;
+                    saveState();
+                    renderAdminProdutos();
+                    toast('Foto atualizada: ' + p.name);
+                }).catch(function(err) {
+                    console.error(err);
+                    toast('Não foi possível usar esta imagem.', 'error');
+                });
+            };
+            document.body.appendChild(input);
+            input.click();
         }
 
         function adminEditarProduto(id) {
