@@ -1121,49 +1121,87 @@
             overflow: auto;
             padding: 0.65rem;
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
-            gap: 0.55rem;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 0.65rem;
             align-content: start;
         }
         #modalVenda .pdv-card {
             background: #10223B;
             border: 1px solid #203957;
             border-radius: 14px;
-            padding: 0.65rem;
+            padding: 0.55rem;
             display: flex;
             flex-direction: column;
-            gap: 0.25rem;
-            min-height: 120px;
+            min-height: 210px;
+            height: 100%;
+        }
+        #modalVenda .pdv-card .pdv-img-wrap {
+            width: 100%;
+            height: 78px;
+            border-radius: 10px;
+            background: #0a1829;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            margin-bottom: 0.4rem;
+            flex-shrink: 0;
+        }
+        #modalVenda .pdv-card .pdv-img-wrap img {
+            max-width: 72%;
+            max-height: 72%;
+            width: auto;
+            height: auto;
+            object-fit: contain;
+        }
+        #modalVenda .pdv-card .pdv-img-fallback {
+            font-size: 1.8rem;
+            opacity: 0.7;
+            line-height: 1;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         #modalVenda .pdv-card .nm {
-            font-size: 0.78rem;
+            font-size: 0.76rem;
             font-weight: 700;
             color: #F4F7FA;
             line-height: 1.25;
-            flex: 1;
+            min-height: 2.5em;
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            overflow: hidden;
+            margin-bottom: 0.15rem;
         }
         #modalVenda .pdv-card .pr {
             font-size: 0.95rem;
             font-weight: 800;
             color: #00D889;
+            margin-bottom: 0.1rem;
         }
         #modalVenda .pdv-card .st {
             font-size: 0.7rem;
             color: #A9B8CA;
+            margin-bottom: 0.35rem;
         }
         #modalVenda .pdv-card .st.low { color: #F5A623; }
         #modalVenda .pdv-card .st.out { color: #EF4444; }
         #modalVenda .pdv-add {
-            margin-top: 0.25rem;
+            margin-top: auto;
             width: 100%;
             border: none;
             border-radius: 10px;
             background: #00D889;
             color: #050D19;
             font-weight: 800;
-            padding: 0.4rem;
+            padding: 0.45rem;
             cursor: pointer;
             font-size: 0.85rem;
+            flex-shrink: 0;
         }
         #modalVenda .pdv-add:disabled {
             opacity: 0.4;
@@ -4275,12 +4313,114 @@
                 const stClass = disp <= 0 ? 'out' : (disp <= (p.minQty || 5) ? 'low' : '');
                 const stTxt = disp <= 0 ? 'Sem estoque' : ('Estoque: ' + p.qty + (noCart ? ' (−' + noCart + ' no carrinho)' : ''));
                 return '<div class="pdv-card">' +
+                    getProductImageHtml(p) +
                     '<div class="nm">' + escapeHtml(p.name) + '</div>' +
                     '<div class="pr">' + formatMoney(p.price) + '</div>' +
                     '<div class="st ' + stClass + '">' + stTxt + '</div>' +
                     '<button type="button" class="pdv-add" ' + (disp < 1 ? 'disabled' : '') +
                     ' onclick="pdvAddProduto(\'' + p.id + '\')">+ Adicionar</button></div>';
             }).join('');
+        }
+
+        
+        
+        // Imagens / ícones das mercadorias
+        // Prioridade: 1) p.image (cadastrado no admin)  2) mapa por nome  3) emoji da categoria
+        const PRODUCT_IMAGES = {
+            // Cervejas
+            'CERVEJA BUDWEISER LONG NECK': 'https://logo.clearbit.com/budweiser.com',
+            'CERVEJA CORONA LONG NECK': 'https://logo.clearbit.com/corona.com',
+            'CERVEJA HEINEKEN 600': 'https://logo.clearbit.com/heineken.com',
+            'CERVEJA HEINEKEN LONG NECK': 'https://logo.clearbit.com/heineken.com',
+            'HEINEKEN LATA': 'https://logo.clearbit.com/heineken.com',
+            'CERVEJA ORIGINAL LITRO': 'https://logo.clearbit.com/ambev.com.br',
+            'ORIGINAL LATA': 'https://logo.clearbit.com/ambev.com.br',
+            'CERVEJA SPATEN 600': 'https://logo.clearbit.com/spaten.com',
+            'CERVEJA SPATEN LONG NECK': 'https://logo.clearbit.com/spaten.com',
+            // Refrigerantes / bebidas
+            'COCA COLA 2 LITROS': 'https://logo.clearbit.com/coca-cola.com',
+            'COCA COLA 2 LITROS - ZERO': 'https://logo.clearbit.com/coca-cola.com',
+            'COCA COLA LATA': 'https://logo.clearbit.com/coca-cola.com',
+            'COCA COLA LATA - ZERO': 'https://logo.clearbit.com/coca-cola.com',
+            'FANTA LARANJA 2 LITROS': 'https://logo.clearbit.com/fanta.com',
+            'FANTA LARANJA LATA': 'https://logo.clearbit.com/fanta.com',
+            'SPRITE LATA': 'https://logo.clearbit.com/sprite.com',
+            'GUARANÁ ANTARCTICA 2 LITROS': 'https://logo.clearbit.com/guaranaantarctica.com.br',
+            'GUARANÁ ANTARCTICA 2 LITROS - ZERO': 'https://logo.clearbit.com/guaranaantarctica.com.br',
+            'GUARANÁ ANTARCTICA LATA': 'https://logo.clearbit.com/guaranaantarctica.com.br',
+            'GATORADE': 'https://logo.clearbit.com/gatorade.com',
+            'POWER ADE': 'https://logo.clearbit.com/powerade.com',
+            'MONSTER BRANCO': 'https://logo.clearbit.com/monsterenergy.com',
+            'MONSTER MANGO': 'https://logo.clearbit.com/monsterenergy.com',
+            'MONSTER TRADICIONAL': 'https://logo.clearbit.com/monsterenergy.com',
+            'MONSTER TRADICIONAL - ZERO': 'https://logo.clearbit.com/monsterenergy.com',
+            // Doces
+            'KIT KAT AO LEITE': 'https://logo.clearbit.com/kitkat.com',
+            'KIT KAT BRANCO': 'https://logo.clearbit.com/kitkat.com',
+            'KIT KAT COTTON CANDY': 'https://logo.clearbit.com/kitkat.com',
+            'KIT KAT LEMON': 'https://logo.clearbit.com/kitkat.com',
+            'KIT KAT STRAWBERRY': 'https://logo.clearbit.com/kitkat.com',
+            'SNICKERS NEGRO': 'https://logo.clearbit.com/snickers.com',
+            'BIS BRANCO': 'https://logo.clearbit.com/lacta.com.br',
+            'BIS EXTRA ORIGINAL': 'https://logo.clearbit.com/lacta.com.br',
+            'PRINGLES CHURRASCO': 'https://logo.clearbit.com/pringles.com'
+        };
+
+        const CATEGORY_EMOJI = {
+            'Cervejas': '🍺',
+            'Refrigerantes': '🥤',
+            'Bebidas': '💧',
+            'Doces': '🍫',
+            'Snacks': '🥨',
+            'Sorvetes': '🍦',
+            'Outros': '📦',
+            'Diversos': '📦'
+        };
+
+        const CATEGORY_BG = {
+            'Cervejas': '#1a3a2a',
+            'Refrigerantes': '#1a2a3a',
+            'Bebidas': '#1a2e3a',
+            'Doces': '#3a2a1a',
+            'Snacks': '#3a321a',
+            'Sorvetes': '#2a1a3a',
+            'Outros': '#2a2a2a',
+            'Diversos': '#2a2a2a'
+        };
+
+        function getProductImageHtml(p) {
+            const name = String(p.name || '').trim();
+            const nameUp = name.toUpperCase();
+            let url = (p.image && String(p.image).trim()) || PRODUCT_IMAGES[name] || null;
+
+            if (!url) {
+                if (nameUp.indexOf('HEINEKEN') >= 0) url = PRODUCT_IMAGES['CERVEJA HEINEKEN LONG NECK'];
+                else if (nameUp.indexOf('COCA') >= 0) url = PRODUCT_IMAGES['COCA COLA LATA'];
+                else if (nameUp.indexOf('KIT KAT') >= 0 || nameUp.indexOf('KITKAT') >= 0) url = PRODUCT_IMAGES['KIT KAT AO LEITE'];
+                else if (nameUp.indexOf('MONSTER') >= 0) url = PRODUCT_IMAGES['MONSTER TRADICIONAL'];
+                else if (nameUp.indexOf('GUARAN') >= 0) url = PRODUCT_IMAGES['GUARANÁ ANTARCTICA LATA'];
+                else if (nameUp.indexOf('FANTA') >= 0) url = PRODUCT_IMAGES['FANTA LARANJA LATA'];
+                else if (nameUp.indexOf('SPRITE') >= 0) url = PRODUCT_IMAGES['SPRITE LATA'];
+                else if (nameUp.indexOf('SNICKERS') >= 0) url = PRODUCT_IMAGES['SNICKERS NEGRO'];
+                else if (nameUp.indexOf('PRINGLES') >= 0) url = PRODUCT_IMAGES['PRINGLES CHURRASCO'];
+                else if (nameUp.indexOf('BUDWEISER') >= 0) url = PRODUCT_IMAGES['CERVEJA BUDWEISER LONG NECK'];
+                else if (nameUp.indexOf('CORONA') >= 0) url = PRODUCT_IMAGES['CERVEJA CORONA LONG NECK'];
+                else if (nameUp.indexOf('GATORADE') >= 0) url = PRODUCT_IMAGES['GATORADE'];
+                else if (nameUp.indexOf('SPATEN') >= 0) url = PRODUCT_IMAGES['CERVEJA SPATEN LONG NECK'];
+                else if (nameUp.indexOf('ORIGINAL') >= 0) url = PRODUCT_IMAGES['ORIGINAL LATA'];
+                else if (nameUp.indexOf('BIS ') === 0 || nameUp.indexOf('BIS EXTRA') >= 0) url = PRODUCT_IMAGES['BIS BRANCO'];
+            }
+
+            const emoji = CATEGORY_EMOJI[p.category] || '🛒';
+            const bg = CATEGORY_BG[p.category] || '#1a2535';
+
+            if (url) {
+                return '<div class="pdv-img-wrap" style="background:' + bg + '">' +
+                    '<img src="' + url + '" alt="" loading="lazy" referrerpolicy="no-referrer" ' +
+                    "onerror=\"this.style.display='none';var f=this.parentNode.querySelector('.pdv-img-fallback');if(f)f.style.display='flex';\">" +
+                    '<span class="pdv-img-fallback" style="display:none">' + emoji + '</span></div>';
+            }
+            return '<div class="pdv-img-wrap" style="background:' + bg + '"><span class="pdv-img-fallback">' + emoji + '</span></div>';
         }
 
         function atualizarPdvStats() {
