@@ -5370,7 +5370,7 @@ function limparMovimentacoes() {
                         <td>
                             <strong>${escapeHtml(p.name)}</strong><br>
                             <span style="font-size:0.75rem;color:var(--text-muted);">${escapeHtml(p.category||'')}</span>
-                            ${p.barcode ? '<br><span style="font-size:0.72rem;color:#0d5c2e;font-family:monospace;">📷 ' + escapeHtml(p.barcode) + '</span>' : ''}
+                            ${p.barcode ? '<br><span style="font-size:0.72rem;color:#0d5c2e;font-family:monospace;">📷 ' + escapeHtml(p.barcode) + '</span>' : ''}${p.image ? '<br><span style="font-size:0.72rem;color:#0369a1;">🖼️ imagem</span>' : ''}
                         </td>
                         <td>${formatMoney(p.price)}</td>
                         <td>${p.qty}</td>
@@ -5443,6 +5443,8 @@ function limparMovimentacoes() {
             if (novoMin === null) return;
             const novoBarcode = prompt('Código de barras (deixe em branco para remover):', p.barcode || '');
             if (novoBarcode === null) return;
+            const novaImage = prompt('URL da imagem (deixe em branco para remover):', p.image || '');
+            if (novaImage === null) return;
 
             const barcodeLimpo = (novoBarcode || '').trim();
             if (barcodeLimpo && state.products.some(x => x.id !== id && (x.barcode || '').trim() === barcodeLimpo)) {
@@ -5457,6 +5459,7 @@ function limparMovimentacoes() {
             p.minQty = parseInt(novoMin, 10);
             if (isNaN(p.minQty)) p.minQty = 5;
             p.barcode = barcodeLimpo;
+            p.image = (novaImage || '').trim();
             registrarLogAdmin('Produto editado', p.name + ' — preço ' + formatMoney(precoAntigo) + ' → ' + formatMoney(p.price));
             saveState();
             renderAdminProdutos();
